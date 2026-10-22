@@ -129,7 +129,7 @@ function renderReactions(message,card) {
   }
   card.append(wrap);
 }
-let mentionIndex=0,mentionClosed=false,recipientMode='mentions';
+let mentionIndex=0,mentionClosed=false;
 function currentMention() {const body=$('#body');return mentionAt(body.value,body.selectionStart);}
 function mentionCandidates() {
   const span=currentMention();if(!span||!current)return [];
@@ -144,18 +144,12 @@ function chooseMention(member) {
 }
 function resolvedPreview() {
   if(!current)return {members:[],problem:''};
-  if(recipientMode==='chair'){
-    if(!current.chair)return {members:[],problem:'별도 좌장을 먼저 만들어줘.'};
-    if(current.chair.status!=='ready')return {members:[],problem:chairStatus(current.chair.status)+(current.chair.error?' · '+current.chair.error:'')};
-    if(current.deliveries.some(d=>d.session_id===current.chair.session_id&&d.state==='unknown'))return {members:[],problem:'좌장 카드에서 이전 실행 결과를 먼저 확인해줘.'};
-    const chairs=current.members.filter(m=>!m.left_at&&m.role==='chair');
-    if(chairs.length!==1)return {members:[],problem:chairs.length?'좌장이 여러 명이야. 한 명으로 지정해줘.':'별도 좌장을 먼저 만들어줘.'};
-    if(chairs[0].read_only)return {members:[],problem:`${memberName(chairs[0])} · 읽기 전용 좌장이라 질문을 보낼 수 없어.`};
-    return {members:chairs,problem:'',chair:true};
-  }
+  const readyChair=()=>{const chairs=current.members.filter(m=>!m.left_at&&m.role==='chair');const chair=chairs[0];if(!current.chair||current.chair.status!=='ready'||chairs.length!==1||chair.session_id!==current.chair.session_id||chair.read_only)return {problem:'준비된 전용 좌장이 필요해.'};if(current.deliveries.some(d=>d.session_id===current.chair.session_id&&d.state==='unknown'))return {problem:'좌장 카드에서 이전 실행 결과를 먼저 확인해줘.'};return {member:chair};};
   if(mentionSpans($('#body').value,true).some(span=>!span.alias))return {members:[],problem:'멘션할 이름을 골라줘.'};
   const aliases=parseAliases($('#body').value),members=current.members.filter(m=>!m.left_at);
-  if(!aliases.length)return {members:members.filter(m=>!m.read_only&&m.session_id!==current.chair?.session_id),problem:'',all:true};
+  if(!aliases.length){
+    const ready=readyChair();return ready.problem?{members:[],problem:ready.problem}:{members:[ready.member],problem:'',chair:true};
+  }
   const chosen=[];
   for(const alias of aliases) {
     const matches=members.filter(m=>m.alias===alias);
@@ -163,19 +157,19 @@ function resolvedPreview() {
     if(matches[0].read_only)return {members:[],problem:`@${alias} · 읽기 전용이라 질문을 보낼 수 없어.`};
     chosen.push(matches[0]);
   }
+  if(chosen.some(m=>m.role==='chair')){const ready=readyChair();if(ready.problem)return {members:[],problem:ready.problem};}
   return {members:chosen,problem:''};
 }
 function renderPreview() {
   const box=$('#recipientPreview');if(!box)return;box.replaceChildren();
   const kind=$('#kind').value;
   const execution=['followup','steer'].includes(kind);
-  $('#composer button[type=submit]').textContent=execution&&recipientMode==='chair'?'좌장에게 보내기':'보내기';
-  $('#composeNote').textContent=!execution?'공동 대화에 기록해요.':recipientMode==='chair'?'취합·중재를 좌장에게 요청 · 본문의 @멘션은 참고용':'@이름으로 지정 · 멘션이 없으면 미리보기에 나온 모두에게';
-  for(const button of document.querySelectorAll('.recipient-modes button'))button.disabled=!execution;
+  $('#composer button[type=submit]').textContent='보내기';
+  $('#composeNote').textContent=!execution?'공동 대화에 기록해요.':'@이름으로 지정 · 멘션이 없으면 좌장이 내용을 보고 필요한 참여자에게 전달해요.';
   if(['post','notify'].includes(kind)){box.append(text('span','게시와 알림은 실행 요청을 만들지 않아요.'));return;}
   const preview=resolvedPreview();box.className='recipient-preview'+(preview.problem?' invalid':'');
   if(preview.problem){box.append(text('span',preview.problem));return;}
-  box.append(text('span',preview.chair?'좌장에게':preview.all?'모두에게':'보낼 대상','recipient-caption'));
+  box.append(text('span',preview.chair?'좌장이 내용을 보고 필요한 참여자에게 전달해요':'보낼 대상','recipient-caption'));
   for(const m of preview.members){const chip=text('span','','recipient-chip');chip.append(avatar(m),text('span',memberName(m)));box.append(chip);}
   if(!preview.members.length)box.append(text('span','질문할 수 있는 참여자가 없어요.'));
 }
@@ -189,7 +183,7 @@ function renderMentionMenu() {
   candidates.forEach((member,index)=>{
     const option=text('button','','mention-option'+(index===mentionIndex?' selected':''));option.type='button';
     option.id='mention-option-'+index;option.setAttribute('role','option');option.setAttribute('aria-selected',String(index===mentionIndex));
-    option.append(avatar(member),text('strong',memberName(member)),text('small',providerName(member)+(member.read_only?' · 읽기 전용':'')));
+    option.append(avatar(member),text('strong',memberName(member)),text('small',providerName(member)+(member.role==='chair'?' · 좌장':member.read_only?' · 읽기 전용':'')));
     option.onmousedown=e=>e.preventDefault();option.onclick=()=>chooseMention(member);menu.append(option);
     if(!menu.hidden&&index===mentionIndex)$('#body').setAttribute('aria-activedescendant',option.id);
   });
@@ -209,6 +203,7 @@ const attachButton=text('button','파일 추가','attachment-button');attachButt
 const attachInput=document.createElement('input');attachInput.type='file';attachInput.multiple=true;attachInput.hidden=true;attachInput.setAttribute('aria-label','첨부할 파일 선택');
 const attachmentToolbar=text('div','','attachment-toolbar');attachmentToolbar.append(attachButton,attachInput,attachmentStrip);$('#body').closest('.message-label').after(attachmentToolbar);
 $('#body').required=false;
+$('#body').placeholder='@이름으로 보낼 참여자를 지정하거나, 좌장에게 맡겨보세요';
 const asBase64=file=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(reader.error);reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.readAsDataURL(file);});
 const attachmentComposer=createAttachmentComposer({
   upload:async(roomId,file,requestKey)=>req(`/api/rooms/${roomId}/attachments`,{method:'POST',body:JSON.stringify({filename:file.name,mime:file.type||'application/octet-stream',base64:await asBase64(file),requestKey})}),
@@ -228,7 +223,7 @@ $('#composer').addEventListener('submit',async event=>{
   if(attachmentComposer.pending())return error('첨부 업로드가 끝난 뒤 보낼 수 있어.');
   if(attachmentComposer.hasFailed())return error('실패한 첨부를 재시도하거나 제거해줘.');
   const attachments=attachmentComposer.items().filter(item=>item.status==='ready');
-  const roomId=current.id,payload={body:$('#body').value,kind,routingMode:recipientMode,targets:[],attachmentIds:attachments.map(item=>item.meta.id)};
+  const roomId=current.id,payload={body:$('#body').value,kind,routingMode:'auto',targets:[],attachmentIds:attachments.map(item=>item.meta.id)};
   if(!payload.body.trim()&&!payload.attachmentIds.length)return error('메시지나 첨부를 추가해줘.');
   const signature=JSON.stringify({room:current.id,...payload});
   if(pendingSend?.signature!==signature)pendingSend={signature,key:crypto.randomUUID()};
@@ -256,10 +251,6 @@ async function editLimits(){if(!current)return;const {d,f}=dialog('토론 한도
 function updateRoomControls(){for(const id of ['invite','limits'])$('#'+id).disabled=!active();$('#composer button[type=submit]').disabled=!active()||attachmentComposer?.pending();const steer=$('#kind option[value=steer]');steer.disabled=true;steer.textContent='방향 수정 · 연결 미지원';}
 const inviteButton=memberButton('세션 초대',()=>invite());inviteButton.id='invite';const limitButton=memberButton('토론 한도',editLimits);limitButton.id='limits';$('.room-actions').prepend(inviteButton,limitButton);$('#discover').onclick=showDiscovery;
 
-const recipientModes=text('div','','recipient-modes');recipientModes.setAttribute('role','group');recipientModes.setAttribute('aria-label','질문 수신자');
-const audienceButton=text('button','참여자에게','selected'),chairButton=text('button','좌장에게');
-for(const [button,mode] of [[audienceButton,'mentions'],[chairButton,'chair']]){button.type='button';button.setAttribute('aria-pressed',String(mode===recipientMode));button.onclick=()=>{recipientMode=mode;audienceButton.classList.toggle('selected',mode==='mentions');chairButton.classList.toggle('selected',mode==='chair');audienceButton.setAttribute('aria-pressed',String(mode==='mentions'));chairButton.setAttribute('aria-pressed',String(mode==='chair'));$('#composer button[type=submit]').textContent=mode==='chair'?'좌장에게 보내기':'보내기';renderPreview();};recipientModes.append(button);}
-$('#recipientPreview').before(recipientModes);
 $('#kind').value='followup';$('#kind').dispatchEvent(new Event('change'));
 
 const chairStatus=state=>({initializing:'좌장 생성 중',ready:'좌장 준비됨',submitting:'좌장에게 전달 중',running:'응답 생성 중',unknown:'좌장 실행 확인 필요',failed:'좌장 연결 실패'}[state]||state);

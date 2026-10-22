@@ -14,6 +14,15 @@ test('chair invalid targets roll back every output and never auto replay',async(
  await c.create(r.id);const input=s.post({roomId:r.id,body:'ask',kind:'followup',routingMode:'chair',requestKey:'bad'});await c.tick(r.id);await c.tick(r.id);
  assert.equal(calls,1);assert.equal(s.room(r.id).messages.some(m=>m.body==='must rollback'),false);assert.equal(s.snapshot(input.message.id).deliveries[0].state,'unknown');
 });
+test('chair output cannot re-send a current explicit recipient and remains atomic',async()=>{
+ const s=new Store(),r=s.createRoom('dedup'),peer=participant(s,r),c=new ChairCoordinator(s,{runner:readyRunner});const chair=await c.create(r.id);
+ const chairMember=s.room(r.id).members.find(m=>m.session_id===chair.session_id);
+ const input=s.post({roomId:r.id,body:'mixed',kind:'followup',targets:[chairMember.id,peer.id],requestKey:'mixed'});
+ const run=s.chairRun(r.id,input.deliveries.find(d=>d.membership_id===chairMember.id).request_id);
+ assert.throws(()=>c.applyOutput(r.id,chair,{message_id:input.message.id,request_id:run.request_key,body:'mixed'},run,{id:'none'}, {speech:'will fail',questions:[{targetMembershipIds:[peer.id],body:'mixed'}],proposal:null}),/중복 전달/);
+ assert.equal(s.room(r.id).messages.some(m=>m.body==='will fail'),false);
+ assert.doesNotThrow(()=>c.validate(r.id,chair,{speech:'clarify',questions:[{targetMembershipIds:[peer.id],body:'Which constraint matters most?'}],proposal:null},{currentTargets:[peer.id],currentInput:'mixed'}));s.db.close();
+});
 
 test('reply consolidation is correlated, system authored and not repeated',async()=>{
  const s=new Store(),r=s.createRoom('summary'),peer=participant(s,r);let calls=0;
