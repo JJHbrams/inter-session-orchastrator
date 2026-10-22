@@ -47,6 +47,7 @@ def render(bundle: Path, source: Path | None = None, output: Path | None = None,
             local_links['session-room-runtime-validation'] = 'runtime-validation.html'
             local_links['session-personas'] = 'session-personas.html'
             local_links['dedicated-chair'] = 'dedicated-chair.html'
+            local_links['resizable-panels'] = 'resizable-panels.html'
             content = re.sub(r'\[\[([\w-]+)\]\]', lambda m: f'<a href="{local_links[m[1]]}">{m[1]}</a>' if m[1] in local_links else m[0], content)
     headings = re.findall(r'<h2 id="([^"]+)">(.*?)</h2>', content)
     nav = "\n".join(f'<a href="#{html.escape(anchor)}">{label}</a>' for anchor, label in headings)

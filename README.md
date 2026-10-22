@@ -49,6 +49,7 @@ npm test
 storage 17개, persona/parser/migration 4개, 좌장 조율 9개·CLI runner 2개·인증 클라이언트 4개, 실제 HTTP/MCP 통합 1개, stdio 초기화 1개가 통과했다. 이 테스트가 원래 V-01~V-13의 실제 host 검증을 대체하지는 않는다.
 
 - [별도 좌장·인증 복구·메신저 명세](docs/dedicated-chair.html) / [원문](docs/design/0003-dedicated-chair.md) / [실제 검증 근거](docs/validation/dedicated-chair.json)
+- [패널 조절·이름 변경 명세](docs/resizable-panels.html) / [원문](docs/design/0004-resizable-panels.md)
 - [실행·검증 보고서](docs/runtime-validation.html) / [원문](docs/runtime-validation.md)
 - [프로필·멘션·이모지 기능 명세](docs/session-personas.html) / [원문](docs/design/0002-session-personas.md)
 - [검증 근거 JSON](docs/validation/runtime.json)
