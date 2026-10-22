@@ -1,6 +1,6 @@
 {
   "date": "2026-10-22",
-  "status": "design-draft",
+  "status": "building",
   "spec_check": "pass",
   "report_lint": {
     "blocking": 0,
@@ -8,26 +8,45 @@
   },
   "wiki_report_body_equal": true,
   "wiki_comparison_excludes": "tool-managed empty Progress timestamp section",
-  "html_source_sha256": "05957e7c574a9abcb4a13a30341bb58397a93bc0dd1cfaae84d8f5b2ec008cc2",
+  "html_source_sha256": "c862a4dd03856b683016d5622cafe305fa63f1f3c6dd4f130d55e0c9e648a463",
   "browser_qa": {
     "diagrams": 5,
     "diagram_errors": 0,
     "page_horizontal_overflow": false,
     "diagram_horizontal_overflow": false,
-    "visual_review": "revised overview and state diagram inspected"
+    "visual_review": "revised overview and state diagram inspected",
+    "scope": "previous design review; runtime UI verified separately at two viewports",
+    "latest_report_visual_review": "unverified: browser rejected local file protocol; no alternative browser route attempted"
   },
   "wiki_global_lint": {
     "existing_issues": 52,
     "scope": "outside this project in displayed findings; not repaired"
   },
-  "product_runtime": "not implemented; no session messages sent",
-  "stage": "benchmark findings incorporated into draft spec; implementation not started",
+  "product_runtime": "Node/SQLite/browser UI and scoped HTTP/stdio MCP implemented; only authorized new canaries messaged",
+  "stage": "browser pilot verified; existing-session host adapter remains incomplete",
   "acceptance_criteria": 10,
-  "implementation_slices_completed": 0,
+  "implementation_slices_completed": 1,
   "implementation_slices_total": 7,
   "runtime_scenarios": {
     "planned": 13,
-    "executed": 0
+    "full_original_scenarios_completed": 0,
+    "pilot_correlated_replies": 3,
+    "pilot_unconfirmed_proposals": 1
   },
-  "benchmark_design_traceability": 8
+  "benchmark_design_traceability": 8,
+  "runtime_evidence": "docs/validation/runtime.json",
+  "runtime_report": {
+    "markdown": "docs/runtime-validation.md",
+    "html": "docs/runtime-validation.html",
+    "body_sha256": "ef4f34516b865c3249a894c4c206bb636103f92b8ca85053edf0690ccd805676",
+    "wiki_body_equal": true,
+    "lint": {
+      "blocking": 0,
+      "warnings": 0
+    }
+  },
+  "full_acceptance": {
+    "AC-9": "PASS within browser pilot",
+    "others": "UNVERIFIED"
+  }
 }

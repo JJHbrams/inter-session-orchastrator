@@ -1,0 +1,50 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {spawn} from 'node:child_process';
+import {mkdtemp} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {createServer} from 'node:net';
+import readline from 'node:readline';
+
+test('real loopback HTTP and MCP enforce identity, room scope and protocol errors',async()=>{
+  const dir=await mkdtemp(join(tmpdir(),'iso-http-'));
+  const reserve=createServer();await new Promise(r=>reserve.listen(0,'127.0.0.1',r));const port=reserve.address().port;await new Promise(r=>reserve.close(r));
+  const child=spawn(process.execPath,['services/coordinator/server.js'],{env:{...process.env,PORT:String(port),ROOMS_DB:join(dir,'test.sqlite')},windowsHide:true,stdio:['ignore','pipe','pipe']});
+  let gateway;
+  try{
+    await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(Error('HTTP startup timeout')),5000);child.stdout.on('data',b=>{if(b.toString().includes('listening')){clearTimeout(t);resolve()}});child.on('error',reject);child.on('exit',()=>{clearTimeout(t);reject(Error('HTTP process exited'))})});
+    const base=`http://127.0.0.1:${port}`,boot=await fetch(base+'/api/bootstrap'),cookie=boot.headers.get('set-cookie').split(';')[0],{csrf}=await boot.json();
+    const call=async(path,data,extra={})=>{const r=await fetch(base+path,{method:data?'POST':'GET',headers:{cookie,'x-csrf-token':csrf,'Content-Type':'application/json',...extra},body:data?JSON.stringify(data):undefined});return {status:r.status,data:await r.json()}};
+    assert.equal((await call('/api/bootstrap',null,{Origin:'https://unrelated.example'})).status,403);
+    const room=(await call('/api/rooms',{name:'test'})).data;
+    const reg=(await call('/api/sessions',{provider:'codex',host:'test',nativeId:'test-id',cwd:'C:/test',profile:'test',mode:'live_attach',verified:true,capabilities:{followup:true,mcpPull:true}})).data;
+    const member=(await call(`/api/rooms/${room.id}/join`,{sessionId:reg.session.id,readOnly:false})).data;
+    const provision=(await call(`/api/rooms/${room.id}/provision`,{sessionId:reg.session.id})).data;
+    const posted=await call(`/api/rooms/${room.id}/messages`,{body:'human',senderSessionId:reg.session.id,kind:'followup',targets:[member.id],requestKey:'http-idempotent'});
+    assert.equal(posted.data.message.sender_session_id,null);
+    assert.equal((await call(`/api/rooms/${room.id}/messages`,{body:'human',kind:'followup',targets:['foreign-member']})).status,400);
+    const mcpHeaders={Authorization:`Bearer ${provision.token}`};
+    assert.equal((await call(`/api/rooms/${room.id}/sessions/${reg.session.id}/output`)).status,403);
+    const otherRoom=(await call('/api/rooms',{name:'other'})).data;
+    assert.equal((await call(`/api/rooms/${otherRoom.id}/sessions/${reg.session.id}/output`)).status,403);
+    const proposal=await call('/mcp/room_result',{body:'isolated test proposal',sourceIds:[posted.data.message.id]},mcpHeaders);
+    assert.equal(proposal.status,201);
+    assert.equal((await call(`/api/rooms/${room.id}/decisions/${proposal.data.id}/confirm`,{})).status,200);
+    const scopedRequest={body:'registered request',kind:'followup',targets:[member.id],requestKey:'registered-repeat'};
+    const once=await call('/mcp/room_request',scopedRequest,mcpHeaders),twice=await call('/mcp/room_request',scopedRequest,mcpHeaders);
+    assert.equal(once.data.message.id,twice.data.message.id);
+    assert.equal((await call('/mcp/room_reply',{requestId:'foreign-request',body:'forged'},mcpHeaders)).status,400);
+    gateway=spawn(process.execPath,['packages/mcp/server.js'],{env:{...process.env,ROOMS_URL:base,ROOMS_TOKEN:provision.token},windowsHide:true,stdio:['pipe','pipe','pipe']});
+    const pending=new Map();let next=1;readline.createInterface({input:gateway.stdout}).on('line',line=>{const x=JSON.parse(line);pending.get(x.id)?.(x);pending.delete(x.id)});
+    const rpc=(method,params)=>new Promise((resolve,reject)=>{const id=next++,timer=setTimeout(()=>reject(Error('MCP timeout')),5000);pending.set(id,x=>{clearTimeout(timer);resolve(x)});gateway.stdin.write(JSON.stringify({jsonrpc:'2.0',id,method,params})+'\n')});
+    await rpc('initialize',{protocolVersion:'2024-11-05',capabilities:{},clientInfo:{name:'test',version:'1'}});
+    gateway.stdin.write(JSON.stringify({jsonrpc:'2.0',method:'notifications/initialized'})+'\n');
+    const schemas=(await rpc('tools/list',{})).result.tools;assert.equal(schemas.length,6);assert.ok(schemas.find(x=>x.name==='room_reply').inputSchema.properties.requestId);
+    const denied=await rpc('tools/call',{name:'room_reply',arguments:{requestId:'foreign-request',body:'forged'}});assert.equal(denied.result.isError,true);
+    const context=await rpc('tools/call',{name:'room_context',arguments:{}});assert.equal(JSON.parse(context.result.content[0].text).id,room.id);
+    assert.equal((await call('/.local/rooms.sqlite')).status,404);
+    await call(`/api/rooms/${room.id}/leave`,{sessionId:reg.session.id});
+    assert.equal((await call('/mcp/room_context',{},mcpHeaders)).status,401);
+  }finally{gateway?.kill();child.kill();}
+});

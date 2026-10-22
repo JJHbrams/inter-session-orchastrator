@@ -1,0 +1,6 @@
+{
+  "name": "inter-session-rooms",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node services/coordinator/server.js", "test": "node --test" }
+}

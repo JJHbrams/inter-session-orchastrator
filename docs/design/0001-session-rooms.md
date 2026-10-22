@@ -30,11 +30,11 @@ updated: 2026-10-22
 ## 한눈에 보기
 
 - 목적: 사람이 세션 사이에서 복사·요약·전달하는 일을 줄인다.
-- 현재 상태: 고정 revision 소스 조사와 로컬 host/UI 분석을 본문에 반영한 설계 초안이다. 조사 문서 8개와 소스 근거 46건이 있으며 앱 런타임은 아직 없다.
+- 현재 상태: building. Node·SQLite·브라우저 UI·MCP 실행판을 구현했고, 새 Codex·Claude의 상관 응답 3건과 좌장 제안 1건을 검증했다. 전체 명세 완료는 아니다.
 - 핵심 결론: 채널 UI와 좌장은 직접 만들고, 기존 세션 연결은 호스트별 어댑터로 분리한다.
-- 원인 또는 판단 근거: 기존 제품에서 live 연결 실패 후 resume, busy 자동 steer, claim을 running으로 표시, 외부 제출 전후 기록 차이를 확인했다. 이 차이를 신원·전달·복구 계약에 반영한다. Windows/Orca 실동작은 미검증이다.
+- 원인 또는 판단 근거: 고정 소스 근거 46건을 계약에 반영했다. 실제 canary 원문·request/reply-to, MCP stdio 및 테스트 16개, 두 해상도 UI는 [[session-room-runtime-validation]]에 기록했다. 기존 작업 세션의 자동 제어는 미검증이다.
 - 결정: 2026-10-22 사용자가 개정 spec 검토 후 구현 착수를 승인했다. 수용 기준을 구현 기준으로 삼으며 실제 연결의 지원 범위는 host capability로 확인한다.
-- 다음 행동: 이 명세의 의도·수용 기준을 검토한 뒤 읽기 전용 host capability 조사부터 시작한다. 이후 검증 계획 V-01~V-13으로 실제 요청·응답을 확인한다.
+- 다음 행동: 기존 세션의 native ID·권한·busy/draft·host 제출/응답을 함께 확인하는 어댑터를 구현하고 원래 V-01~V-13을 수행한다.
 - 최종 갱신: 2026-10-22, Asia/Seoul.
 
 ## 1. 의도 (Intent)
@@ -60,7 +60,7 @@ updated: 2026-10-22
 
 ## 2. 수용 기준 (Acceptance)
 
-아래는 구현 후 충족해야 할 제안 기준이다. 현재 통과한 기능 목록이 아니다. V 번호는 [[benchmark-validation-plan]]의 미실행 시나리오다. 권한 보존·모드 전환·UI 기준은 해당 시나리오의 추가 관측 항목으로 함께 검증한다.
+아래는 승인된 구현 수용 기준이며 현재 통과한 기능 목록이 아니다. V 번호는 [[benchmark-validation-plan]]의 전체 절차 미완료 시나리오다. 격리 테스트·신규 canary·기존 작업 세션 검증을 구분한 현황은 §12와 [[session-room-runtime-validation]]에 있다.
 
 | ID | 수용 기준 | 검증 방법 |
 |---|---|---|
@@ -81,7 +81,8 @@ updated: 2026-10-22
 
 | 확인된 사실 | 근거 문서 | 증거 범위 |
 |---|---|---|
-| 이 작업 폴더는 Git 저장소가 아니며 제품 런타임이 없다. | 로컬 git status 및 파일 관측 | 현재 폴더 관측 |
+| feat/session-rooms와 문서 기준점 b3bb253을 만들고 Node·SQLite·브라우저 앱 및 stdio MCP를 구현했다. | [[session-room-runtime-validation]], package.json·실제 실행 | 로컬 실행판. 배포·설치형 패키지 아님 |
+| 사용자 지정 신규 Codex·Claude 두 세션에서 응답 3건과 좌장 제안 1건을 저장했고 테스트 16개가 통과했다. | [[session-room-runtime-validation]]의 request/reply ID 및 tests/*.test.js | 실제 모델은 HTTP helper 사용. stdio MCP는 별도 프로토콜 검증 |
 | magents에는 live 전달 실패 후 resume 경로와 외부 전송 뒤 mailbox 기록 경로가 있다. | [[magents-benchmark]], revision 0dd29e28f8170150b0135d93e55ee1d3b8ffa45a | 소스 분기·순서 확인. 실패 재현은 아님 |
 | agent-intercom은 busy Codex에 steer하며, Claude socket ACK는 300ms 연결 유지 기준이다. claim 복구 후 재시도 경계도 있다. | [[intercom-benchmark]], revision 610cc64f489cba940bab27ff88d0e5f77c004359 | 모델 소비 ACK와 다름. 중복 실행 가능성은 미재현 가설 |
 | agentmux는 영속 대기열·writer·submission fence·unverified 상태를 구현한다. native 채택 경로는 자동화 권한 설정도 변경한다. | [[agentmux-benchmark]], revision 3d4244dd7f69254b379814d8bc1231f42c4d93ae | native는 runtime backend 구분. Windows 지원 증거가 아님 |
@@ -114,7 +115,7 @@ updated: 2026-10-22
 
 ChatPanel 전체 이식 대신 MarkdownCodeBlock·패널 레이아웃 같은 작은 단위부터 검토한다. MarkdownImage도 순수 컴포넌트가 아니므로 source URL resolver를 분리해야 한다. TerminalPanel의 새 PowerShell 생성·unmount kill은 앱 소유 세션에만 검토 가능하며 빌린 세션의 attach UI에 그대로 쓰지 않는다.
 
-React/TypeScript·Tauri·SQLite는 후보 조합이다. Next.js 유지와 백엔드 언어를 포함한 스택 확정은 host capability spike 이후다. 이 문서의 SQLite 표기는 영속 transaction 요구를 설명하는 설계 후보이며 데이터 계약은 언어·패키징과 분리한다.
+첫 실행판은 의존 패키지 없는 Node 24·내장 SQLite·HTML/CSS/JavaScript로 구현했다. NotebookLM 코드를 복사하지 않았다. 설치형 shell과 React/TypeScript·Tauri 전환은 후속 선택이며 데이터·MCP 계약은 패키징과 분리한다.
 
 ## 4. 유스케이스 (Use Cases)
 
@@ -135,6 +136,8 @@ flowchart LR
 예시: API 프로젝트의 Claude와 클라이언트 프로젝트의 Codex를 초대한다. 사용자가 호환성 논의를 요청하면 좌장이 각 세션에 질문한다. 두 세션은 자기 작업 맥락에서 답하고 상대 발언에 reply한다. 좌장이 불일치와 합의를 원문 인용으로 남기고 사용자가 후속 작업을 지시한다.
 
 ## 5. 구조와 처리 흐름 (Flow)
+
+아래는 목표 host 자동 연결 흐름이다. 현재 실행판은 등록된 참여자가 inbox를 직접 읽는 협력 방식이며, 검증자는 새 canary에만 명시적으로 호출했다. inbox 응답 전에 writer·attempt/fence를 저장하고 unknown이면 후속 제공을 막는다. 이 경로가 기존 host의 idle·초안·권한 제어를 대체하지 않으며 자동 wake·steer는 지원하지 않는다.
 
 ```mermaid
 flowchart TD
@@ -338,7 +341,7 @@ room은 보관하고 membership은 이탈 시각을 기록한다. 이탈이나 U
 
 ## 9. 변경 지점 (Change Surface)
 
-아래 앱 경로는 구현 계획이다. 현재 작성한 설계 문서와 렌더링 도구 외에는 아직 존재하지 않는다.
+아래는 현재 구현과 남은 변경 지점이다. 실행 증거와 제약은 [[session-room-runtime-validation]]에 연결한다.
 
 | 경로 | 변경 계획 |
 |---|---|
@@ -346,14 +349,15 @@ room은 보관하고 membership은 이탈 시각을 기록한다. 이탈이나 U
 | `docs/design/0001-session-rooms.md` | 이 명세의 로컬 원본 |
 | `docs/index.html` | 같은 본문에서 생성한 검토용 HTML |
 | `tools/render_design.py` | Markdown → HTML 및 본문 동등성 hash |
-| `apps/desktop/` | (신규) 채널·참석자·공동 대화·개별 입력 화면 |
-| `services/coordinator/` | (신규) SQLite 이벤트/outbox와 수신 세션별 전달 |
-| `adapters/orca/` | (신규) host discovery, capability, 메시지와 응답 회수 |
-| `adapters/codex/` | (신규) 앱 소유 참여자/좌장 lifecycle |
-| `adapters/claude/` | (신규) 앱 소유 참여자/좌장 lifecycle |
-| `packages/contracts/` | (신규) 신원, 멤버십, 메시지, delivery 공통 계약 |
-| `packages/mcp/` | (신규) room 발언·요청·응답 표면 |
-| `tests/integration/` | (신규) 실제 세션 및 장애 복구 시나리오 |
+| `apps/desktop/` | 구현: 브라우저 채널·참석자·공동 대화·대상 입력·개별 출력 |
+| `services/coordinator/` | 구현: SQLite 이벤트/outbox·writer/fence·HTTP·협력 inbox/reply |
+| `adapters/orca/` | 구현: 읽기 전용 discovery·선택한 멤버 출력. 미구현: 자동 입력·응답 재대조 |
+| `adapters/codex/` | (신규) 후속: 앱 소유 참여자/좌장 lifecycle |
+| `adapters/claude/` | (신규) 후속: 앱 소유 참여자/좌장 lifecycle |
+| `packages/contracts/` | 구현: 신원·멤버십·delivery 공통 계약 |
+| `packages/mcp/` | 구현: 실제 stdio 6개 room 도구 및 비공개 설정 기반 HTTP helper |
+| `tests/` | 구현: storage 14·HTTP/MCP 통합 1·stdio 초기화 1, live runbook·제약 목록 |
+| `docs/runtime-validation.md` | Wiki 보고서의 동일 본문 및 HTML·스크린샷·검증 JSON |
 
 ## 10. 잠재 문제 (Risks)
 
@@ -382,9 +386,9 @@ room은 보관하고 membership은 이탈 시각을 기록한다. 이탈이나 U
 
 ### 결정
 
-독립 앱과 adapter 분리를 제안한다. 벤치마킹 반영은 끝났지만 구현 승인은 별도다. 현재 draft와 아래 미완료 항목은 제품 기능이 있다는 뜻이 아니다.
+2026-10-22 구현 착수 승인에 따라 독립 앱과 adapter를 분리했다. A0의 capability 목록을 완료했고 나머지 slice는 부분 구현·검증 상태다. 사용자 지정 새 canary 검증을 기존 작업 세션의 검증으로 대체하지 않는다.
 
-- [ ] Slice A0 — 현재 host/provider 버전과 읽기 전용 capability·모호한 대상·소유권·정책을 목록화한다. 전송 불가 경로를 먼저 밝힌다. AC-1, AC-10.
+- [x] Slice A0 — 현재 host/provider 버전과 읽기 전용 capability·모호한 대상·소유권·정책을 목록화했다. 자동 입력·실효 정책·draft 관측 미지원 범위를 기록했다. AC-1, AC-10의 전체 통과와는 구분한다.
 - [ ] Slice A — 기존 Orca 두 provider 세션을 제한된 canary로 검증한다. exact identity·request·reply와 before/after 정책·프로세스 증거를 남긴다. AC-1, AC-4, AC-5, AC-10.
 - [ ] Slice B — 영속 outbox·writer·attempt/fence·멱등 접수로 대상별 전달과 busy/초안 보호·crash 복구를 연결한다. AC-2, AC-3, AC-4, AC-6.
 - [ ] Slice C — 채널/토론/참석자 카드/개별 보기/대상 입력에서 실제 상태·연결 모드·소유권·정책을 표시한다. AC-1, AC-2, AC-9, AC-10.
@@ -413,22 +417,23 @@ room은 보관하고 membership은 이탈 시각을 기록한다. 이탈이나 U
 
 | 기준 | 담당 slice | 필요한 실행 증거 / 현재 상태 |
 |---|---|---|
-| AC-1 | A0, A, C | V-01, V-02의 기존 신원 보존 / 미실행 |
-| AC-2 | B, C | V-10, V-11의 snapshot·직렬화 / 미실행 |
-| AC-3 | B | V-04~V-06의 busy·steer·초안 / 미실행 |
-| AC-4 | A, B | V-03, V-07, V-08의 단계별 증거 / 미실행 |
-| AC-5 | A, D | V-03, V-11, V-13의 상관 응답·scope 거부 / 미실행 |
-| AC-6 | B | V-07~V-09의 crash·멱등 키 / 미실행 |
-| AC-7 | E | V-13의 근거·합의/불일치·확정 / 미실행 |
-| AC-8 | D, E | V-12, V-13의 정지·한도·외부 수명 / 미실행 |
-| AC-9 | C | 두 해상도의 실제 사용자 경로·표시 / 미실행 |
-| AC-10 | A0, A, C, D | 모드별 ID·정책·프로세스 대조 / 미실행 |
-| 전체 | F | 원래 Windows/Orca의 V-01~V-13와 AC 추가 관측 / 미실행 |
+| AC-1 | A0, A, C | 신규 두 canary 신원 확인·등록. 기존 cross-project 조건 UNVERIFIED |
+| AC-2 | B, C | 실제 대상 요청 및 snapshot·room 간 writer 격리 테스트. 전체 E2E UNVERIFIED |
+| AC-3 | B | 미지원 steer 차단·브라우저 초안 유지. host busy/draft 제어 UNVERIFIED |
+| AC-4 | A, B | 실제 응답 회수·unknown/fence 격리 테스트. host 제출 재대조 UNVERIFIED |
+| AC-5 | A, D | 실제 원문·등록 신원·reply-to 및 room 위조 거부. provider turn 상관 UNVERIFIED |
+| AC-6 | B | 원자 저장·멱등 접수/응답·재시작 격리 테스트. provider crash E2E UNVERIFIED |
+| AC-7 | E | 좌장 질문·답변·근거 4개 제안. 별도 좌장·전체 의사결정 흐름 UNVERIFIED |
+| AC-8 | D, E | 한도·정지·이탈·늦은 reply 격리 테스트. 외부 수명 전체 E2E UNVERIFIED |
+| AC-9 | C | PASS: 브라우저 실행판, 1440×900·1280×800 실제 사용자 경로·개별 출력 확인 |
+| AC-10 | A0, A, C, D | mode·borrowed·관측 정책 표시. provider lifecycle·실효 정책 자동 검증 UNVERIFIED |
+| 전체 | F | 원래 V-01~V-13 전체 절차 미완료. building 유지 |
 
-완료한 것은 고정 소스 조사·분석 8개 문서와 그 결과를 반영한 이 설계·Wiki·HTML이다. 앱·MCP·provider 연결과 13개 실제 검증은 아직 구현하거나 실행하지 않았다.
+고정 소스 조사·분석 8개 문서에 이어 로컬 실행판과 테스트 16개를 구현했다. 새 Codex·Claude의 상관 응답 3건, 미확정 좌장 제안 1건, 두 해상도 UI를 검증했다. 모델의 room-scoped HTTP helper 사용과 별도 MCP stdio 검증을 구분한다. 실제 canary 호출은 검증자가 수행했으며 기존 세션 자동 wake, new/resume/fork, 세 번째 전용 좌장, 설치형 패키지는 미구현이다. 상세 증거와 한계는 [[session-room-runtime-validation]]에 있다.
 
 ## 참고
 
+- [[session-room-runtime-validation]] — 첫 실행판·실제 두 canary·수용 기준별 검증 범위.
 - [[inter-session-index]] — 프로젝트 진입점.
 - [[benchmark-analysis]] — 종합 판단과 설계 재검토 근거.
 - [[benchmark-sources]] — 46개 소스 근거, archive·LICENSE·로컬 hash.
