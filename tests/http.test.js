@@ -69,7 +69,7 @@ test('real loopback HTTP and MCP enforce identity, room scope and protocol error
     const rpc=(method,params)=>new Promise((resolve,reject)=>{const id=next++,timer=setTimeout(()=>reject(Error('MCP timeout')),5000);pending.set(id,x=>{clearTimeout(timer);resolve(x)});gateway.stdin.write(JSON.stringify({jsonrpc:'2.0',id,method,params})+'\n')});
     await rpc('initialize',{protocolVersion:'2024-11-05',capabilities:{},clientInfo:{name:'test',version:'1'}});
     gateway.stdin.write(JSON.stringify({jsonrpc:'2.0',method:'notifications/initialized'})+'\n');
-    const schemas=(await rpc('tools/list',{})).result.tools;assert.equal(schemas.length,6);assert.ok(schemas.find(x=>x.name==='room_reply').inputSchema.properties.requestId);
+    const schemas=(await rpc('tools/list',{})).result.tools;assert.equal(schemas.length,8);assert.ok(schemas.find(x=>x.name==="room_upload_attachment"));assert.ok(schemas.find(x=>x.name==="room_read_attachment"));assert.ok(schemas.find(x=>x.name==='room_reply').inputSchema.properties.requestId);
     const denied=await rpc('tools/call',{name:'room_reply',arguments:{requestId:'foreign-request',body:'forged'}});assert.equal(denied.result.isError,true);
     const context=await rpc('tools/call',{name:'room_context',arguments:{}});assert.equal(JSON.parse(context.result.content[0].text).id,room.id);
     assert.equal((await call('/.local/rooms.sqlite')).status,404);
