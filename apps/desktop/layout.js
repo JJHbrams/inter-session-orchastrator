@@ -1,15 +1,13 @@
 export const LAYOUT_KEY='session-rooms-layout-v1';
-export const DEFAULTS={sidebar:218,chair:180,upper:190,participants:90,composer:200,inspector:340};
-const RANGE={sidebar:[160,420],chair:[120,420],upper:[120,420],participants:[82,200],composer:[174,360],inspector:[230,520]};
+export const DEFAULTS={sidebar:218,composer:200,inspector:340};
+const RANGE={sidebar:[160,420],composer:[174,360],inspector:[230,520]};
 const finite=(value,fallback)=>typeof value==='number'&&Number.isFinite(value)?value:fallback;
 const clamp=(n,min,max)=>Math.round(Math.max(min,Math.min(max,n)));
 export function layoutLimits(viewport={}){
  const width=Math.max(320,finite(viewport.width,1280)),height=Math.max(320,finite(viewport.height,720));
  const available=Math.max(0,finite(viewport.availableHeight,height-90));
- const workspace=width<=800?width:width-clamp(finite(viewport.sidebar,DEFAULTS.sidebar),160,420)-7;
- return {width,available,budget:Math.max(376,available-123),ranges:{
+ return {width,available,budget:Math.max(174,available-123),ranges:{
   ...RANGE,sidebar:[160,Math.min(420,Math.max(160,width-487))],
-  chair:[120,Math.min(420,Math.max(120,workspace-300))],
   inspector:[230,Math.min(520,Math.max(230,width-28))]
  }};
 }
@@ -17,12 +15,17 @@ export function clampLayout(values={},viewport={},preferredKey){
  const source=values&&typeof values==='object'&&!Array.isArray(values)?values:{};
  const limits=layoutLimits(viewport),out={};
  for(const [key,base] of Object.entries(DEFAULTS)){const [min,max]=limits.ranges[key];out[key]=clamp(finite(source[key],base),min,max);}
- out.chair=clamp(out.chair,...layoutLimits({...viewport,sidebar:out.sidebar}).ranges.chair);
- const keys=['upper','participants','composer'];
- let excess=keys.reduce((n,key)=>n+out[key],0)-limits.budget;
- const order=preferredKey?[...keys.filter(k=>k!==preferredKey),preferredKey]:keys;
- for(const key of order){if(excess<=0)break;if(!keys.includes(key))continue;const reduce=Math.min(excess,out[key]-RANGE[key][0]);out[key]-=reduce;excess-=reduce;}
+ out.composer=clamp(out.composer,RANGE.composer[0],Math.min(RANGE.composer[1],limits.budget));
  return out;
+}
+export function mentionMenuGeometry(anchor,menu,viewport={}){
+ const width=Math.max(320,finite(viewport.width,1280)),height=Math.max(240,finite(viewport.height,720));
+ const inset=8,gap=6,menuWidth=Math.max(0,finite(menu.width,0)),menuHeight=Math.max(0,finite(menu.height,0));
+ const maxHeight=Math.min(230,Math.max(80,height-inset*2)),constrainedHeight=Math.min(menuHeight,maxHeight);
+ const left=clamp(finite(anchor.left,0),inset,Math.max(inset,width-inset-menuWidth));
+ const above=finite(anchor.top,0)-gap-constrainedHeight,below=finite(anchor.bottom,0)+gap;
+ const top=above>=inset?above:Math.min(Math.max(inset,below),Math.max(inset,height-inset-constrainedHeight));
+ return {left,top,maxHeight};
 }
 export function loadLayout(storage,viewport){try{return clampLayout(JSON.parse((storage??globalThis.localStorage).getItem(LAYOUT_KEY)||'{}'),viewport);}catch{return clampLayout({},viewport);}}
 export function saveLayout(values,storage){try{(storage??globalThis.localStorage).setItem(LAYOUT_KEY,JSON.stringify(values));}catch{}}
@@ -80,9 +83,6 @@ export function initLayout(){
   });
  }
  separator('sidebar','사이드바 너비','vertical',$('.sidebar'));
- separator('chair','좌장 프로필 너비','vertical',$('.chair-profile'));
- separator('upper','좌장과 정리 높이','horizontal',$('.chair-row'));
- separator('participants','참여 세션 행 높이','horizontal',$('.participants-row'));
  separator('composer','작성 영역 높이','horizontal',$('#timeline'),{reverse:true});
  separator('inspector','세션 상세 너비','vertical',$('.inspector'),{inside:true,reverse:true});
  const reset=document.createElement('button');reset.type='button';reset.textContent='배치 초기화';reset.className='layout-reset';reset.title='저장한 패널 크기를 기본값으로 되돌리기';
