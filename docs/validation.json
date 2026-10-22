@@ -54,13 +54,24 @@
     "spec": "docs/design/0002-session-personas.md",
     "html": "docs/session-personas.html",
     "evidence": "docs/validation/personas.json",
-    "body_sha256": "d49e96128f262c144f32539d6996c63539b17fe1fa30e05f8f21d277555e2088",
+    "body_sha256": "53ec2f453b5586a200fc17c62f32d5fb6c55183457bbb4496af8925549026b88",
     "wiki_body_equal": true,
     "spec_check": "pass",
     "report_lint": {
       "blocking": 0,
       "warnings": 0
     },
-    "test_count": 22
+    "test_count": 23
+  },
+  "chair_routing": {
+    "status": "done",
+    "acceptance": "AC-7",
+    "evidence": "docs/validation/chair-routing.json",
+    "screenshot": "docs/screenshots/chair-recipient.jpg",
+    "tests": 23,
+    "targeted_tests": 4,
+    "wiki_body_equal": true,
+    "html_source_sha256": "53ec2f453b5586a200fc17c62f32d5fb6c55183457bbb4496af8925549026b88",
+    "scope": "single-chair request routing; automatic wake and autonomous mediation remain unimplemented"
   }
 }

@@ -70,7 +70,7 @@ function renderReactions(message,card) {
   }
   card.append(wrap);
 }
-let mentionIndex=0,mentionClosed=false;
+let mentionIndex=0,mentionClosed=false,recipientMode='mentions';
 function currentMention() {const body=$('#body');return mentionAt(body.value,body.selectionStart);}
 function mentionCandidates() {
   const span=currentMention();if(!span||!current)return [];
@@ -85,6 +85,12 @@ function chooseMention(member) {
 }
 function resolvedPreview() {
   if(!current)return {members:[],problem:''};
+  if(recipientMode==='chair'){
+    const chairs=current.members.filter(m=>!m.left_at&&m.role==='chair');
+    if(chairs.length!==1)return {members:[],problem:chairs.length?'좌장이 여러 명이야. 한 명으로 지정해줘.':'좌장이 없어. 참여자 카드를 눌러 좌장으로 지정해줘.'};
+    if(chairs[0].read_only)return {members:[],problem:`${memberName(chairs[0])} · 읽기 전용 좌장이라 질문을 보낼 수 없어.`};
+    return {members:chairs,problem:'',chair:true};
+  }
   if(mentionSpans($('#body').value,true).some(span=>!span.alias))return {members:[],problem:'멘션할 이름을 골라줘.'};
   const aliases=parseAliases($('#body').value),members=current.members.filter(m=>!m.left_at);
   if(!aliases.length)return {members:members.filter(m=>!m.read_only),problem:'',all:true};
@@ -100,10 +106,14 @@ function resolvedPreview() {
 function renderPreview() {
   const box=$('#recipientPreview');if(!box)return;box.replaceChildren();
   const kind=$('#kind').value;
+  const execution=['followup','steer'].includes(kind);
+  $('#composer button[type=submit]').textContent=execution&&recipientMode==='chair'?'좌장에게 보내기':'보내기';
+  $('#composeNote').textContent=!execution?'공동 대화에 기록해요.':recipientMode==='chair'?'취합·중재를 좌장에게 요청 · 본문의 @멘션은 참고용':'@이름으로 지정 · 멘션이 없으면 미리보기에 나온 모두에게';
+  for(const button of document.querySelectorAll('.recipient-modes button'))button.disabled=!execution;
   if(['post','notify'].includes(kind)){box.append(text('span','게시와 알림은 실행 요청을 만들지 않아요.'));return;}
   const preview=resolvedPreview();box.className='recipient-preview'+(preview.problem?' invalid':'');
   if(preview.problem){box.append(text('span',preview.problem));return;}
-  box.append(text('span',preview.all?'모두에게':'보낼 대상','recipient-caption'));
+  box.append(text('span',preview.chair?'좌장에게':preview.all?'모두에게':'보낼 대상','recipient-caption'));
   for(const m of preview.members){const chip=text('span','','recipient-chip');chip.append(avatar(m),text('span',memberName(m)));box.append(chip);}
   if(!preview.members.length)box.append(text('span','질문할 수 있는 참여자가 없어요.'));
 }
@@ -136,7 +146,7 @@ $('#composer').addEventListener('submit',async event=>{
   event.preventDefault();if(!active())return error('보관된 토론장에는 새 입력을 남길 수 없습니다.');
   const kind=$('#kind').value,preview=resolvedPreview();
   if(['followup','steer'].includes(kind)&&(preview.problem||!preview.members.length))return error(preview.problem||'질문할 수 있는 참여자가 없어.');
-  const payload={body:$('#body').value,kind,routingMode:'mentions',targets:[]};
+  const payload={body:$('#body').value,kind,routingMode:recipientMode,targets:[]};
   const signature=JSON.stringify({room:current.id,...payload});
   if(pendingSend?.signature!==signature)pendingSend={signature,key:crypto.randomUUID()};
   try{await req(`/api/rooms/${current.id}/messages`,{method:'POST',body:JSON.stringify({...payload,requestKey:pendingSend.key})});pendingSend=null;$('#body').value='';mentionClosed=false;await openRoom(current.id);error();}
@@ -144,7 +154,7 @@ $('#composer').addEventListener('submit',async event=>{
 });
 $('#newRoom').onclick=()=>$('#roomDialog').showModal();$('#newChannel').onclick=()=>$('#channelDialog').showModal();$('#createRoom').onclick=async e=>{e.preventDefault();try{const r=await req('/api/rooms',{method:'POST',body:JSON.stringify({name:$('#roomName').value,channelId:$('#channelChoice').value||null})});$('#roomDialog').close();await refresh(false);openRoom(r.id)}catch(e){error(e.message)}};$('#createChannel').onclick=async e=>{e.preventDefault();try{await req('/api/channels',{method:'POST',body:JSON.stringify({name:$('#channelName').value})});$('#channelDialog').close();refresh(false)}catch(e){error(e.message)}};
 $('#pause').onclick=async()=>{try{await req(`/api/rooms/${current.id}/${current.paused_at?'resume':'pause'}`,{method:'POST',body:'{}'});openRoom(current.id)}catch(e){error(e.message)}};$('#archive').onclick=async()=>{try{await req(`/api/rooms/${current.id}/archive`,{method:'POST',body:'{}'});await refresh(false);error('토론장을 보관했습니다.')}catch(e){error(e.message)}};$('#discover').onclick=async()=>{try{const d=await req('/api/discovery');$('#memberDetail').textContent=d.error||d.sessions.map(s=>`${s.provider}: ${s.handle}\n${s.blockedReason}`).join('\n\n')||'발견된 세션이 없습니다.'}catch(e){error(e.message)}};
-$('#kind').onchange=()=>{renderPreview();$('#composeNote').textContent=['post','notify'].includes($('#kind').value)?'공동 대화에 기록해요.':'@이름으로 지정 · 멘션이 없으면 미리보기에 나온 모두에게';};
+$('#kind').onchange=()=>renderPreview();
 (async()=>{const b=await req('/api/bootstrap');csrf=b.csrf;await refresh(false);const first=rooms.find(r=>!r.archived_at)||rooms[0];if(first)openRoom(first.id);else updateRoomControls();setInterval(()=>{if(current)openRoom(current.id,false).catch(()=>{})},8000)})().catch(e=>error(e.message));
 
 function memberButton(label,action){const b=text('button',label);b.onclick=async()=>{try{await action()}catch(e){error(e.message)}};return b}
@@ -159,4 +169,9 @@ async function showDiscovery(){const {d,f}=dialog('현재 Orca 세션');f.append
 async function editLimits(){if(!current)return;const {d,f}=dialog('토론 한도');const requests=inputField(f,'최대 요청 수','requests',current.request_budget,'number'),rounds=inputField(f,'좌장 질문 라운드','rounds',current.round_budget,'number');for(const i of [requests,rounds]){i.min='1';i.max='100'}const errorBox=text('p','','form-error');f.append(errorBox);actions(f,'적용');f.onsubmit=async e=>{e.preventDefault();try{await req(`/api/rooms/${current.id}/limits`,{method:'POST',body:JSON.stringify({requestBudget:Number(requests.value),roundBudget:Number(rounds.value)})});d.close();await openRoom(current.id,false)}catch(e){errorBox.textContent=e.message}};d.showModal()}
 function updateRoomControls(){for(const id of ['invite','limits'])$('#'+id).disabled=!active();$('#composer button[type=submit]').disabled=!active();const steer=$('#kind option[value=steer]');steer.disabled=true;steer.textContent='방향 수정 · 연결 미지원';}
 const inviteButton=memberButton('세션 초대',()=>invite());inviteButton.id='invite';const limitButton=memberButton('토론 한도',editLimits);limitButton.id='limits';$('.room-actions').prepend(inviteButton,limitButton);$('#discover').onclick=showDiscovery;
+
+const recipientModes=text('div','','recipient-modes');recipientModes.setAttribute('role','group');recipientModes.setAttribute('aria-label','질문 수신자');
+const audienceButton=text('button','참여자에게','selected'),chairButton=text('button','좌장에게');
+for(const [button,mode] of [[audienceButton,'mentions'],[chairButton,'chair']]){button.type='button';button.setAttribute('aria-pressed',String(mode===recipientMode));button.onclick=()=>{recipientMode=mode;audienceButton.classList.toggle('selected',mode==='mentions');chairButton.classList.toggle('selected',mode==='chair');audienceButton.setAttribute('aria-pressed',String(mode==='mentions'));chairButton.setAttribute('aria-pressed',String(mode==='chair'));$('#composer button[type=submit]').textContent=mode==='chair'?'좌장에게 보내기':'보내기';renderPreview();};recipientModes.append(button);}
+$('#recipientPreview').before(recipientModes);
 $('#kind').value='followup';$('#kind').dispatchEvent(new Event('change'));

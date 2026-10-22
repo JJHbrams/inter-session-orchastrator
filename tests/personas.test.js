@@ -48,3 +48,19 @@ test('canonical request hash remains compatible and incomplete or read-only ment
   assert.throws(()=>store.post({roomId:room.id,body:`@${session.alias} @${readOnly.alias}`,kind:'followup',routingMode:'mentions'}),/read-only/);
   assert.equal(store.room(room.id).deliveries.length,1);store.db.close();
 });
+
+test('chair routing targets only the current writable chair and replays its original snapshot',()=>{
+  const store=new Store(),room=store.createRoom('r');
+  const make=(native,readOnly=false)=>store.registerSession({provider:'codex',host:'test',nativeId:native,cwd:'C:/'+native,profile:'default',mode:readOnly?'read_only':'live_attach',verified:!readOnly,capabilities:{followup:true}}).session;
+  const chair=make('chair'),other=make('other'),readonly=make('readonly',true);
+  const chairMember=store.join(room.id,chair.id,false),otherMember=store.join(room.id,other.id,false);store.join(room.id,readonly.id,true);store.role(room.id,chair.id,'chair');
+  const first=store.post({roomId:room.id,body:`@${other.alias} context only`,kind:'followup',routingMode:'chair',requestKey:'chair-once'});
+  assert.deepEqual(first.deliveries.map(d=>d.membership_id),[chairMember.id]);store.role(room.id,other.id,'chair');
+  assert.equal(store.post({roomId:room.id,body:`@${other.alias} context only`,kind:'followup',routingMode:'chair',requestKey:'chair-once'}).message.id,first.message.id);
+  const next=store.post({roomId:room.id,body:'next',kind:'followup',routingMode:'chair'});assert.deepEqual(next.deliveries.map(d=>d.membership_id),[otherMember.id]);
+  store.role(room.id,readonly.id,'chair');assert.throws(()=>store.post({roomId:room.id,body:'blocked',kind:'followup',routingMode:'chair'}),/read-only/);
+  store.db.prepare("UPDATE memberships SET role='member' WHERE room_id=?").run(room.id);assert.throws(()=>store.post({roomId:room.id,body:'missing',kind:'followup',routingMode:'chair'}),/exactly one/);
+  store.db.prepare("UPDATE memberships SET role='chair' WHERE id IN (?,?)").run(chairMember.id,otherMember.id);
+  assert.throws(()=>store.post({roomId:room.id,body:'ambiguous',kind:'followup',routingMode:'chair'}),/exactly one/);
+  const post=store.post({roomId:room.id,body:'record',kind:'post',routingMode:'chair'});assert.equal(post.deliveries.length,0);store.db.close();
+});
