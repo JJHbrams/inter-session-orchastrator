@@ -5,6 +5,8 @@ test('restore rejects malformed storage and nonnumeric dimensions without losing
  for(const value of [null,[],42,'bad',{}, {composer:Infinity,sidebar:NaN}])assert.deepEqual(clampLayout(value),DEFAULTS);
  assert.deepEqual(loadLayout({getItem:()=>'{bad'}),DEFAULTS);
  assert.deepEqual(loadLayout({getItem(){throw Error('unavailable');}}),DEFAULTS);
+});
+test('legacy removed layout keys are ignored while supported preferences load',()=>{
  assert.deepEqual(clampLayout({sidebar:260,chair:320,upper:280,participants:140,composer:240,inspector:300}),{sidebar:260,composer:240,inspector:300});
 });
 test('panel dimensions fit measured header space and protect the conversation',()=>{
@@ -17,6 +19,11 @@ test('panel dimensions fit measured header space and protect the conversation',(
    assert.ok(value.sidebar<=420&&value.inspector<=520);
   }
  }
+});
+test('composer limit leaves conversation space after the automatic session panel',()=>{
+ const viewport={width:1280,height:720,availableHeight:630,sessionHeight:275};
+ assert.equal(layoutLimits(viewport).budget,243);
+ assert.equal(clampLayout({composer:1e6},viewport,'composer').composer,243);
 });
 test('saved sizes round trip, reset clears preferences, storage denial is harmless',()=>{
  const storage={value:null,getItem(){return this.value},setItem(key,value){assert.equal(key,LAYOUT_KEY);this.value=value;},removeItem(){this.value=null;}};
