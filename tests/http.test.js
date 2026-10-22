@@ -24,6 +24,10 @@ test('real loopback HTTP and MCP enforce identity, room scope and protocol error
     const badCsrf=await call('/api/channels',{name:'never-create'},{'x-csrf-token':'stale'});assert.equal(badCsrf.status,403);assert.equal(badCsrf.data.code,'CSRF_INVALID');
     const foreignOrigin=await call('/api/channels',{name:'never-create'},{Origin:'https://unrelated.example'});assert.equal(foreignOrigin.status,403);assert.equal(foreignOrigin.data.code,'ORIGIN_INVALID');
     const room=(await call('/api/rooms',{name:'test'})).data;
+    const channel=(await call('/api/channels',{name:'old channel'})).data;
+    assert.equal((await call(`/api/channels/${channel.id}/rename`,{name:'new channel'})).data.name,'new channel');
+    assert.equal((await call(`/api/rooms/${room.id}/rename`,{name:'renamed room'})).data.name,'renamed room');
+    assert.equal((await call(`/api/rooms/${room.id}/rename`,{name:' ' })).status,400);
     await call(`/api/rooms/${room.id}/pause`,{});assert.equal((await call(`/api/rooms/${room.id}/chair`,{})).status,400);assert.equal((await call(`/api/rooms/${room.id}`)).data.chair,null);await call(`/api/rooms/${room.id}/resume`,{});
     const reg=(await call('/api/sessions',{provider:'codex',host:'test',nativeId:'test-id',cwd:'C:/test',profile:'test',mode:'live_attach',verified:true,capabilities:{followup:true,mcpPull:true}})).data;
     const member=(await call(`/api/rooms/${room.id}/join`,{sessionId:reg.session.id,readOnly:false})).data;
