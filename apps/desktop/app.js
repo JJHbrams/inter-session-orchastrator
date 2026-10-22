@@ -1,10 +1,15 @@
 import {parseAliases, mentionAt, mentionSpans} from '/mentions.js';
 import {createApiClient} from '/api-client.js';
 import {initLayout} from '/layout.js';
-let current, rooms=[], channels=[], pendingSend, selectedRoomId;const stateLabel={queued:'요청 대기',claimed:'전달 예약',submitting:'요청 제공 중',accepted:'호스트 접수',running:'생성 중',completed:'응답 회수',unknown:'확인 필요',blocked:'차단',failed:'실패',cancelled:'취소'}; const $=s=>document.querySelector(s);
+import {marked} from '/vendor/marked.js';
+import DOMPurify from '/vendor/purify.js';
+import {createRenderer} from '/rich-text.js';
+import {createAttachmentComposer} from '/attachments.js';
+let current, rooms=[], channels=[], pendingSend, selectedRoomId;const draftBodies=new Map();const stateLabel={queued:'요청 대기',claimed:'전달 예약',submitting:'요청 제공 중',accepted:'호스트 접수',running:'생성 중',completed:'응답 회수',unknown:'확인 필요',blocked:'차단',failed:'실패',cancelled:'취소'}; const $=s=>document.querySelector(s);
 const connection=document.createElement('div');connection.id='connection';connection.setAttribute('role','status');connection.hidden=true;$('#error').before(connection);
 const api=createApiClient({onConnection:state=>{connection.hidden=state==='online';connection.textContent=state==='offline'?'연결 끊김 · 입력은 보존돼. 로컬 서버가 돌아오면 자동으로 다시 연결할게.':state==='reconnecting'?'로컬 서버에 다시 연결하는 중…':'';}});
 const req=api.request;
+const renderMarkdown=createRenderer({parse:source=>marked.parse(source,{gfm:true,breaks:true}),sanitize:DOMPurify.sanitize.bind(DOMPurify)});
 const text=(tag,value,cls)=>{const x=document.createElement(tag);x.textContent=value;if(cls)x.className=cls;return x};
 function error(value=''){const e=$('#error');e.textContent=value;e.hidden=!value}
 function active(){return current&&!current.archived_at}
@@ -25,15 +30,10 @@ function renderTimeline() {
     head.append(text('strong',author?memberName(author):speaker==='system'?'조율 서비스':'사용자','message-author'));
     if(author)head.append(text('span',providerName(author),'provider-badge'));
     if(speaker==='chair')head.append(text('span','좌장','speaker-role'));
-    const body=text('p','');let cursor=0;
-    for(const span of mentionSpans(m.body)) {
-      body.append(document.createTextNode(m.body.slice(cursor,span.start)));
-      const known=current.members.some(member=>member.alias===span.alias);
-      body.append(text('span',m.body.slice(span.start,span.end),known?'mention':'mention unknown'));
-      cursor=span.end;
-    }
-    body.append(document.createTextNode(m.body.slice(cursor)));
+    const body=text('div','','rich-body');
+    body.append(renderMarkdown(m.body,{roomId:current.id,mentions:current.members.map(member=>member.alias)}));
     card.append(head,body);
+    renderAttachments(m.attachments,card);
     const meta=text('div',`${m.kind} · ${new Date(m.created_at).toLocaleString('ko-KR')}`,'message-meta');
     if(m.reply_to){const a=text('a','원문 보기');a.href='#message-'+m.reply_to;meta.append(document.createTextNode(' · '),a);}
     if(m.decision_id){const a=text('a','결정 제안 보기');a.href='#decision-'+m.decision_id;a.onclick=()=>{const target=document.getElementById('decision-'+m.decision_id);const history=target?.closest('details');if(history)history.open=true;};meta.append(document.createTextNode(' · '),a);}
@@ -41,6 +41,17 @@ function renderTimeline() {
     renderReactions(m,card);view.append(card);
   }
 }
+function renderAttachments(attachments,card){
+  if(!attachments?.length)return;
+  const list=text('div','','shared-attachments');
+  for(const attachment of attachments){
+    const path=`/api/rooms/${current.id}/attachments/${attachment.id}`;
+    const item=text('div','','shared-attachment');
+    if(/^image\//.test(attachment.mime||'')){const image=document.createElement('img');image.src=path;image.alt=attachment.filename;image.loading='lazy';item.append(image);}
+    const link=text('a',attachment.filename||'첨부 파일');link.href=path+'?download=1';link.download=attachment.filename||'';link.title='다운로드';item.append(link,text('small',formatBytes(attachment.size||0)));list.append(item);
+  }card.append(list);
+}
+const formatBytes=size=>size<1024?size+' B':size<1048576?Math.ceil(size/1024)+' KiB':(size/1048576).toFixed(1)+' MiB';
 
 function renderParticipants() {
   const area=$('#participants'),chairArea=$('#chairProfile');area.replaceChildren();chairArea.replaceChildren();
@@ -68,7 +79,7 @@ function renderDecisions(){
   const decisions=[...current.decisions].sort((a,b)=>b.created_at.localeCompare(a.created_at)||b.id.localeCompare(a.id));
   const render=d=>{
     const item=text('article','','decision');item.id='decision-'+d.id;
-    const body=text('p',d.body,'decision-body');body.tabIndex=0;body.setAttribute('aria-label','토론 정리 내용');item.append(body);
+    const body=text('div','','decision-body rich-body');body.tabIndex=0;body.setAttribute('aria-label','토론 정리 내용');body.append(renderMarkdown(d.body,{roomId:current.id,mentions:current.members.map(member=>member.alias)}));item.append(body);
     const footer=text('div','','decision-footer'),owner=current.members.find(m=>m.session_id===d.owner);
     footer.append(text('small',(d.status==='confirmed'?'사용자 확정':'미확정 제안')+(owner?' · '+memberName(owner):'')));
     const sourceIds=(d.source_ids||'').split(',').filter(Boolean);
@@ -79,7 +90,18 @@ function renderDecisions(){
   box.append(render(decisions[0]));
   if(decisions.length>1){const history=document.createElement('details');history.className='decision-history';history.append(text('summary','이전 정리 '+(decisions.length-1)+'건'));for(const d of decisions.slice(1))history.append(render(d));box.append(history);}
 }
-async function openRoom(id,scroll=true){try{const timeline=$('#timeline'),follow=timeline.scrollHeight-timeline.scrollTop-timeline.clientHeight<60;if(scroll)selectedRoomId=id;const view=await req('/api/rooms/'+id);if(id!==selectedRoomId)return;current=view;$('#title').textContent=current.name+(current.archived_at?' · 보관됨':current.paused_at?' · 중지됨':'');$('#pause').textContent=current.paused_at?'재개':'중지';$('#pause').disabled=!active();$('#archive').disabled=!active();renderNav();renderParticipants();renderTimeline();renderDecisions();renderMentionMenu();updateRoomControls();renderChairControl();if(scroll||follow)$('#timeline').scrollTop=$('#timeline').scrollHeight}catch(e){if(e.code!=='NETWORK_UNCERTAIN')error(e.message)}}
+async function openRoom(id,scroll=true){
+ try{
+  const timeline=$('#timeline'),follow=timeline.scrollHeight-timeline.scrollTop-timeline.clientHeight<60;
+  if(scroll)selectedRoomId=id;
+  const previousId=current?.id,view=await req('/api/rooms/'+id);
+  if(id!==selectedRoomId)return;
+  if(previousId&&previousId!==id)draftBodies.set(previousId,$('#body').value);
+  current=view;attachmentComposer.setRoom(current.id);
+  if(previousId!==current.id)$('#body').value=draftBodies.get(current.id)||'';
+  $('#title').textContent=current.name+(current.archived_at?' · 보관됨':current.paused_at?' · 중지됨':'');$('#pause').textContent=current.paused_at?'재개':'중지';$('#pause').disabled=!active();$('#archive').disabled=!active();renderNav();renderParticipants();renderTimeline();renderDecisions();renderMentionMenu();updateRoomControls();renderChairControl();if(scroll||follow)$('#timeline').scrollTop=$('#timeline').scrollHeight;
+ }catch(e){if(e.code!=='NETWORK_UNCERTAIN')error(e.message)}
+}
 
 const memberName=m=>m?.alias||m?.display_name||'참여자';
 const providerName=m=>({codex:'Codex',claude:'Claude'}[m.provider]||m.provider);
@@ -169,7 +191,7 @@ function renderMentionMenu() {
   });
   renderPreview();
 }
-$('#body').addEventListener('input',()=>{error();mentionClosed=false;mentionIndex=0;renderMentionMenu();});
+$('#body').addEventListener('input',()=>{if(current)draftBodies.set(current.id,$('#body').value);error();mentionClosed=false;mentionIndex=0;renderMentionMenu();});
 $('#body').addEventListener('click',()=>{mentionClosed=false;renderMentionMenu();});
 $('#body').addEventListener('keydown',event=>{
   if(event.isComposing||$('#mentionMenu').hidden)return;
@@ -178,15 +200,35 @@ $('#body').addEventListener('keydown',event=>{
   else if(['Enter','Tab'].includes(event.key)){event.preventDefault();chooseMention(candidates[mentionIndex]);}
   else if(event.key==='Escape'){event.preventDefault();mentionClosed=true;renderMentionMenu();}
 });
+const attachmentStrip=text('div','','attachment-strip');attachmentStrip.id='attachmentStrip';attachmentStrip.setAttribute('aria-live','polite');
+const attachButton=text('button','파일 추가','attachment-button');attachButton.type='button';attachButton.setAttribute('aria-label','파일 선택');
+const attachInput=document.createElement('input');attachInput.type='file';attachInput.multiple=true;attachInput.hidden=true;attachInput.setAttribute('aria-label','첨부할 파일 선택');
+const attachmentToolbar=text('div','','attachment-toolbar');attachmentToolbar.append(attachButton,attachInput,attachmentStrip);$('#body').closest('.message-label').after(attachmentToolbar);
+$('#body').required=false;
+const asBase64=file=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(reader.error);reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.readAsDataURL(file);});
+const attachmentComposer=createAttachmentComposer({
+  upload:async(roomId,file,requestKey)=>req(`/api/rooms/${roomId}/attachments`,{method:'POST',body:JSON.stringify({filename:file.name,mime:file.type||'application/octet-stream',base64:await asBase64(file),requestKey})}),
+  render:items=>{attachmentStrip.replaceChildren();for(const item of items){const chip=text('div','','attachment-chip '+item.status);if(item.file.type.startsWith('image/')){const preview=document.createElement('img');preview.src=URL.createObjectURL(item.file);preview.alt='';chip.append(preview);}chip.append(text('span',item.file.name),text('small',item.status==='ready'?'준비됨':item.status==='uploading'?'업로드 중':item.error||'실패'));if(item.status==='failed'){const retry=text('button','재시도');retry.type='button';retry.onclick=()=>attachmentComposer.retry(item);chip.append(retry);}const remove=text('button','제거');remove.type='button';remove.onclick=()=>attachmentComposer.remove(item);chip.append(remove);attachmentStrip.append(chip);}renderPreview();},
+  onChange:()=>updateRoomControls()
+});
+attachButton.onclick=()=>attachInput.click();attachInput.onchange=()=>{attachmentComposer.add(attachInput.files);attachInput.value='';};
+$('#composer').addEventListener('dragover',event=>{event.preventDefault();$('#composer').classList.add('dragging');});
+$('#composer').addEventListener('dragleave',()=>$('#composer').classList.remove('dragging'));
+$('#composer').addEventListener('drop',event=>{event.preventDefault();$('#composer').classList.remove('dragging');if(event.dataTransfer?.files?.length)attachmentComposer.add(event.dataTransfer.files);});
+$('#body').addEventListener('paste',event=>{const images=[...event.clipboardData?.files||[]].filter(file=>file.type.startsWith('image/'));if(images.length){event.preventDefault();attachmentComposer.add(images);}});
 $('#composer').addEventListener('submit',async event=>{
   event.preventDefault();if(!active())return error('보관된 토론장에는 새 입력을 남길 수 없습니다.');
   const kind=$('#kind').value,preview=resolvedPreview();
   if(['followup','steer'].includes(kind)&&(preview.problem||!preview.members.length))return error(preview.problem||'질문할 수 있는 참여자가 없어.');
-  const roomId=current.id,payload={body:$('#body').value,kind,routingMode:recipientMode,targets:[]};
+  if(attachmentComposer.pending())return error('첨부 업로드가 끝난 뒤 보낼 수 있어.');
+  if(attachmentComposer.hasFailed())return error('실패한 첨부를 재시도하거나 제거해줘.');
+  const attachments=attachmentComposer.items().filter(item=>item.status==='ready');
+  const roomId=current.id,payload={body:$('#body').value,kind,routingMode:recipientMode,targets:[],attachmentIds:attachments.map(item=>item.meta.id)};
+  if(!payload.body.trim()&&!payload.attachmentIds.length)return error('메시지나 첨부를 추가해줘.');
   const signature=JSON.stringify({room:current.id,...payload});
   if(pendingSend?.signature!==signature)pendingSend={signature,key:crypto.randomUUID()};
   const sending=pendingSend;
-  try{await req(`/api/rooms/${roomId}/messages`,{method:'POST',body:JSON.stringify({...payload,requestKey:sending.key})});if(pendingSend===sending)pendingSend=null;if(current?.id===roomId){if($('#body').value===payload.body){$('#body').value='';mentionClosed=false;}await openRoom(roomId);error();}}
+  try{await req(`/api/rooms/${roomId}/messages`,{method:'POST',body:JSON.stringify({...payload,requestKey:sending.key})});if(pendingSend===sending)pendingSend=null;attachmentComposer.clearSent(attachments,roomId);if(draftBodies.get(roomId)===payload.body)draftBodies.set(roomId,'');if(current?.id===roomId){if($('#body').value===payload.body){$('#body').value='';mentionClosed=false;}await openRoom(roomId);error();}}
   catch(e){error(e.message);}
 });
 $('#newRoom').onclick=()=>$('#roomDialog').showModal();$('#newChannel').onclick=()=>$('#channelDialog').showModal();$('#createRoom').onclick=async e=>{e.preventDefault();try{const r=await req('/api/rooms',{method:'POST',body:JSON.stringify({name:$('#roomName').value,channelId:$('#channelChoice').value||null})});$('#roomDialog').close();await refresh(false);openRoom(r.id)}catch(e){error(e.message)}};$('#createChannel').onclick=async e=>{e.preventDefault();try{await req('/api/channels',{method:'POST',body:JSON.stringify({name:$('#channelName').value})});$('#channelDialog').close();refresh(false)}catch(e){error(e.message)}};
@@ -206,7 +248,7 @@ async function provision(member){const result=await req(`/api/rooms/${current.id
 async function invite(candidate){if(!active())return error('먼저 토론장을 선택해줘.');const {d,f}=dialog('세션 초대');const errorBox=text('p','','form-error');const providerLabel=text('label','Provider'),provider=document.createElement('select');for(const name of ['codex','claude']){const o=text('option',name);o.value=name;provider.append(o)}provider.value=candidate?.provider||'codex';providerLabel.append(provider);f.append(providerLabel);const name=inputField(f,'원래 세션 설명 (선택)','displayName',candidate?.provider||'');name.required=false;const native=inputField(f,'세션에서 확인한 고유 대화 ID','nativeId',candidate?.nativeId||'');const cwd=inputField(f,'작업 폴더','cwd',candidate?.cwd||'');const profile=inputField(f,'원래 프로필','profile',candidate?.profile||'default');f.append(text('p','터미널 이름이나 handle을 대화 ID로 쓰면 안 돼. 원래 세션이 확인한 ID를 입력해줘.','muted'));const pullLabel=text('label',''),pull=document.createElement('input');pull.type='checkbox';pullLabel.append(pull,document.createTextNode(' 확인한 세션에 MCP 직접 호출 허용'));const rawLabel=text('label',''),rawAllowed=document.createElement('input');rawAllowed.type='checkbox';rawAllowed.disabled=!candidate?.handle||!candidate?.incarnation;rawLabel.append(rawAllowed,document.createTextNode(' 원래 세션 출력 조회 허용'));f.append(pullLabel,rawLabel,errorBox);actions(f,'초대');f.onsubmit=async e=>{e.preventDefault();if(!f.reportValidity())return;try{const result=await req('/api/sessions',{method:'POST',body:JSON.stringify({provider:provider.value,host:'orca/local',nativeId:native.value,cwd:cwd.value,profile:profile.value,displayName:name.value,mode:pull.checked?'live_attach':'read_only',ownership:'borrowed',verified:pull.checked,handle:candidate?.handle||null,incarnation:candidate?.incarnation||null,capabilities:{followup:pull.checked,mcpPull:pull.checked,automaticInput:false,rawInspect:rawAllowed.checked},policyRevision:pull.checked?'participant-confirmed-inherited':null})});await req(`/api/rooms/${current.id}/join`,{method:'POST',body:JSON.stringify({sessionId:result.session.id,readOnly:!pull.checked})});d.close();await openRoom(current.id,false)}catch(e){errorBox.textContent=e.message}};d.showModal()}
 async function showDiscovery(){const {d,f}=dialog('현재 Orca 세션');f.append(text('p','발견은 읽기 전용이야. 정확한 대화 ID를 확인한 뒤 초대할 수 있어.','muted'));const content=text('div','조회 중…','discovery-list');f.append(content,memberButton('직접 등록',()=>{d.close();invite()}),memberButton('닫기',()=>d.close()));d.showModal();try{const result=await req('/api/discovery');content.replaceChildren();if(result.error)content.append(text('p',result.error,'form-error'));for(const candidate of result.sessions||[]){const row=document.createElement('div');row.className='discovery-row';row.append(text('strong',candidate.provider),text('p',candidate.handle+' · '+candidate.incarnation,'detail'),text('p',candidate.cwd||'작업 위치 미확인','detail'),memberButton('ID 확인 후 초대',()=>{d.close();invite(candidate)}));content.append(row)}if(!result.sessions?.length&&!result.error)content.append(text('p','현재 조회 가능한 세션이 없어.'))}catch(e){content.textContent=e.message}}
 async function editLimits(){if(!current)return;const {d,f}=dialog('토론 한도');const requests=inputField(f,'최대 요청 수','requests',current.request_budget,'number'),rounds=inputField(f,'좌장 질문 라운드','rounds',current.round_budget,'number');for(const i of [requests,rounds]){i.min='1';i.max='100'}const errorBox=text('p','','form-error');f.append(errorBox);actions(f,'적용');f.onsubmit=async e=>{e.preventDefault();try{await req(`/api/rooms/${current.id}/limits`,{method:'POST',body:JSON.stringify({requestBudget:Number(requests.value),roundBudget:Number(rounds.value)})});d.close();await openRoom(current.id,false)}catch(e){errorBox.textContent=e.message}};d.showModal()}
-function updateRoomControls(){for(const id of ['invite','limits'])$('#'+id).disabled=!active();$('#composer button[type=submit]').disabled=!active();const steer=$('#kind option[value=steer]');steer.disabled=true;steer.textContent='방향 수정 · 연결 미지원';}
+function updateRoomControls(){for(const id of ['invite','limits'])$('#'+id).disabled=!active();$('#composer button[type=submit]').disabled=!active()||attachmentComposer?.pending();const steer=$('#kind option[value=steer]');steer.disabled=true;steer.textContent='방향 수정 · 연결 미지원';}
 const inviteButton=memberButton('세션 초대',()=>invite());inviteButton.id='invite';const limitButton=memberButton('토론 한도',editLimits);limitButton.id='limits';$('.room-actions').prepend(inviteButton,limitButton);$('#discover').onclick=showDiscovery;
 
 const recipientModes=text('div','','recipient-modes');recipientModes.setAttribute('role','group');recipientModes.setAttribute('aria-label','질문 수신자');
