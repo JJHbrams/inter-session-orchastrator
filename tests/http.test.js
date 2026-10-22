@@ -27,6 +27,17 @@ test('real loopback HTTP and MCP enforce identity, room scope and protocol error
     const mcpHeaders={Authorization:`Bearer ${provision.token}`};
     assert.equal((await call(`/api/rooms/${room.id}/sessions/${reg.session.id}/output`)).status,403);
     const otherRoom=(await call('/api/rooms',{name:'other'})).data;
+    const mentioned=await call(`/api/rooms/${room.id}/messages`,{body:`@${reg.session.alias} mention wire`,kind:'followup',routingMode:'mentions',requestKey:'wire-mention'});
+    assert.equal(mentioned.status,201);assert.deepEqual(mentioned.data.deliveries.map(d=>d.membership_id),[member.id]);
+    assert.equal((await call(`/api/rooms/${room.id}/messages`,{body:'@missing',kind:'followup',routingMode:'mentions'})).status,400);
+    assert.equal((await call(`/api/rooms/${room.id}/messages`,{body:'@',kind:'followup',routingMode:'mentions'})).status,400);
+    const reactionPath=`/api/rooms/${room.id}/messages/${posted.data.message.id}/reactions`;
+    assert.equal((await call(reactionPath,{emoji:'👍',active:true})).status,200);
+    assert.equal((await call(reactionPath,{emoji:'👍',active:true})).status,200);
+    assert.equal((await call(`/api/rooms/${room.id}`)).data.reactions.length,1);
+    assert.equal((await call(`/api/rooms/${otherRoom.id}/messages/${posted.data.message.id}/reactions`,{emoji:'👍',active:true})).status,400);
+    assert.equal((await call(reactionPath,{emoji:'🔥',active:true})).status,400);
+    assert.equal((await call(reactionPath,{emoji:'👍',active:false})).status,200);
     assert.equal((await call(`/api/rooms/${otherRoom.id}/sessions/${reg.session.id}/output`)).status,403);
     const proposal=await call('/mcp/room_result',{body:'isolated test proposal',sourceIds:[posted.data.message.id]},mcpHeaders);
     assert.equal(proposal.status,201);

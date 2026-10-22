@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="source-sha256" content="c862a4dd03856b683016d5622cafe305fa63f1f3c6dd4f130d55e0c9e648a463"><title>세션 토론장 — 벤치마킹과 첫 버전 설계</title><style>
+<meta name="source-sha256" content="590c27ccc90cae375b6d04f8c2c7cee31848b7afb37d7664733a5929fcfcb154"><title>세션 토론장 — 벤치마킹과 첫 버전 설계</title><style>
     :root{--ink:#202c35;--muted:#64757a;--accent:#006c62;--line:#dce4e4;--paper:#fff;--bg:#f3f6f5}
     *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}
     body{margin:0;color:var(--ink);background:var(--bg);font:15px/1.85 'Segoe UI','Malgun Gothic',sans-serif}
@@ -925,6 +925,7 @@
 <p>고정 소스 조사·분석 8개 문서에 이어 로컬 실행판과 테스트 16개를 구현했다. 새 Codex·Claude의 상관 응답 3건, 미확정 좌장 제안 1건, 두 해상도 UI를 검증했다. 모델의 room-scoped HTTP helper 사용과 별도 MCP stdio 검증을 구분한다. 실제 canary 호출은 검증자가 수행했으며 기존 세션 자동 wake, new/resume/fork, 세 번째 전용 좌장, 설치형 패키지는 미구현이다. 상세 증거와 한계는 <a href="runtime-validation.html">session-room-runtime-validation</a>에 있다.</p>
 <h2 id="_14">참고</h2>
 <ul>
+<li><a href="session-personas.html">session-personas</a> — 후속 세션 프로필·별칭 멘션·메시지 이모지 기능 명세.</li>
 <li><a href="runtime-validation.html">session-room-runtime-validation</a> — 첫 실행판·실제 두 canary·수용 기준별 검증 범위.</li>
 <li><a href="research/index.html">inter-session-index</a> — 프로젝트 진입점.</li>
 <li><a href="research/benchmark-analysis.html">benchmark-analysis</a> — 종합 판단과 설계 재검토 근거.</li>
@@ -933,7 +934,7 @@
 <li><a href="research/host-reference-benchmark.html">host-reference-benchmark</a> — OpenClaw·설치 Orca·NotebookLM 분석.</li>
 <li><a href="research/benchmark-validation-plan.html">benchmark-validation-plan</a> — 미실행 V-01~V-13과 실행 전 기록 항목.</li>
 <li>로컬 열람본: <a href="../research/index.html">벤치마킹 조사</a>. Wiki에서는 위 관련 노트 링크를 사용한다.</li>
-</ul></article><footer>원본: docs/design/0001-session-rooms.md<br>본문 SHA-256: c862a4dd03856b683016d5622cafe305fa63f1f3c6dd4f130d55e0c9e648a463</footer></main></div>
+</ul></article><footer>원본: docs/design/0001-session-rooms.md<br>본문 SHA-256: 590c27ccc90cae375b6d04f8c2c7cee31848b7afb37d7664733a5929fcfcb154</footer></main></div>
 <!-- Mermaid third-party license: The MIT License (MIT)
 
 Copyright (c) 2014 - 2022 Knut Sveidqvist

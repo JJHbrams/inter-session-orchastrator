@@ -433,6 +433,7 @@ room은 보관하고 membership은 이탈 시각을 기록한다. 이탈이나 U
 
 ## 참고
 
+- [[session-personas]] — 후속 세션 프로필·별칭 멘션·메시지 이모지 기능 명세.
 - [[session-room-runtime-validation]] — 첫 실행판·실제 두 canary·수용 기준별 검증 범위.
 - [[inter-session-index]] — 프로젝트 진입점.
 - [[benchmark-analysis]] — 종합 판단과 설계 재검토 근거.

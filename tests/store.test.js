@@ -61,3 +61,24 @@ test('Windows path separators and case do not create a second session identity',
   assert.equal(first.session.id,same.session.id);
   assert.equal(s.db.prepare('SELECT count(*) n FROM sessions').get().n,1);
 });
+test('personas survive reopen, identity registration, and room changes',()=>{
+  const s=new Store();const first=registered(s).session;const persona={alias:first.alias,avatar:first.avatar};
+  const same=registered(s).session;assert.deepEqual({alias:same.alias,avatar:same.avatar},persona);
+  const other=s.registerSession({provider:'claude',host:'test',nativeId:'native-2',cwd:'C:/work',profile:'default',mode:'read_only'}).session;
+  assert.notEqual(other.alias,persona.alias);const room=s.createRoom('r');s.join(room.id,first.id,false);s.join(room.id,other.id,true);
+  assert.equal(s.room(room.id).members.find(m=>m.session_id===first.id).alias,persona.alias);
+});
+test('mention routing is exact, deduped, frozen, and never falls back to all',()=>{
+  const s=new Store(),r=s.createRoom('r'),a=registered(s).session,b=s.registerSession({provider:'claude',host:'test',nativeId:'b',cwd:'C:/b',profile:'default',mode:'live_attach',verified:true,capabilities:{followup:true}}).session;
+  const ma=s.join(r.id,a.id,false),mb=s.join(r.id,b.id,false);const one=s.post({roomId:r.id,body:`@${a.alias} @${a.alias} hi`,kind:'followup',routingMode:'mentions',requestKey:'mention'});
+  assert.deepEqual(one.deliveries.map(d=>d.membership_id),[ma.id]);s.leave(r.id,a.id);
+  assert.equal(s.post({roomId:r.id,body:`@${a.alias} @${a.alias} hi`,kind:'followup',routingMode:'mentions',requestKey:'mention'}).message.id,one.message.id);
+  assert.throws(()=>s.post({roomId:r.id,body:'@missing hi',kind:'followup',routingMode:'mentions'}),/unknown/);
+  assert.equal(s.post({roomId:r.id,body:'plain',kind:'followup',routingMode:'mentions'}).deliveries[0].membership_id,mb.id);
+});
+test('reactions are room scoped, idempotent, and create no deliveries',()=>{
+  const s=new Store(),a=s.createRoom('a'),b=s.createRoom('b');const message=s.post({roomId:a.id,body:'hello'}).message;
+  s.setReaction(a.id,message.id,'👍',true);s.setReaction(a.id,message.id,'👍',true);assert.equal(s.room(a.id).reactions.length,1);
+  assert.throws(()=>s.setReaction(b.id,message.id,'👍',true),/outside/);assert.throws(()=>s.setReaction(a.id,message.id,'🔥',true),/unsupported/);
+  s.setReaction(a.id,message.id,'👍',false);assert.equal(s.room(a.id).reactions.length,0);assert.equal(s.room(a.id).deliveries.length,0);
+});

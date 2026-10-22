@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 
 export const MODES = Object.freeze(['live_attach', 'read_only', 'resume', 'fork', 'new']);
 export const DELIVERY_STATES = Object.freeze(['queued', 'claimed', 'submitting', 'accepted', 'running', 'completed', 'failed', 'blocked', 'unknown', 'cancelled']);
+export const REACTION_EMOJIS = Object.freeze(['👍', '❤️', '💡', '👀']);
 export const identityKey = ({ provider, host, nativeId, cwd, profile }) => {
   let path = cwd.replaceAll('\\', '/').replace(/\/+$/, '');
   if (/^[a-z]:\//i.test(path) || path.startsWith('//')) path = path.toLowerCase();
@@ -17,3 +18,7 @@ export function exactIdentity(value) {
   for (const key of ['provider', 'host', 'nativeId', 'cwd', 'profile']) requireText(value?.[key], `identity.${key}`, 1024);
   return value;
 }
+
+// Mentions are deliberately conservative: code, escaped @ signs, and email addresses
+// remain ordinary text. The resolver supplies the currently valid alias allowlist.
+export { parseAliases, mentionSpans } from './mentions.js';

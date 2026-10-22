@@ -38,13 +38,14 @@ def render(bundle: Path, source: Path | None = None, output: Path | None = None,
         local_links = {slug: slug + '.html' for slug in known}
         local_links.update({'inter-session-index': 'index.html', 'session-room-foundation': '../index.html'})
         content = re.sub(r'\[\[([\w-]+)\]\]', lambda m: f'<a href="{local_links[m[1]]}">{m[1]}</a>' if m[1] in local_links else m[0], content)
-    elif source == ROOT / "docs/design/0001-session-rooms.md" or source.parent == ROOT / "docs":
+    elif source.parent in {ROOT / "docs/design", ROOT / "docs"}:
         mapping_path = ROOT / 'docs/research/document-map.json'
         if mapping_path.exists():
             mapping = json.loads(mapping_path.read_text(encoding='utf-8'))
             local_links = {row['slug']: 'research/' + row['slug'] + '.html' for row in mapping}
             local_links.update({'inter-session-index': 'research/index.html', 'session-room-foundation': 'index.html'})
             local_links['session-room-runtime-validation'] = 'runtime-validation.html'
+            local_links['session-personas'] = 'session-personas.html'
             content = re.sub(r'\[\[([\w-]+)\]\]', lambda m: f'<a href="{local_links[m[1]]}">{m[1]}</a>' if m[1] in local_links else m[0], content)
     headings = re.findall(r'<h2 id="([^"]+)">(.*?)</h2>', content)
     nav = "\n".join(f'<a href="#{html.escape(anchor)}">{label}</a>' for anchor, label in headings)

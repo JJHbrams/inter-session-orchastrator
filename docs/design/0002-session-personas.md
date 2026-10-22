@@ -1,0 +1,221 @@
+---
+id: 0002-session-personas
+title: 세션 페르소나·멘션·이모지 반응
+tier: L
+status: done
+owner: jhjang
+created: 2026-10-22
+updated: 2026-10-22
+---
+
+<!-- sr:plan
+{"document_type":"decision","reader_questions":["세션을 어떻게 구별하는가","멘션은 누구에게 전달되는가","실행 중 표시의 근거는 무엇인가","이모지 반응은 무엇을 하는가"],"visual_plan":[{"kind":"decision_matrix","content":"드롭다운과 별칭 멘션 비교","required":true},{"kind":"flowchart","content":"멘션 해석과 고정 수신자 저장","required":true},{"kind":"state_diagram","content":"관측된 응답 상태 표시","required":true},{"kind":"sequence_diagram","content":"입력과 서버 재검증","required":true},{"kind":"er_diagram","content":"세션 persona와 메시지 반응","required":true}],"visual_waiver":[]}
+-->
+
+# 세션 페르소나·멘션·이모지 반응
+
+> 세션을 사람처럼 구별하고 @별칭으로 정확히 지정하되, 원래 신원과 전달 증거는 보존한다.
+
+## 한눈에 보기
+
+- 목적: 대상 드롭다운을 기억하기 쉬운 별칭·프로필·멘션으로 바꾸고 메시지 피드백을 가볍게 남긴다.
+- 현재 상태: 이 UX 기능 구현·검증 완료. 원래 프로젝트 전체 상태는 building이다.
+- 핵심 결론: 영속 persona, 정확한 room 멘션, 근거가 있는 실행 표시, 실행과 분리된 반응을 추가한다.
+- 원인 또는 판단 근거: 기존 앱은 display_name과 provider를 텍스트로 표시하고 별도 대상 드롭다운·체크박스를 사용한다. 반응 테이블이 없고 delivery state가 이미 존재한다. 직접 코드 확인, 2026-10-22.
+- 결정: provider는 작은 보조 배지로 먼저 표시한다. provider별 아바타 강제 구분과 실제 모델명 노출은 후속 검토한다.
+- 다음 행동: 현재 별칭·provider 배지 표현을 사용해보고, 원래 남아 있는 host 자동 연결 어댑터를 이어 개발한다.
+- 최종 갱신: 2026-10-22, Asia/Seoul.
+
+## 1. 의도 (Intent)
+
+사용자가 추가하는 세션에 지수·민수·유리아·알렉스 같은 기억하기 쉬운 이름과 로컬 아바타를 임의 배정한다. alias는 표현용이며 provider/host/native ID/cwd/profile과 runtime binding은 바꾸지 않는다. 기존 세션도 한 번 배정하고 재등록·앱 재시작·다른 room에서 유지한다. 외부 아바타 서비스는 사용하지 않는다.
+
+이번 범위는 사용자 UI와 로컬 저장·검증이다. 모델 자동 wake·기존 작업 세션 자동 조율·provider lifecycle·모델 자발적 이모지 도구는 포함하지 않는다.
+
+## 2. 수용 기준 (Acceptance)
+
+| ID | 사용자에게 보이는 결과 | 검증 방법 |
+|---|---|---|
+| AC-1 | 신규·기존 세션마다 유일한 지속 alias와 아바타가 생기고 카드·대화·수신자 표시가 일치한다. 원래 이름·provider는 보조 정보다. | SQLite 기존 DB migration/reopen·동일 신원 재등록·중복 방지 테스트, 실제 UI |
+| AC-2 | 입력의 정확한 @alias 한 개 또는 여러 개로 대상이 한정되고 제안 목록·대상 미리보기를 볼 수 있다. 대상 드롭다운은 제거한다. | 한국어·영문·중복·오타·이탈자·email/code/escape 테스트 및 실제 입력 경로 |
+| AC-3 | 서버가 room 멤버십으로 멘션을 다시 검증하고 membership snapshot만 저장한다. 모르는 이름·모호함은 전송 차단, 전체로 대체 금지. 게시/실행은 구분한다. | HTTP room scope·잘못된/이탈 대상·멱등 재접수 테스트. 멘션 파싱 자체로 모델 호출 없음 |
+| AC-4 | 카드에 실제 running 근거일 때만 생성 중 테두리가 움직인다. queued/submitting/accepted/unknown은 별도 문구, 완료 시 종료한다. | 상태별 렌더링·격리 UI fixture, reduced-motion 정적 테두리 확인. fixture를 실제 모델 실행 증거로 보고하지 않음 |
+| AC-5 | 메시지의 미니 이모지 반응을 추가·해제하고 새로고침 후 유지한다. 반응으로 deliveries가 생기지 않는다. | DB/HTTP idempotent set·cross-room/미지원 emoji 거부·기존 메시지 보존, 브라우저 토글/재로드 |
+| AC-6 | 1280 폭·800 높이 이하와 1440×900에서 프로필·대화·입력이 보이며 키보드 멘션 선택과 polling 중 초안이 유지된다. | 실제 브라우저 1280×720·1440×900 및 입력·제안 선택·polling·스크린샷. 720은 계획한 800보다 낮은 높이 |
+
+## 3. 확정 사실 (Facts)
+
+| 관측 | 근거 | 경계 |
+|---|---|---|
+| 기준 커밋은 65df471, 새 기능 브랜치는 feat/session-personas다. | git status/branch/worktree, 2026-10-22 | 기존 작업 트리 clean |
+| sessions.display_name, room memberships와 delivery state가 있다. | services/coordinator/store.js | alias는 별도 필드로 추가 |
+| HTTP는 Host/Origin/CSRF와 room-scoped output을 사용한다. | services/coordinator/server.js | 반응도 기존 브라우저 인증을 사용 |
+| 현재 provider 자동 wake와 start/reply adapter가 없다. | [[session-room-runtime-validation]] | VFX는 없는 실행 증거를 만들지 않는다 |
+
+### 평가기준
+
+기억하기 쉬운 표현, 정확한 수신자, 기존 데이터 이관, 실행 상태의 정직성을 우선한다. provider 배지는 보조 정보로 두며 작은 UI 피드백이 실행 요청을 만들면 안 된다.
+
+### 선택지
+
+기존 드롭다운 유지, 표시 문자열 파싱, 영속 alias를 사용하는 세 가지 대안을 비교한다.
+
+### 비교
+
+| 대안 | 기억하기 쉬움 | 잘못된 대상 방지 | 저장/이관 | 판단 |
+|---|---|---|---|---|
+| 기존 대상 드롭다운 | 낮음 | 명시 ID | 기존 | 주 UI에서 제거 |
+| 표시 문자열만 @파싱 | 높음 | 이름 변경·충돌에 취약 | 없음 | 사용하지 않음 |
+| 영속 alias와 서버 재검증 | 높음 | room ID snapshot·검증 | additive migration | 채택 |
+
+### 결정
+
+영속 alias·로컬 아바타·서버 멘션 재검증을 채택한다. provider는 작은 배지로 보조하고 반응은 별도 저장한다.
+
+## 4. 유스케이스 (Use Cases)
+
+사용자는 채널의 토론에 세션을 추가하고 아바타·alias로 구분한다. @ 입력 시 멤버 후보를 선택해 질문한다. 여러 멘션은 여러 수신자로 고정한다.
+
+멘션 없는 실행 요청은 화면에 보이는 참여 가능 대상 전체로 표시하고, 게시 모드는 실행하지 않는다. 👍 등 반응은 발언의 가벼운 피드백이다.
+
+```mermaid
+flowchart LR
+    U[사용자] --> I[세션 추가와 persona 확인]
+    U --> M[별칭 멘션으로 질문]
+    U --> R[메시지 이모지 피드백]
+    M --> P[수신자 미리보기와 전송]
+    P --> A[지정 세션 답변]
+```
+
+## 5. 구조와 처리 흐름 (Flow)
+
+```mermaid
+flowchart TD
+    A[입력] --> B[멘션 후보와 대상 미리보기]
+    B --> C[전송: 서버 room 재검증]
+    C -->|없는 이름 또는 이탈| X[초안 유지와 오류 표시]
+    C -->|게시| P[원문 저장: 실행 없음]
+    C -->|정확한 실행 대상| S[membership snapshot과 outbox 원자 저장]
+    S --> E[기존 전달 계약]
+    R[이모지 반응] --> T[같은 room 메시지에 별도 저장]
+```
+
+멘션은 정확한 token을 사용한다. email·escaped @·inline/fenced code는 실행 멘션으로 취급하지 않는다. 중복 멘션은 한 명으로 합친다.
+
+모르는 이름이 있으면 일부만 보내지 않는다. 원문과 실제 수신자는 별도로 보존한다. 멱등 키로 재접수한 요청은 원래 저장 snapshot을 유지해야 한다.
+
+## 6. 상태 전이 (State)
+
+```mermaid
+stateDiagram-v2
+    [*] --> Waiting: queued
+    Waiting --> Offered: submitting
+    Offered --> Accepted: host receipt
+    Accepted --> Generating: verified running
+    Generating --> Recovered: correlated reply
+    Generating --> Uncertain: lost evidence
+    Offered --> Recovered: direct correlated reply
+    Recovered --> [*]
+```
+
+| 증거 | UI |
+|---|---|
+| queued/claimed | 대기/예약, 생성 효과 없음 |
+| submitting/accepted | 요청 제공/호스트 접수, 생성 효과 없음 |
+| running | 생성 중 테두리. reduced-motion이면 정적 표시 |
+| completed | 응답 회수, 생성 효과 종료 |
+| unknown/blocked | 확인 필요/차단, 생성 효과 없음 |
+
+## 7. 타이밍 (Timing)
+
+```mermaid
+sequenceDiagram
+    participant U as 사용자
+    participant UI as 입력창
+    participant API as 조율 서비스
+    participant DB as SQLite
+    U->>UI: @alias 입력 및 후보 선택
+    UI-->>U: 실제 수신자 미리보기
+    U->>API: 원문과 멱등 키
+    API->>DB: 같은 room alias와 참여 상태 확인
+    API->>DB: 원문 및 수신자 snapshot 원자 저장
+    API-->>UI: 실제 저장 대상과 상태
+    U->>API: 메시지 reaction active 설정
+    API->>DB: room/message/emoji 검증 후 별도 저장
+    API-->>UI: 갱신 반응. delivery 없음
+```
+
+## 8. 데이터 (ER)
+
+```mermaid
+erDiagram
+    SESSION ||--o{ MEMBERSHIP : participates
+    SESSION ||--|| PERSONA : presents
+    ROOM ||--o{ MEMBERSHIP : includes
+    ROOM ||--o{ MESSAGE : records
+    MESSAGE ||--o{ REACTION : receives
+    MESSAGE ||--o{ DELIVERY : targets
+```
+
+PERSONA는 sessions의 additive alias/avatar 필드로 저장한다. alias는 영속 unique이고 기존 display_name은 보존한다. REACTION은 message/user/emoji unique로 현재 한 명인 로컬 사용자의 반응을 idempotent set/remove한다. 브라우저 클라이언트가 발신 세션을 위조할 수 없고 reaction은 outbox를 만들지 않는다.
+
+## 9. 변경 지점 (Change Surface)
+
+| 경로 | 변경 |
+|---|---|
+| `services/coordinator/store.js` | persona migration·정확한 대상·반응 저장 |
+| `services/coordinator/server.js` | 브라우저 멘션·반응 계약과 scope |
+| `apps/desktop/` | 카드·message avatar·mention 입력·상태·반응 |
+| `packages/contracts/` | 필요 시 순수 파서·표현 계약 |
+| `tests/` | migration·routing·reaction·HTTP·상태 검증 |
+| `docs/design/0002-session-personas.md` | (신규) 이 기능 명세 |
+| `docs/session-personas.html` | (신규) 같은 본문의 로컬 열람본 |
+
+## 10. 잠재 문제 (Risks)
+
+| 위험 | 대응 |
+|---|---|
+| 이름 충돌/변경 | unique persistent alias, 부족하면 숫자 suffix. native identity와 별개 |
+| 멘션 오타가 전체 문의로 확장 | 서버가 전체 전송 거부, 명확한 오류 |
+| polling이 입력·선택을 덮음 | composer state 유지, 현재 room 응답만 적용 |
+| 제공/접수 상태를 생성 중으로 오인 | running 근거만 VFX |
+| 반응 더블 클릭/재시도 | 명시 active 상태 set, composite unique |
+| 원래 진행 중인 세션에 UI 검증 메시지 | 격리 DB·브라우저 fixture 사용, 실제 provider 새 입력 없음 |
+
+## 11. 착수 순서 (Slices)
+
+- [x] Persona additive migration과 동일 identity 재사용 — AC-1.
+- [x] 멘션 파서·서버 대상 snapshot과 UI 후보·미리보기 — AC-2, AC-3.
+- [x] 별도 반응 저장·HTTP·UI 토글 — AC-5.
+- [x] 카드·대화 프로필·실행 근거 VFX와 실제 브라우저 검증 — AC-1, AC-4, AC-6.
+
+### 재검토 조건
+
+별칭 충돌이나 알 수 없는 멘션이 비대상 전달을 만들거나 상태 증거 없이 생성 효과가 켜지면 해당 경로를 수정한다. provider 표시는 사용자가 읽기 어렵다고 판단하면 배지·색상·정보 위치를 다시 조정한다.
+
+## 12. 추적성 (Traceability)
+
+| 기준 | 근거 파일 | 현재 판정 |
+|---|---|---|
+| AC-1 | tests/personas.test.js, 실제 DB 전후 hash | PASS: 옛 schema 이관·재열기·이관 후 신규 추가·신원 보존 |
+| AC-2 | 공유 mentions.js, 실제 키보드 Enter 후보 선택·수신자 미리보기 | PASS |
+| AC-3 | tests/store.test.js·tests/http.test.js·tests/personas.test.js, 격리 HTTP/UI 저장 | PASS: 오타·빈 @·읽기 전용·room 범위·멱등 snapshot |
+| AC-4 | 격리 fixture running/accepted/unknown UI·CSSOM | PASS: renderer 범위. OS 모션 감소 emulation 및 실제 신규 모델 실행은 미실행 |
+| AC-5 | storage/HTTP 및 실제 브라우저 반응 추가·재로드·해제 | PASS: 사용자 반응. delivery 생성 없음 |
+| AC-6 | 1440×900·1280×720 실제 화면·초안 유지·기존 기능 보존 | PASS: 보내기 하단 890/710px, 가로 넘침 없음 |
+
+### 결과
+
+자동화 테스트는 22/22 통과했다. 구형 DB의 컬럼 순서 차이를 위해 세션 INSERT에 컬럼 이름을 명시하고, 이관 뒤 신규 세션 추가까지 테스트했다. 현재 실제 세션은 수아·Claude와 마야·Codex로 표시된다.
+
+기존 실제 sessions/messages/deliveries/decisions는 2/6/3/1로 유지됐고 canonical 내용의 전후 SHA-256은 5aeb6a8987a64d704153ef12a9eadc521589678612b45678243b92312a5337d4로 동일하다. 기존 이름·native ID·cwd·profile·원문·대상·결정은 바꾸지 않았다. 반응·멘션·생성 효과 테스트는 별도 DB에서 수행했고 실제 provider에 새 입력을 보내지 않았다.
+
+근거는 로컬 docs/validation/personas.json과 docs/screenshots/personas-1440x900.png, personas-1280x720.png, personas-mentions.png에 있다. 생성 효과는 의도적으로 설정한 격리 상태로 검증했으며 실제 모델 실행 증거로 보고하지 않는다. 모션 감소는 CSSOM의 media query와 animation:none을 확인했고 OS 설정 변경은 하지 않았다.
+
+초기 UI 변경에서 누락된 원래 출력·정책·소유권·좌장/발급/이탈·한도·discovery·결정 근거/확정 컨트롤을 복구했다. 독립 수용 검토에서 이 기능의 AC-1~AC-6을 확인했다. 전체 프로젝트의 자동 wake·기존 세션 연결 미완료 상태는 유지한다.
+
+## 참고
+
+- [[session-room-foundation]] — 원래 세션 신원과 전달 불변식.
+- [[session-room-runtime-validation]] — 실행판 검증 범위.
+- [[inter-session-index]] — 프로젝트 진입점.

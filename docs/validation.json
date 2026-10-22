@@ -8,7 +8,7 @@
   },
   "wiki_report_body_equal": true,
   "wiki_comparison_excludes": "tool-managed empty Progress timestamp section",
-  "html_source_sha256": "c862a4dd03856b683016d5622cafe305fa63f1f3c6dd4f130d55e0c9e648a463",
+  "html_source_sha256": "590c27ccc90cae375b6d04f8c2c7cee31848b7afb37d7664733a5929fcfcb154",
   "browser_qa": {
     "diagrams": 5,
     "diagram_errors": 0,
@@ -48,5 +48,19 @@
   "full_acceptance": {
     "AC-9": "PASS within browser pilot",
     "others": "UNVERIFIED"
+  },
+  "session_personas": {
+    "status": "done",
+    "spec": "docs/design/0002-session-personas.md",
+    "html": "docs/session-personas.html",
+    "evidence": "docs/validation/personas.json",
+    "body_sha256": "d49e96128f262c144f32539d6996c63539b17fe1fa30e05f8f21d277555e2088",
+    "wiki_body_equal": true,
+    "spec_check": "pass",
+    "report_lint": {
+      "blocking": 0,
+      "warnings": 0
+    },
+    "test_count": 22
   }
 }

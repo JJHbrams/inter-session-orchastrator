@@ -1,0 +1,114 @@
+{
+  "date": "2026-10-22",
+  "baseline": "65df471",
+  "feature": "session personas, mentions, user reactions",
+  "featureStatus": "done",
+  "projectStatus": "building",
+  "tests": {
+    "command": "npm test",
+    "passed": 22,
+    "failed": 0,
+    "followup": "node tests/personas.test.js:3/3"
+  },
+  "migration": {
+    "date": "2026-10-22",
+    "originalRecordsUnchanged": true,
+    "beforeHash": "5aeb6a8987a64d704153ef12a9eadc521589678612b45678243b92312a5337d4",
+    "afterHash": "5aeb6a8987a64d704153ef12a9eadc521589678612b45678243b92312a5337d4",
+    "counts": {
+      "sessions": 2,
+      "messages": 6,
+      "deliveries": 3,
+      "decisions": 1
+    },
+    "personas": [
+      {
+        "id": "21c770de-a040-4db6-a65a-e65438faec80",
+        "alias": "수아",
+        "avatar": "#9b72df"
+      },
+      {
+        "id": "92c002eb-bdc5-452b-88fc-66aecce9f84e",
+        "alias": "마야",
+        "avatar": "#ef6c79"
+      }
+    ]
+  },
+  "ui": {
+    "keyboardMention": true,
+    "singleRecipientSaved": true,
+    "multiplePreview": true,
+    "unknownBlocked": true,
+    "emojiAdded": true,
+    "emojiReloadPersisted": true,
+    "emojiRemoved": true,
+    "running": {
+      "glow": true,
+      "animation": "speaking"
+    },
+    "reducedMotion": "CSSOM query verified animation:none; OS emulation unavailable",
+    "accepted": {
+      "glow": false,
+      "animation": "none"
+    },
+    "pollingDraftPreserved": true,
+    "unknown": {
+      "glow": false
+    },
+    "viewports": [
+      {
+        "width": 1440,
+        "height": 900,
+        "horizontalOverflow": false,
+        "sendBottom": 890
+      },
+      {
+        "height": 720,
+        "horizontalOverflow": false,
+        "sendBottom": 710,
+        "width": 1280
+      }
+    ]
+  },
+  "http": {
+    "singleTarget": true,
+    "multipleTargetsDeduped": true,
+    "idempotentRequest": true,
+    "unknownBlocked": true,
+    "postingDoesNotExecute": true,
+    "reactionIdempotent": true,
+    "reactionRemove": true,
+    "unsupportedEmojiRejected": true,
+    "crossRoomReactionRejected": true,
+    "reactionCreatesNoDeliveries": true
+  },
+  "acceptance": {
+    "AC1": "PASS",
+    "AC2": "PASS",
+    "AC3": "PASS",
+    "AC4": "PASS within renderer fixture",
+    "AC5": "PASS",
+    "AC6": "PASS at actual1440x900 and1280x720"
+  },
+  "limitations": [
+    "No new real model prompt sent for this UI feature.",
+    "Generation-state rendering tested with isolated explicit fixture state, not a new live-provider turn.",
+    "Reduced-motion media rule verified through CSSOM; OS preference emulation not performed.",
+    "Existing host automatic wake/lifecycle work remains outside this feature."
+  ],
+  "sha256": {
+    "apps/desktop/app.js": "746f92abecf09a7d4819a91c999bcb59bfb245859ac626289a4d9296cc6af43b",
+    "apps/desktop/index.html": "fb40f8a1d9ff08b3e4caf5a60c9f8341afdce2e024e349bb45374abbc3a6a64c",
+    "apps/desktop/style.css": "64e41ed6c222d126fab6e61ae5eb3acb2716f98efaab1d8f042f2d3a055bcb42",
+    "services/coordinator/store.js": "82f643b31ab8bcee2c00cff322cd3a260c44c2e09e49fe52f0df37da42e8c3d6",
+    "services/coordinator/server.js": "3f4d99344890ac07ae3b9f692a86ad8bd3332f76ca9de8c98c5793e45ca08527",
+    "packages/contracts/index.js": "5dfe93ae088def0808f1092c9c993e6929d7edd16cbd15f422737e1ca60ed871",
+    "packages/contracts/mentions.js": "8a451146c05ee449c55eb6fe717de13091f431bff676b7715732e1facd1beace",
+    "tests/personas.test.js": "dad6657d80fcb34bcca13c60aa1ba73ae1d361947cd6a9355b748d4db6fec1f2",
+    "tests/http.test.js": "5c2b92385ee9ec1fc8b108ea22e540af1302403bc3b5b76ec5f6097bfb2153c9",
+    "tests/store.test.js": "24e220f6098aa041f5792c1e2185e50bb84e93b9a1fba7ba7844c2e9bf495cc9",
+    "docs/screenshots/personas-1440x900.png": "51560ab525ad292d672c9cb1cce840fd8c4b61b9777732258dd77316eabfd470",
+    "docs/screenshots/personas-1280x720.png": "d41a7636d79ef5d4f137ee9e454be8ebb9a61de2418bfc5f2da1ba73f524b049",
+    "docs/screenshots/personas-mentions.png": "7cc45d19caef86f070bf150300cda4858b79be36db12ba36e776ab912496fcab"
+  }
+}
