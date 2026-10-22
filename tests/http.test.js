@@ -17,6 +17,8 @@ test('real loopback HTTP and MCP enforce identity, room scope and protocol error
     const base=`http://127.0.0.1:${port}`,boot=await fetch(base+'/api/bootstrap'),cookie=boot.headers.get('set-cookie').split(';')[0],{csrf}=await boot.json();
     const call=async(path,data,extra={})=>{const r=await fetch(base+path,{method:data?'POST':'GET',headers:{cookie,'x-csrf-token':csrf,'Content-Type':'application/json',...extra},body:data?JSON.stringify(data):undefined});return {status:r.status,data:await r.json()}};
     assert.equal((await call('/api/bootstrap',null,{Origin:'https://unrelated.example'})).status,403);
+    for(const provider of ['claude','codex','antigravity']){const icon=await fetch(base+'/assets/providers/'+provider+'.png');assert.equal(icon.status,200);assert.equal(icon.headers.get('content-type'),'image/png');assert.deepEqual([...new Uint8Array(await icon.arrayBuffer()).slice(0,8)],[137,80,78,71,13,10,26,10]);}
+    assert.equal((await fetch(base+'/assets/providers/unknown.png')).status,404);
     assert.ok(cookie.startsWith(`rooms_session_${port}=`));
     const noAuth=await call('/api/rooms',null,{cookie:'rooms_session_other=foreign'});assert.equal(noAuth.status,401);assert.equal(noAuth.data.code,'AUTH_REQUIRED');
     const badCsrf=await call('/api/channels',{name:'never-create'},{'x-csrf-token':'stale'});assert.equal(badCsrf.status,403);assert.equal(badCsrf.data.code,'CSRF_INVALID');

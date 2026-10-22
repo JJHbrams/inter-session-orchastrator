@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-22",
+  "scope": "message width only, chair-summary row, participant row, local provider badges",
+  "wide": {
+    "appWidth": 1600,
+    "chairBottom": 204.96875,
+    "chairCount": 1,
+    "chairX": 242,
+    "composerBottom": 1000,
+    "icons": [
+      {
+        "alt": "Claude 아이콘",
+        "loaded": true
+      },
+      {
+        "alt": "Claude 아이콘",
+        "loaded": true
+      },
+      {
+        "alt": "Codex 아이콘",
+        "loaded": true
+      }
+    ],
+    "maxBubble": 720,
+    "overflow": false,
+    "participantCount": 2,
+    "participantsTop": 204.96875,
+    "summaryX": 440,
+    "timelineHeight": 512,
+    "viewportWidth": 1600
+  },
+  "narrow": {
+    "viewport": [
+      1280,
+      720
+    ],
+    "appWidth": 1280,
+    "bubbleMax": 720,
+    "timelineHeight": 232,
+    "composerBottom": 720,
+    "overflow": false
+  },
+  "ui": {
+    "separateChairCount": 1,
+    "invitedParticipants": 2,
+    "providerIconsLoaded": 3,
+    "historyAndSourcesPersistAcrossPolling": true,
+    "profileInspectorOpensAndCloses": true,
+    "mentionKeyboardSelection": "@마야 ",
+    "confirmationButtonsRetained": 2,
+    "draftPreserved": true
+  },
+  "tests": {
+    "command": "npm test",
+    "pass": 38,
+    "fail": 0
+  },
+  "modelCallsThisChange": 0,
+  "screenshots": [
+    "screenshots/chair-panel-1280.jpg",
+    "screenshots/chair-panel-1600.jpg"
+  ],
+  "assets": [
+    {
+      "provider": "claude",
+      "sourceFile": "claude-icon-dark-256.png",
+      "path": "apps/desktop/assets/providers/claude.png",
+      "sha256": "9b8387550cbfe911d47ff20fc26798de7faa8d1b78aca2c8723d1345ade0a1a7",
+      "sourceEqual": true
+    },
+    {
+      "provider": "codex",
+      "sourceFile": "codex-icon-dark-256.png",
+      "path": "apps/desktop/assets/providers/codex.png",
+      "sha256": "a39f602a3acc577524fa7316ec88aa02ce43e4099d4fbf1c5abf623dce5ce157",
+      "sourceEqual": true
+    },
+    {
+      "provider": "antigravity",
+      "sourceFile": "antigravity-icon-dark-256.png",
+      "path": "apps/desktop/assets/providers/antigravity.png",
+      "sha256": "38266dac8e34784673a57d0b0dc6e032dacb2c3d4d373a47c36147e0de281e42",
+      "sourceEqual": true
+    }
+  ],
+  "docs": {
+    "bodySha256": "89a24614ee5988ede4742857200391eb43e4a447d747e0288705a5f25aa1c554",
+    "specCheck": "pass",
+    "reportLint": {
+      "blocking": 0,
+      "warnings": 0
+    }
+  }
+}

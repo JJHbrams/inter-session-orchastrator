@@ -81,7 +81,17 @@
     "evidence": "docs/validation/dedicated-chair.json",
     "tests": 38,
     "scope": "separate chair and requested fixes; full project still building",
-    "body_sha256": "c42ae5c938890340dbbf6e13967dde77824234d73a396f78e6f5689797e2b9d4",
+    "body_sha256": "89a24614ee5988ede4742857200391eb43e4a447d747e0288705a5f25aa1c554",
     "wiki_body_equal": true
+  },
+  "chair_panel": {
+    "status": "done",
+    "evidence": "docs/validation/chair-panel.json",
+    "appWidth": "full viewport",
+    "bubbleMax": 720,
+    "chairSummaryRow": true,
+    "participantsSeparateRow": true,
+    "localProviderIcons": true,
+    "tests": 38
   }
 }

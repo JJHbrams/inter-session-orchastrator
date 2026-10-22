@@ -39,7 +39,7 @@ updated: 2026-10-22
 | AC-1 | 별도 좌장 생성/상태가 있으며 초대된 두 세션과 다른 native ID가 영속된다. 이전 참여자는 유지된다. | 실제 CLI 초기화·ID 비교·다음 입력의 exact resume·재시작 후 ID 유지 |
 | AC-2 | 좌장 발화·참여자 질문·결정 제안이 공용 타임라인에 남고 실제 sender/원문/근거가 연결된다. | 실제 좌장 질문→수신 snapshot→상관 응답→취합, DB 순서와 UI 대조 |
 | AC-3 | 서버 재시작 뒤 화면이 자동 재인증하며 초안은 유지된다. 네트워크 실패는 연결 안내로 표시하고 동일 메시지 재접수는 멱등이다. | 실제 브라우저 열린 채 서버 재시작/일시 정지·복구·보존 확인, HTTP Host/Origin/CSRF 회귀 |
-| AC-4 | 앱과 메시지 최대 너비가 제한되고 사용자/좌장은 오른쪽, 참여자는 왼쪽이다. 좁고 넓은 창에서 가로 오버플로가 없다. | 실제 1280×720 브라우저 및 1600×1000 iframe CSS viewport의 경계 측정과 스크린샷. 넓은 검증은 동일 앱/API의 읽기 전용 프록시이며 창 override 성공으로 보고하지 않음 |
+| AC-4 | 앱은 전체 창 폭을 사용하며 메시지 버블만 최대 720px로 제한한다. 사용자/좌장은 오른쪽, 참여자는 왼쪽이다. 상단 첫 행은 좌장+토론 정리, 둘째 행은 참여 세션이며 프로필에는 provider 아이콘을 표시한다. | 실제 1280×720 브라우저 및 1600×1000 iframe CSS viewport의 경계 측정과 스크린샷. 넓은 검증은 동일 앱/API의 읽기 전용 프록시이며 창 override 성공으로 보고하지 않음 |
 | AC-5 | pause/archive/한도·writer fence·unknown 재전송 금지가 좌장 실행에도 적용된다. | 격리 storage/runner/HTTP 실패·재시작 테스트, 기존 데이터 보존 대조 |
 
 ## 3. 확정 사실 (Facts)
@@ -190,7 +190,7 @@ erDiagram
 | 프로세스 종료 시 응답 저장 불명 | unknown, 외부 실행 exactly-once 주장 금지 |
 | 구조 출력의 다른 room 대상 | 원자 검증 후 반영 |
 | 과거 역할 변경으로 좌우가 바뀜 | 새 발화 snapshot, 과거는 저장 당시 근거에 한해 투영 |
-| 넓은 코드/긴 단어 | 버블 wrap, grid min-width 0. 앱 1440px, 메시지 최대 720px |
+| 넓은 코드/긴 단어 | 버블 wrap, grid min-width 0. 앱 전체 폭, 메시지 최대 720px |
 | 좌장 초기화 실패/중단 | 기존 신원을 보존한다. 초기화 자체의 재시도 UI는 후속이며 새 ID로 조용히 대체하지 않는다. |
 | 모델은 완료했으나 한도로 저장 불가 | output_json 보존. 한도 조정 후 저장된 결과 적용은 모델을 재실행하지 않는다. |
 
@@ -213,7 +213,7 @@ CLI 프로토콜·인증 정책이 바뀌거나 초기화 복구가 필요해지
 | AC-1 | 전용 세션 생성, 같은 ID의 질문/취합/재시작 후 답변 3건 | PASS |
 | AC-2 | 질문 289f7d60, 응답 d912048e/74eea4d5, 취합 2f350e22, 결정 885a762f와 근거 6건 | PASS |
 | AC-3 | 열린 화면에서 서버 중단→offline·초안 유지→새 secret으로 재시작→새로고침 없이 복구. 4320 동시 접속 | PASS |
-| AC-4 | native1280×720 가로 넘침 0, composer bottom720. 실제 iframe1600×1000에서 app1440/left80/composer bottom1000 | PASS |
+| AC-4 | native1280×720에서 app1280·timeline232·composer bottom720. 실제 iframe1600×1000에서 app1600·버블720·timeline512·composer bottom1000. 두 폭 모두 가로 넘침 없음 | PASS |
 | AC-5 | 38/38 테스트, 한도 실패 원자 rollback·캐시 적용·서버 재시작 unknown·writer fence, 원본 필드 보존 | PASS |
 
 ### 결과
@@ -224,10 +224,22 @@ CLI 프로토콜·인증 정책이 바뀌거나 초기화 복구가 필요해지
 
 ### 화면·인증 근거
 
-- [1280×720 실제 브라우저](screenshots/dedicated-chair-1280.jpg): 입력창 유지, 가로 오버플로 없음.
-- [1600×1000 실제 iframe](screenshots/dedicated-chair-1600-frame.jpg): 같은 production 앱/API를 GET 전용 프록시로 렌더링. app 1440px 중앙 배치, 사용자·좌장 오른쪽/참여자 왼쪽. 1920px 창 테스트로 보고하지 않는다.
+- [1280×720 실제 브라우저](screenshots/chair-panel-1280.jpg): 입력창 유지, 가로 오버플로 없음.
+- [1600×1000 실제 iframe](screenshots/chair-panel-1600.jpg): 같은 production 앱/API를 GET 전용 프록시로 렌더링. app은 창 전체 1600px, 버블 최대720px, 사용자·좌장 오른쪽/참여자 왼쪽. 상단은 좌장·정리/참여 세션 2단이다. 1920px 창 테스트로 보고하지 않는다.
 - [실행·보존 근거](validation/dedicated-chair.json): 3개 completed 좌장 실행, 10개 completed 전달, 원래 자료 필드 비교.
 - 독립 읽기 전용 검토: AC-1~AC-5 PASS. 초기화 실패 재시도 UI는 후속 한계로 남긴다.
+
+### 상단 패널과 너비 해석 정정
+
+사용자는 앱 전체가 아니라 각 agent 응답의 읽기 폭을 제한하라는 뜻이라고 명확히 했다. 따라서 이전 전체1440px 제한을 제거하고, 버블720px 제한만 유지한다. 좌장은 상단 첫 행 맨 왼쪽에 독립 카드로, 그 오른쪽은 최신 토론 정리로 구성한다. 둘째 행에는 참여 세션만 표시한다. 이전 정리·근거 링크·사용자 확정은 상단에서 계속 제공하고, 세션 상세는 카드 또는 상세 버튼으로 열고 닫는다.
+
+| 항목 | 현재 동작·검증 |
+|---|---|
+| Provider | 사용자 C:/Users/jhjang/Documents/icons의 dark256 PNG를 로컬 정적 에셋으로 복사. Claude·Codex·Antigravity 허용 목록. 외부 이미지 요청 없음 |
+| 프로필 배지 | 참석자/좌장 카드, 발언, 멘션 후보와 수신자 칩에 provider 아이콘. 실제 참석자 3개 모두 로딩 확인 |
+| 정리 | 최신 제안 먼저, 이전 정리와 근거 접기/펼치기. polling 후 열린 상태 유지 |
+| 동작 보존 | 세션 native ID 상세 열기/닫기, @마야 키보드 선택, 기존 확정 버튼과 원문 링크 확인. 새 모델 호출 없음 |
+| 검증 | docs/validation/chair-panel.json. 기존 38개 테스트 통과, PNG Content-Type/시그니처와 미허용 에셋404 검증 포함 |
 
 관련: [[inter-session-index]], [[session-room-foundation]], [[session-personas]].
 
