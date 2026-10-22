@@ -5,6 +5,8 @@ test('restore rejects malformed storage and nonnumeric dimensions without losing
  for(const value of [null,[],42,'bad',{}, {composer:Infinity,sidebar:NaN}])assert.deepEqual(clampLayout(value),DEFAULTS);
  assert.deepEqual(loadLayout({getItem:()=>'{bad'}),DEFAULTS);
  assert.deepEqual(loadLayout({getItem(){throw Error('unavailable');}}),DEFAULTS);
+});
+test('legacy removed layout keys are ignored while supported preferences load',()=>{
  assert.deepEqual(clampLayout({sidebar:260,chair:320,upper:280,participants:140,composer:240,inspector:300}),{sidebar:260,composer:240,inspector:300});
 });
 test('panel dimensions fit measured header space and protect the conversation',()=>{
