@@ -102,3 +102,21 @@ test('auto routing fails closed without one ready writable dedicated chair',()=>
   assert.throws(()=>store.post({roomId:room.id,body:'plain',kind:'followup',routingMode:'auto'}),/ready writable dedicated chair/);
   store.db.close();
 });
+
+test('auto routing preserves attachments and rejects unknown chair or invalid targets atomically',()=>{
+ const s=new Store(),room=s.createRoom('auto boundaries');
+ try{
+  const member=s.registerSession({provider:'codex',host:'test',nativeId:'peer',cwd:'C:/peer',profile:'test',mode:'live_attach',verified:true,capabilities:{followup:true}}).session,m=s.join(room.id,member.id,false);
+  const readonly=s.registerSession({provider:'claude',host:'test',nativeId:'ro',cwd:'C:/ro',profile:'test',mode:'read_only'}).session;s.join(room.id,readonly.id,true);
+  s.beginChair(room.id,'chair');const chair=s.readyChair(room.id,{nativeId:'chair',cwd:'C:/chair'}),cm=s.room(room.id).members.find(x=>x.session_id===chair.session_id);
+  for(const body of [`@${member.alias} @${readonly.alias} ask`,'@missing','@ '])assert.throws(()=>s.post({roomId:room.id,body,kind:'followup',routingMode:'auto'}));
+  assert.equal(s.room(room.id).deliveries.length,0);
+  s.db.prepare("UPDATE memberships SET role='chair' WHERE id=?").run(m.id);assert.throws(()=>s.post({roomId:room.id,body:'plain',kind:'followup',routingMode:'auto'}),/dedicated chair/);s.db.prepare("UPDATE memberships SET role='member' WHERE id=?").run(m.id);
+  const pending=s.post({roomId:room.id,body:'first',kind:'followup',routingMode:'auto'});s.db.prepare("UPDATE deliveries SET state='unknown' WHERE id=?").run(pending.deliveries[0].id);
+  for(const body of ['plain',`@${cm.alias} direct`])assert.throws(()=>s.post({roomId:room.id,body,kind:'followup',routingMode:'auto'}),/unknown pending/);
+  const file=s.uploadAttachment(room.id,{filename:'note.txt',base64:Buffer.from('preserved').toString('base64'),requestKey:'file'});
+  const payload={roomId:room.id,body:`@${member.alias} direct`,kind:'followup',routingMode:'auto',attachmentIds:[file.id],requestKey:'frozen'};
+  const sent=s.post(payload);assert.deepEqual(sent.deliveries.map(d=>d.membership_id),[m.id]);s.leave(room.id,member.id);
+  const replay=s.post(payload);assert.equal(replay.message.id,sent.message.id);assert.equal(replay.message.attachments[0].id,file.id);assert.equal(s.readAttachment(room.id,file.id).text,'preserved');
+ }finally{s.db.close();}
+});

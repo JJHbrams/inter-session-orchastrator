@@ -21,7 +21,10 @@ test('chair output cannot re-send a current explicit recipient and remains atomi
  const run=s.chairRun(r.id,input.deliveries.find(d=>d.membership_id===chairMember.id).request_id);
  assert.throws(()=>c.applyOutput(r.id,chair,{message_id:input.message.id,request_id:run.request_key,body:'mixed'},run,{id:'none'}, {speech:'will fail',questions:[{targetMembershipIds:[peer.id],body:'mixed'}],proposal:null}),/중복 전달/);
  assert.equal(s.room(r.id).messages.some(m=>m.body==='will fail'),false);
- assert.doesNotThrow(()=>c.validate(r.id,chair,{speech:'clarify',questions:[{targetMembershipIds:[peer.id],body:'Which constraint matters most?'}],proposal:null},{currentTargets:[peer.id],currentInput:'mixed'}));s.db.close();
+ assert.doesNotThrow(()=>c.validate(r.id,chair,{speech:'clarify',questions:[{targetMembershipIds:[peer.id],body:'Which constraint matters most?'}],proposal:null},{currentTargets:[peer.id],currentInput:'mixed'}));
+ const prompt=c.context(r.id,chair,{message_id:input.message.id,body:'mixed',request_id:'context'},null),context=JSON.parse(prompt.slice(prompt.indexOf('\n')+1));
+ assert.equal(context.chairIdentity.alias,chairMember.alias);assert.equal(context.chairIdentity.role,'chair');assert.equal(context.chairIdentity.membershipId,chairMember.id);assert.ok(context.currentTargets.includes(peer.id));assert.equal(context.participants.find(p=>p.membershipId===peer.id).displayName,peer.session.display_name);
+ s.db.close();
 });
 
 test('reply consolidation is correlated, system authored and not repeated',async()=>{
