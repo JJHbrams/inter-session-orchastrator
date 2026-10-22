@@ -1,6 +1,40 @@
 const TAGS=['h1','h2','h3','h4','p','br','strong','em','del','ul','ol','li','code','pre','blockquote','table','thead','tbody','tr','th','td','details','summary','a','img'];
 const ATTRS=['href','title','target','rel','src','alt','width','height','open'];
 
+// Keep the native textarea responsible for editing, selection, and IME. This
+// inert backdrop paints only the backgrounds of resolved mention ranges.
+export function createMentionInput({textarea,getSpans}){
+  const doc=textarea.ownerDocument,win=doc.defaultView;
+  const editor=doc.createElement('div'),backdrop=doc.createElement('div'),content=doc.createElement('div');
+  editor.className='mention-editor';backdrop.className='mention-backdrop';backdrop.setAttribute('aria-hidden','true');
+  backdrop.append(content);textarea.before(editor);editor.append(backdrop,textarea);
+  let signature;
+  function sync(){backdrop.scrollTop=textarea.scrollTop;backdrop.scrollLeft=textarea.scrollLeft;}
+  function measure(){
+    const style=win.getComputedStyle(textarea);
+    for(const key of ['font','lineHeight','letterSpacing','wordSpacing','padding','textAlign','tabSize','direction'])backdrop.style[key]=style[key];
+    backdrop.style.borderWidth=style.borderWidth;
+    backdrop.style.width=(textarea.clientWidth+parseFloat(style.borderLeftWidth)+parseFloat(style.borderRightWidth))+'px';
+    sync();
+  }
+  function render(){
+    const value=textarea.value,ranges=getSpans(value),next=JSON.stringify([value,ranges]);
+    if(next!==signature){
+      signature=next;content.replaceChildren();let last=0;
+      for(const {start,end} of ranges){
+        content.append(value.slice(last,start));const mark=doc.createElement('span');mark.className='mention';mark.textContent=value.slice(start,end);content.append(mark);last=end;
+      }
+      content.append(value.slice(last)+'\n');
+    }
+    measure();
+  }
+  textarea.addEventListener('input',render);textarea.addEventListener('scroll',sync);
+  textarea.addEventListener('compositionend',render);
+  if(win.ResizeObserver)new win.ResizeObserver(measure).observe(textarea);
+  win.addEventListener('resize',measure);render();
+  return {render};
+}
+
 function safeHref(value,roomPath,baseURI){
   if(!value) return false;
   if(value.startsWith('#')||(roomPath&&value.startsWith(roomPath))) return true;

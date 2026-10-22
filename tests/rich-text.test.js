@@ -2,8 +2,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
 import createDOMPurify from 'dompurify';
-import {createRenderer} from '../apps/desktop/rich-text.js';
+import {createRenderer,createMentionInput} from '../apps/desktop/rich-text.js';
+import {mentionSpans} from '../packages/contracts/mentions.js';
 import {marked} from 'marked';
+
+test('mention input paints resolved ranges without replacing native editing or interpreting HTML',()=>{
+ const dom=new JSDOM('<form><label>Message<textarea id="draft"></textarea></label></form>'),doc=dom.window.document,textarea=doc.querySelector('textarea');
+ const aliases=new Set(['수아','마야','유리아']);
+ const source='@수아 @마야 @유리아 @미등록 email@수아 `@마야` \\@유리아 <img src=x onerror=bad()>\n끝';
+ textarea.value=source;textarea.setSelectionRange(3,7);
+ const input=createMentionInput({textarea,getSpans:value=>mentionSpans(value).filter(span=>aliases.has(span.alias))});
+ const backdrop=doc.querySelector('.mention-backdrop');
+ assert.deepEqual([...backdrop.querySelectorAll('.mention')].map(x=>x.textContent),['@수아','@마야','@유리아']);
+ assert.equal(backdrop.getAttribute('aria-hidden'),'true');assert.equal(backdrop.querySelector('img'),null);
+ assert.equal(textarea.value,source);assert.equal(doc.querySelector('#draft'),textarea);assert.equal(textarea.form,doc.querySelector('form'));
+ assert.equal(textarea.selectionStart,3);assert.equal(textarea.selectionEnd,7);
+ textarea.value='수정 @수아';textarea.dispatchEvent(new dom.window.Event('input'));
+ assert.equal(backdrop.querySelector('.mention').textContent,'@수아');
+ aliases.delete('수아');input.render();assert.equal(backdrop.querySelector('.mention'),null);
+ textarea.scrollTop=20;textarea.dispatchEvent(new dom.window.Event('scroll'));assert.equal(backdrop.scrollTop,20);
+});
 
 test('real Markdown parser formats tables/code and purifier blocks executable HTML and remote images',()=>{
  const dom=new JSDOM('<!doctype html>',{url:'http://local.test/'}),purify=createDOMPurify(dom.window),doc=dom.window.document;

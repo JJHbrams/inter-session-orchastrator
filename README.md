@@ -54,7 +54,7 @@ API는 loopback·Host/Origin·CSRF·HttpOnly SameSite 쿠키와 room 등록으�
 npm test
 ```
 
-현재61개 테스트가 통과했다. 추가 검증은 첨부 권한·멱등·재시작·원본 바이트, HTTP/stdio/helper, 실제 Markdown 정제와 초안 경계, 이전 패널 설정 호환·멘션 목록 배치·최소 대화 공간이다. 실제 브라우저의 파일 선택·클립보드·drop 이벤트·재시도 및 새 좌장의 이미지/텍스트 판독을 확인했다. 멘션 목록은 패널 밖으로 펼쳐지며, 3개 CSS viewport에서 후보 노출과 화면 크기 변화 뒤 재배치를 확인했다. OS 물리 드래그는 자동화 도구 입력 실패로 별도 미검증이다. 이 테스트가 원래 V-01~V-13의 실제 host 검증을 대체하지는 않는다.
+현재62개 테스트가 통과했다. 추가 검증은 첨부 권한·멱등·재시작·원본 바이트, HTTP/stdio/helper, 실제 Markdown 정제와 초안 경계, 이전 패널 설정 호환·멘션 목록 배치·최소 대화 공간이다. 실제 브라우저의 파일 선택·클립보드·drop 이벤트·재시도 및 새 좌장의 이미지/텍스트 판독을 확인했다. 인식된 @별칭은 입력창과 대화에서 같은 파란 배경으로 강조한다. 멘션 목록은 패널 밖으로 펼쳐지며, 3개 CSS viewport에서 후보 노출과 화면 크기 변화 뒤 재배치를 확인했다. OS 물리 드래그는 자동화 도구 입력 실패로 별도 미검증이다. 이 테스트가 원래 V-01~V-13의 실제 host 검증을 대체하지는 않는다.
 
 - [별도 좌장·인증 복구·메신저 명세](docs/dedicated-chair.html) / [원문](docs/design/0003-dedicated-chair.md) / [실제 검증 근거](docs/validation/dedicated-chair.json)
 - [패널 조절·이름 변경 명세](docs/resizable-panels.html) / [원문](docs/design/0004-resizable-panels.md)

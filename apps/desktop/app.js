@@ -3,7 +3,7 @@ import {createApiClient} from '/api-client.js';
 import {initLayout,mentionMenuGeometry} from '/layout.js';
 import {marked} from '/vendor/marked.js';
 import DOMPurify from '/vendor/purify.js';
-import {createRenderer} from '/rich-text.js';
+import {createRenderer,createMentionInput} from '/rich-text.js';
 import {createAttachmentComposer} from '/attachments.js';
 let current, rooms=[], channels=[], pendingSend, selectedRoomId;const draftBodies=new Map();const stateLabel={queued:'요청 대기',claimed:'전달 예약',submitting:'요청 제공 중',accepted:'호스트 접수',running:'생성 중',completed:'응답 회수',unknown:'확인 필요',blocked:'차단',failed:'실패',cancelled:'취소'}; const $=s=>document.querySelector(s);
 const connection=document.createElement('div');connection.id='connection';connection.setAttribute('role','status');connection.hidden=true;$('#error').before(connection);
@@ -131,6 +131,10 @@ function renderReactions(message,card) {
   card.append(wrap);
 }
 let mentionIndex=0,mentionClosed=false;
+const mentionInput=createMentionInput({textarea:$('#body'),getSpans:value=>{
+ const aliases=new Set((current?.members||[]).filter(m=>!m.left_at).map(m=>m.alias));
+ return mentionSpans(value).filter(span=>aliases.has(span.alias));
+}});
 const mentionMenu=$('#mentionMenu');
 document.body.append(mentionMenu);
 function closeMentionMenu(){mentionClosed=true;renderMentionMenu();}
@@ -190,6 +194,7 @@ function renderPreview() {
   if(!preview.members.length)box.append(text('span','질문할 수 있는 참여자가 없어요.'));
 }
 function renderMentionMenu() {
+  mentionInput.render();
   const menu=$('#mentionMenu');if(!menu)return;
   const candidates=mentionCandidates();menu.replaceChildren();
   mentionIndex=Math.max(0,Math.min(mentionIndex,candidates.length-1));
