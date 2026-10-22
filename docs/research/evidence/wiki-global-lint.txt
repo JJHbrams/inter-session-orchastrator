@@ -1,0 +1,32 @@
+⚠️ 총 **52건** 이슈
+
+### frontmatter 필드 누락 (20건)
+- `daily\news\2026-09-16-test.md` — 누락: note_type
+- `daily\news\2026-09-16.md` — 누락: note_type
+- `daily\news\2026-09-17.md` — 누락: note_type
+- `daily\news\2026-09-18.md` — 누락: note_type
+- `daily\news\2026-09-19.md` — 누락: note_type
+- `daily\news\2026-09-29.md` — 누락: note_type
+- `daily\news\2026-09-30.md` — 누락: note_type
+- `daily\news\2026-10-01.md` — 누락: note_type
+- `daily\news\2026-10-02.md` — 누락: note_type
+- `guides\engram-manual\overlay-event-api.md` — 누락: note_type, tags
+  …외 10건
+
+### 본문 부족 (200자 미만) (29건)
+- `daily\2026-09-14.md` — 본문 194자 (최소 200자)
+- `ontology\entities\ent-aleph-alpha.md` — 본문 115자 (최소 200자)
+- `ontology\entities\ent-jared-kushner.md` — 본문 150자 (최소 200자)
+- `ontology\entities\ent-putin.md` — 본문 94자 (최소 200자)
+- `ontology\entities\ent-ramp.md` — 본문 145자 (최소 200자)
+- `ontology\questions\q-agent-accountability-aiuc1-independent-tests.md` — 본문 167자 (최소 200자)
+- `ontology\questions\q-agent-boundary-incidents-gemini-breakout-report.md` — 본문 170자 (최소 200자)
+- `ontology\questions\q-agent-eval-consistency-open-tts-leaderboard.md` — 본문 196자 (최소 200자)
+- `ontology\questions\q-agent-platforms-cua-s1-benchmark.md` — 본문 182자 (최소 200자)
+- `ontology\questions\q-ai-deployment-explosion-response.md` — 본문 177자 (최소 200자)
+  …외 19건
+
+### id 중복 파일 (하나만 노드) (3건)
+- `daily\news\2026-09-16-test.md, daily\news\2026-09-16.md` — 'daily-news-2026-09-16' — 2개 파일 중 하나만 노드
+- `projects\000_Project_Engram\overview.md, research\3d-dbt-cad\overview.md` — 'overview' — 2개 파일 중 하나만 노드
+- `projects\001_TruviewCADMOM\index.md, projects\dr-issue-dashboard\index.md` — 'index' — 2개 파일 중 하나만 노드

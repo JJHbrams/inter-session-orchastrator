@@ -1,0 +1,18 @@
+flowchart TD
+    A[입력과 등록 신원] --> B[권한 및 수신자 snapshot]
+    B --> C[요청과 outbox 원자 저장]
+    C --> D{입력 종류}
+    D -->|게시 또는 알림| V[타임라인과 inbox]
+    D -->|실행| E{연결 capability}
+    E -->|미지원 또는 모호한 대상| X[차단 사유 표시]
+    E -->|지원| Q[세션 전체 writer 예약]
+    Q --> F{일반 요청은 idle과 초안 없음}
+    F -->|대기 필요| Q
+    F -->|조건 충족 또는 명시적 steer| G[신원과 정책 재확인]
+    G --> H[attempt와 제출 fence 영속화]
+    H --> I[host adapter 전달]
+    I --> J{관측 증거}
+    J -->|결과 불명| Z[unknown 유지와 동일 요청 조회]
+    J -->|host 접수| K[provider 시작과 상관 응답 관측]
+    K --> L[원문 응답과 별도 작업 결과]
+    L --> M[좌장 요약 및 결정 근거]

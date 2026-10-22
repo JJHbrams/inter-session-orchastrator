@@ -1,0 +1,14 @@
+erDiagram
+    CHANNEL ||--o{ ROOM : contains
+    ROOM ||--o{ MEMBERSHIP : invites
+    SESSION ||--o{ MEMBERSHIP : participates
+    SESSION ||--o{ SESSION_BINDING : binds
+    SESSION ||--o| SESSION_WRITER : serializes
+    ROOM ||--o{ MESSAGE : records
+    MESSAGE ||--o{ DELIVERY : targets
+    MEMBERSHIP ||--o{ DELIVERY : receives
+    DELIVERY ||--o{ ATTEMPT : tracks
+    ATTEMPT ||--o{ EVIDENCE : observes
+    ROOM ||--o{ DECISION : records
+    MESSAGE ||--o{ DECISION_SOURCE : supports
+    DECISION ||--o{ DECISION_SOURCE : cites

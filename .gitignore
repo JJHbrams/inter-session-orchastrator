@@ -1,0 +1,6 @@
+.research-cache/
+__pycache__/
+.worktrees/
+.local/
+node_modules/
+*.log

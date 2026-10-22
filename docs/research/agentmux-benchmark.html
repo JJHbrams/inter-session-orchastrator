@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="source-sha256" content="110f3a4875ad7f0ad7f038ebb3fbacc7352082a2d3cecf2b73984ff39d63212c"><title>agentmux — 영속 전달 대기열과 실행 소유권</title><style>
+    :root{--ink:#202c35;--muted:#64757a;--accent:#006c62;--line:#dce4e4;--paper:#fff;--bg:#f3f6f5}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}
+    body{margin:0;color:var(--ink);background:var(--bg);font:15px/1.85 'Segoe UI','Malgun Gothic',sans-serif}
+    a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+    .shell{display:grid;grid-template-columns:222px minmax(0,1fr);max-width:1640px;margin:auto}
+    aside{position:sticky;top:0;height:100vh;padding:38px 20px;overflow:auto;border-right:1px solid var(--line)}
+    .brand{font-size:12px;letter-spacing:.1em;font-weight:800;color:var(--accent);line-height:1.6;margin-bottom:18px}
+    .status{display:inline-block;background:#f9e9c6;color:#795308;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:700}
+    nav{margin-top:25px}nav a{display:block;font-size:12px;color:var(--muted);padding:7px 0;line-height:1.5}
+    nav a:hover{color:var(--accent)}main{min-width:0;padding:40px 52px 80px;background:var(--paper)}
+    .meta{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid var(--accent);padding-bottom:17px;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.08em}
+    h1{font-size:34px;line-height:1.45;letter-spacing:-1.1px;margin:30px 0 22px;font-weight:750;max-width:900px}
+    h2{font-size:23px;line-height:1.5;margin:54px 0 20px;padding-top:20px;border-top:1px solid var(--line);letter-spacing:-.5px}
+    h3{font-size:17px;margin:28px 0 12px;color:var(--accent)}p{margin:12px 0;max-width:1060px}
+    blockquote{margin:20px 0;padding:15px 20px;border-left:4px solid var(--accent);background:#edf6f3;color:#345e58}
+    blockquote p{margin:0}ul,ol{padding-left:23px}li{margin:5px 0}
+    .table-scroll{overflow:auto;max-width:100%;margin:18px 0 26px;border:1px solid var(--line);border-radius:8px}
+    table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.75}
+    th{background:#edf3f2;color:#24463f;font-weight:700;text-align:left;white-space:nowrap}
+    td,th{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top;min-width:105px}
+    tr:last-child td{border-bottom:0}td:first-child{font-weight:600}tr:nth-child(even){background:#fafcfc}
+    code{font:12px/1.6 Consolas,'Malgun Gothic',monospace;background:#edf2f2;padding:2px 4px;border-radius:3px;overflow-wrap:anywhere}
+    pre{padding:20px;overflow:auto;border-radius:8px;background:#152c2c;color:#e7f2ef;font:12px/1.9 Consolas,'Malgun Gothic',monospace}
+    pre code{padding:0;background:none;color:inherit;font:inherit;overflow-wrap:normal}
+    pre.mermaid{background:#f7faf9;color:var(--ink);border:1px solid var(--line);text-align:center;padding:24px 12px}
+    .mermaid svg{max-width:100%!important;height:auto!important;display:block;margin:auto}
+    footer{margin-top:50px;border-top:1px solid var(--line);padding-top:18px;color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+    .skip{position:absolute;left:-9999px}.skip:focus{left:16px;top:10px;background:white;padding:8px;z-index:10}
+    @media(max-width:1000px){.shell{grid-template-columns:180px minmax(0,1fr)}main{padding:28px}aside{padding:28px 15px}h1{font-size:28px}}
+    @media(max-width:700px){.shell{display:block}aside{position:static;height:auto;padding:20px;border:0;border-bottom:1px solid var(--line)}nav{display:none}main{padding:22px 18px}h1{font-size:25px}td,th{min-width:135px}h2{font-size:21px}}
+    @media print{aside,.skip{display:none}.shell{display:block}main{padding:0}.table-scroll{overflow:visible}pre.mermaid{break-inside:avoid}body{background:white}}
+    </style></head>
+<body><a class="skip" href="#document">본문으로 이동</a><div class="shell">
+<aside><div class="brand">INTER SESSION<br>ORCHESTRATOR</div><span class="status">정적 조사 · 실행 미검증</span><nav aria-label="문서 목차"><a href="index.html">← 조사 자료 목록</a>
+<a href="#_1">한눈에 보기</a>
+<a href="#_2">질문</a>
+<a href="#_3">짧은 답</a>
+<a href="#_4">근거</a>
+<a href="#_7">상충 근거</a>
+<a href="#_8">한계</a>
+<a href="#_9">권고</a>
+<a href="#_10">관련 노트</a></nav></aside>
+<main id="document"><header class="meta"><span>BENCHMARK → EVIDENCE</span><span>2026.10.22 · WINDOWS / LOCAL</span></header>
+<article><!-- sr:plan
+{
+  "document_type": "research",
+  "reader_questions": [
+    "무엇을 조사했는가",
+    "기존 세션을 어떻게 연결하는가",
+    "어떤 부분을 채택하는가",
+    "미검증 사항은 무엇인가"
+  ],
+  "visual_plan": [
+    {
+      "kind": "comparison_table",
+      "content": "관측 사실과 근거 및 채택/보류 비교",
+      "required": true
+    },
+    {
+      "kind": "flowchart",
+      "content": "연결 및 전달 처리 경로",
+      "required": true
+    }
+  ],
+  "visual_waiver": []
+}
+-->
+
+<h1 id="agentmux">agentmux — 영속 전달 대기열과 실행 소유권</h1>
+<blockquote>
+<p>2026-10-22 기준의 개인용 Windows 세션 토론장 벤치마킹 자료.</p>
+</blockquote>
+<h2 id="_1">한눈에 보기</h2>
+<ul>
+<li>목적: 실제 연결·전달·응답·복구 경계를 파악한다.</li>
+<li>현재 상태: 고정 커밋 소스와 로컬 가이드 정적 조사. 제품 설치·LLM 실행은 수행하지 않았다.</li>
+<li>핵심 결론: 대기열·영수증·불확실성 보존은 핵심 벤치마킹 대상이다. native backend는 Windows 지원이나 외부 세션 무중단 연결을 뜻하지 않는다.</li>
+<li>원인 또는 판단 근거: 아래 파일·행 근거와 수집 manifest에 범위를 명시했다.</li>
+<li>결정: 코드 재사용과 기본 정책은 아직 확정하지 않는다.</li>
+<li>다음 행동: 전달 보장만 독립 계약으로 추출하고 자동 실행 권한 정책 및 호스트 소유권을 별도로 설계한다.</li>
+<li>최종 갱신: 2026-10-22, Asia/Seoul.</li>
+</ul>
+<h2 id="_2">질문</h2>
+<p>장시간 실행과 재시작을 견디는 전달 설계는 무엇인가. tmux를 제외한 native backend가 기존 외부 세션을 그대로 제어한다는 뜻인가.</p>
+<h2 id="_3">짧은 답</h2>
+<p>Node.js 조율 계층은 요청을 disk spool에 먼저 저장하고 세션별 writer, 제출 fence, 정확한 transcript 영수증을 조합한다. native backend도 있지만 해당 runtime이 소유하는 agent를 대상으로 하며, 다른 앱의 실행 중 세션에 보편적으로 붙는 기능으로 해석하면 안 된다.</p>
+<h2 id="_4">근거</h2>
+<p>고정 revision: <code>3d4244dd7f69254b379814d8bc1231f42c4d93ae</code>. LICENSE는 MIT다. GitHub latest release API는 Android Link APK 태그를 반환하므로 이를 조율 runtime의 최신 검증 버전으로 사용할 수 없다.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>소스에서 확인한 동작</th>
+<th>고정 근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A-1</td>
+<td>요청 identity와 disk spool</td>
+<td><a href="https://github.com/adelost/agentmux/blob/3d4244dd7f69254b379814d8bc1231f42c4d93ae/core/delivery-queue.mjs#L120-L170">core/delivery-queue.mjs:120–170</a>; <a href="https://github.com/adelost/agentmux/blob/3d4244dd7f69254b379814d8bc1231f42c4d93ae/core/delivery-queue.mjs#L194-L209">core/delivery-queue.mjs:194–209</a></td>
+</tr>
+<tr>
+<td>A-2</td>
+<td>제출 전 불확실성 기록</td>
+<td><a href="https://github.com/adelost/agentmux/blob/3d4244dd7f69254b379814d8bc1231f42c4d93ae/core/delivery-fence.mjs#L49-L58">core/delivery-fence.mjs:49–58</a></td>
+</tr>
+<tr>
+<td>A-3</td>
+<td>불확실한 전달을 미전송과 구분</td>
+<td><a href="https://github.com/adelost/agentmux/blob/3d4244dd7f69254b379814d8bc1231f42c4d93ae/core/delivery-queue-policy.mjs#L3-L31">core/delivery-queue-policy.mjs:3–31</a></td>
+</tr>
+<tr>
+<td>A-4</td>
+<td>세션 writer lease</td>
+<td><a href="https://github.com/adelost/agentmux/blob/3d4244dd7f69254b379814d8bc1231f42c4d93ae/core/delivery-writer.mjs#L5-L37">core/delivery-writer.mjs:5–37</a></td>
+</tr>
+<tr>
+<td>A-5</td>
+<td>기존 native agent 채택 시 신원 검사</td>
+<td><a href="https://github.com/adelost/agentmux/blob/3d4244dd7f69254b379814d8bc1231f42c4d93ae/core/native-runtime-client.mjs#L139-L165">core/native-runtime-client.mjs:139–165</a></td>
+</tr>
+<tr>
+<td>A-6</td>
+<td>채택된 agent도 automation으로 맞추는 경로</td>
+<td><a href="https://github.com/adelost/agentmux/blob/3d4244dd7f69254b379814d8bc1231f42c4d93ae/core/native-runtime-client.mjs#L185-L215">core/native-runtime-client.mjs:185–215</a></td>
+</tr>
+<tr>
+<td>A-7</td>
+<td>자동 실행 권한의 실제 내용</td>
+<td><a href="https://github.com/adelost/agentmux/blob/3d4244dd7f69254b379814d8bc1231f42c4d93ae/core/execution-safety.mjs#L1-L43">core/execution-safety.mjs:1–43</a></td>
+</tr>
+<tr>
+<td>A-8</td>
+<td>앱 소유 Codex runtime의 resume/start</td>
+<td><a href="https://github.com/adelost/agentmux/blob/3d4244dd7f69254b379814d8bc1231f42c4d93ae/spikes/web-ui/server.mjs#L1790-L1820">spikes/web-ui/server.mjs:1790–1820</a></td>
+</tr>
+<tr>
+<td>A-9</td>
+<td>영수증 의미와 JSONL 직접 변경 금지 설명</td>
+<td><a href="https://github.com/adelost/agentmux/blob/3d4244dd7f69254b379814d8bc1231f42c4d93ae/docs/codex-delivery-evidence.md#L5-L30">docs/codex-delivery-evidence.md:5–30</a></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="_5">처리 흐름</h3>
+<pre class="mermaid">flowchart TD
+    A[producer 요청] --&gt; B[영속 identity와 job]
+    B --&gt; C[수신 세션 writer lease]
+    C --&gt; D[초안과 상태 확인]
+    D --&gt; E[제출 fence 먼저 저장]
+    E --&gt; F[Enter 또는 native 요청]
+    F --&gt; G{정확한 영수증}
+    G --&gt;|있음| H[acknowledged]
+    G --&gt;|확인 안 됨| I[delivered_unverified]
+    I --&gt; J[새 전송으로 되돌리지 않음]
+</pre>
+<h3 id="_6">사용·운영 특성</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>차원</th>
+<th>관측 또는 판단</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>재시작</td>
+<td>지속 job과 submit fence에 복구 사실을 보존</td>
+</tr>
+<tr>
+<td>다중 producer</td>
+<td>Discord·CLI 등이 공통 대기열을 통과하도록 설계</td>
+</tr>
+<tr>
+<td>첨부</td>
+<td>enqueue에서 첨부 백업을 생성하는 경로가 있음</td>
+</tr>
+<tr>
+<td>native</td>
+<td>tmux와 다른 runtime transport 의미. native Windows 의미가 아님</td>
+</tr>
+<tr>
+<td>권한</td>
+<td>앱 소유/채택 agent를 automation 정책으로 맞추는 경로가 있음</td>
+</tr>
+<tr>
+<td>UI</td>
+<td>Discord ChatOps와 spikes/web-ui가 함께 존재. 원하는 토론장 레이아웃의 완성본은 아님</td>
+</tr>
+<tr>
+<td>시험 증거</td>
+<td>delivery-storage-recovery, delivery-fence, native-session-identity 및 runtime canary 소스 존재. 실행하지 않음</td>
+</tr>
+</tbody>
+</table></div>
+<p>추가 확인: native와 tmux 사이에 암묵적 fallback을 두지 않는 계약이 별도로 명시되어 있다 (<a href="https://github.com/adelost/agentmux/blob/3d4244dd7f69254b379814d8bc1231f42c4d93ae/core/native-runtime-client.mjs#L1-L4">core/native-runtime-client.mjs:1–4</a>).</p>
+<h2 id="_7">상충 근거</h2>
+<p>native agent ID를 정확히 채택하는 검사가 있어도, 이는 runtime 내부 agent를 특정하는 검사다. Orca나 별도 CLI가 현재 소유한 외부 프로세스와 제어권을 공유하는 증거는 아니다.</p>
+<p>권한 상수와 채택 후 PATCH 경로는 기존 정책 유지라는 우리 초안의 기본안과 다르다. 자동 실행이 필요한 개인용 도구에서는 가능한 선택이지만, 연구 단계에서 이를 사용자 선호로 확정하거나 그대로 복사하지 않는다.</p>
+<h2 id="_8">한계</h2>
+<ul>
+<li>FIFO·lease·영수증 설계의 소스 경로를 확인했으며 장애 주입 결과를 확보한 것은 아니다.</li>
+<li>문서의 Linux/macOS/WSL 지원과 node/tmux 전제를 확인했다. native Windows에서 실행하지 않았다.</li>
+<li>Android 최신 태그와 branch HEAD의 runtime 코드를 구분했다. release asset 존재만으로 desktop 설치 가능성을 판단하지 않는다.</li>
+<li>producer부터 provider 완료까지 전 경로의 자동 검증 통과를 주장하지 않는다.</li>
+</ul>
+<h2 id="_9">권고</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>항목</th>
+<th>제안</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>채택 후보</td>
+<td>지속 request identity, 수신 세션 writer, 제출 전 fence, unknown/unverified 보존</td>
+</tr>
+<tr>
+<td>단순화 후보</td>
+<td>개인용 첫 버전에서는 동일 불변식을 SQLite outbox와 event로 표현할지 비교</td>
+</tr>
+<tr>
+<td>별도 결정</td>
+<td>기존 권한 유지와 선택적 자동 실행 모드</td>
+</tr>
+<tr>
+<td>재사용 보류</td>
+<td>전체 runtime·Discord·tmux·Android 구조를 하나의 베이스로 가져오는 것</td>
+</tr>
+</tbody>
+</table></div>
+<p>전달 성공, provider 입력 관측, 실제 작업 완료는 계속 별도 상태로 유지한다.</p>
+<h2 id="_10">관련 노트</h2>
+<ul>
+<li><a href="index.html">inter-session-index</a></li>
+<li><a href="benchmark-sources.html">benchmark-sources</a></li>
+<li><a href="benchmark-analysis.html">benchmark-analysis</a></li>
+</ul></article><footer>원본: docs/research/agentmux-benchmark.md<br>본문 SHA-256: 110f3a4875ad7f0ad7f038ebb3fbacc7352082a2d3cecf2b73984ff39d63212c</footer></main></div>
+<!-- Mermaid third-party license: The MIT License (MIT)
+
+Copyright (c) 2014 - 2022 Knut Sveidqvist
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the &quot;Software&quot;), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+ -->
+<script src="assets/mermaid.min.js"></script><script>
+window.designRenderDone=false;
+mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'base',themeVariables:{fontFamily:'Segoe UI, Malgun Gothic, sans-serif',primaryColor:'#e6f2ee',primaryTextColor:'#202c35',lineColor:'#4c7972',primaryBorderColor:'#76a69b'}});
+mermaid.run({querySelector:'.mermaid'}).then(()=>{window.designRenderDone=true}).catch(e=>{window.designRenderError=String(e);console.error(e)});
+</script></body></html>

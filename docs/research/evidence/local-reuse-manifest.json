@@ -1,0 +1,42 @@
+{
+  "root": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\drt-notebookLM",
+  "head": "fc60ae3531f95fee914ca715ff882f540bf6abae",
+  "files": [
+    {
+      "path": "frontend/package.json",
+      "sha256": "b9fe14cc343b0ea26b94f72d2595e509bab429d63c1deaf509097f9d1950bff2",
+      "lines": 38
+    },
+    {
+      "path": "frontend/src-tauri/tauri.conf.json",
+      "sha256": "5e7f746b91247a330efa6a00009ce2815c51107944db00b7ed2b623bc9fe59b6",
+      "lines": 48
+    },
+    {
+      "path": "frontend/src/components/ChatPanel/index.tsx",
+      "sha256": "579baf6949f7a4c2c0d0da455fc4699bfcf085b526dda8a84df83e0ecf703ebc",
+      "lines": 1320
+    },
+    {
+      "path": "frontend/src/components/TerminalPanel/index.tsx",
+      "sha256": "724663f5e3a703105cbaff4f56c125b3f5c1b5dfe69d2fb8444f7d9e24856696",
+      "lines": 108
+    },
+    {
+      "path": "frontend/src/components/shared/MarkdownCodeBlock.tsx",
+      "sha256": "25d6475677741244d5b4ede84abae5bf40bab74d9d76b523047ac60df4fea0a7",
+      "lines": 59
+    },
+    {
+      "path": "frontend/src/components/shared/MarkdownImage.tsx",
+      "sha256": "566ee3d0a9cd68d722d1bfbbae95b2d01b17ea29c91b5a94babf4b41aef7ad81",
+      "lines": 43
+    },
+    {
+      "path": "frontend/src/hooks/useChat.ts",
+      "sha256": "feed6564b9f37d57e7d232de4d41582bdf90b3239b3cb8cbd9980b6e86747674",
+      "lines": 554
+    }
+  ],
+  "evidence": "actual worktree file hashes; not assumed identical to HEAD"
+}

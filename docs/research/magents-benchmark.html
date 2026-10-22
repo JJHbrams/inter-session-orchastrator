@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="source-sha256" content="0e60d5b5b2f4e038f23757bd29cccda6fb5c4443b4156da4618ddc579a8472cc"><title>magents — 기존 세션 탐색과 전달 경로</title><style>
+    :root{--ink:#202c35;--muted:#64757a;--accent:#006c62;--line:#dce4e4;--paper:#fff;--bg:#f3f6f5}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}
+    body{margin:0;color:var(--ink);background:var(--bg);font:15px/1.85 'Segoe UI','Malgun Gothic',sans-serif}
+    a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+    .shell{display:grid;grid-template-columns:222px minmax(0,1fr);max-width:1640px;margin:auto}
+    aside{position:sticky;top:0;height:100vh;padding:38px 20px;overflow:auto;border-right:1px solid var(--line)}
+    .brand{font-size:12px;letter-spacing:.1em;font-weight:800;color:var(--accent);line-height:1.6;margin-bottom:18px}
+    .status{display:inline-block;background:#f9e9c6;color:#795308;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:700}
+    nav{margin-top:25px}nav a{display:block;font-size:12px;color:var(--muted);padding:7px 0;line-height:1.5}
+    nav a:hover{color:var(--accent)}main{min-width:0;padding:40px 52px 80px;background:var(--paper)}
+    .meta{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid var(--accent);padding-bottom:17px;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.08em}
+    h1{font-size:34px;line-height:1.45;letter-spacing:-1.1px;margin:30px 0 22px;font-weight:750;max-width:900px}
+    h2{font-size:23px;line-height:1.5;margin:54px 0 20px;padding-top:20px;border-top:1px solid var(--line);letter-spacing:-.5px}
+    h3{font-size:17px;margin:28px 0 12px;color:var(--accent)}p{margin:12px 0;max-width:1060px}
+    blockquote{margin:20px 0;padding:15px 20px;border-left:4px solid var(--accent);background:#edf6f3;color:#345e58}
+    blockquote p{margin:0}ul,ol{padding-left:23px}li{margin:5px 0}
+    .table-scroll{overflow:auto;max-width:100%;margin:18px 0 26px;border:1px solid var(--line);border-radius:8px}
+    table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.75}
+    th{background:#edf3f2;color:#24463f;font-weight:700;text-align:left;white-space:nowrap}
+    td,th{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top;min-width:105px}
+    tr:last-child td{border-bottom:0}td:first-child{font-weight:600}tr:nth-child(even){background:#fafcfc}
+    code{font:12px/1.6 Consolas,'Malgun Gothic',monospace;background:#edf2f2;padding:2px 4px;border-radius:3px;overflow-wrap:anywhere}
+    pre{padding:20px;overflow:auto;border-radius:8px;background:#152c2c;color:#e7f2ef;font:12px/1.9 Consolas,'Malgun Gothic',monospace}
+    pre code{padding:0;background:none;color:inherit;font:inherit;overflow-wrap:normal}
+    pre.mermaid{background:#f7faf9;color:var(--ink);border:1px solid var(--line);text-align:center;padding:24px 12px}
+    .mermaid svg{max-width:100%!important;height:auto!important;display:block;margin:auto}
+    footer{margin-top:50px;border-top:1px solid var(--line);padding-top:18px;color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+    .skip{position:absolute;left:-9999px}.skip:focus{left:16px;top:10px;background:white;padding:8px;z-index:10}
+    @media(max-width:1000px){.shell{grid-template-columns:180px minmax(0,1fr)}main{padding:28px}aside{padding:28px 15px}h1{font-size:28px}}
+    @media(max-width:700px){.shell{display:block}aside{position:static;height:auto;padding:20px;border:0;border-bottom:1px solid var(--line)}nav{display:none}main{padding:22px 18px}h1{font-size:25px}td,th{min-width:135px}h2{font-size:21px}}
+    @media print{aside,.skip{display:none}.shell{display:block}main{padding:0}.table-scroll{overflow:visible}pre.mermaid{break-inside:avoid}body{background:white}}
+    </style></head>
+<body><a class="skip" href="#document">본문으로 이동</a><div class="shell">
+<aside><div class="brand">INTER SESSION<br>ORCHESTRATOR</div><span class="status">정적 조사 · 실행 미검증</span><nav aria-label="문서 목차"><a href="index.html">← 조사 자료 목록</a>
+<a href="#_1">한눈에 보기</a>
+<a href="#_2">질문</a>
+<a href="#_3">짧은 답</a>
+<a href="#_4">근거</a>
+<a href="#_7">상충 근거</a>
+<a href="#_8">한계</a>
+<a href="#_9">권고</a>
+<a href="#_10">관련 노트</a></nav></aside>
+<main id="document"><header class="meta"><span>BENCHMARK → EVIDENCE</span><span>2026.10.22 · WINDOWS / LOCAL</span></header>
+<article><!-- sr:plan
+{
+  "document_type": "research",
+  "reader_questions": [
+    "무엇을 조사했는가",
+    "기존 세션이 실제로 어떻게 연결되는가",
+    "어떤 부분을 재사용할 수 있는가",
+    "미검증 사항은 무엇인가"
+  ],
+  "visual_plan": [
+    {
+      "kind": "comparison_table",
+      "content": "관측 사실과 근거, 채택 및 보류 항목 비교",
+      "required": true
+    },
+    {
+      "kind": "flowchart",
+      "content": "메시지 전달과 응답 및 실패 분기",
+      "required": true
+    }
+  ],
+  "visual_waiver": []
+}
+-->
+
+<h1 id="magents">magents — 기존 세션 탐색과 전달 경로</h1>
+<blockquote>
+<p>2026-10-22 기준의 개인용 Windows 세션 토론장 벤치마킹 자료.</p>
+</blockquote>
+<h2 id="_1">한눈에 보기</h2>
+<ul>
+<li>목적: 기존 작업 세션의 연결·전달·응답·복구 구조를 비교한다.</li>
+<li>현재 상태: 고정 커밋 소스의 선택 경로 정적 검토. 설치와 실제 LLM 실행은 하지 않았다.</li>
+<li>핵심 결론: 기존 세션 중심의 식별·검색 구조는 참고할 만하다. live 전달과 CLI 재개를 동일한 연결 능력으로 취급해서는 안 된다.</li>
+<li>원인 또는 판단 근거: 아래 파일·행 위치와 수집 manifest에 직접 확인한 범위를 명시했다.</li>
+<li>결정: 구현 채택은 아직 확정하지 않고 구조와 검증 항목을 추출한다.</li>
+<li>다음 행동: Windows adapter 계약에 연결 방식과 실제 session ID 보존 증거를 명시한다.</li>
+<li>최종 갱신: 2026-10-22, Asia/Seoul.</li>
+</ul>
+<h2 id="_2">질문</h2>
+<p>이미 열린 Claude·Codex 대화를 찾아 맥락을 유지한 채 전달할 수 있는가. 전달 실패 시 어떤 실행 주체로 바뀌며 Windows에 그대로 적용할 수 있는가.</p>
+<h2 id="_3">짧은 답</h2>
+<p>Rust 기반 MCP/CLI로 provider별 기존 대화를 찾아 전달한다. Claude는 peer socket과 tmux를 먼저 시도하고 실패하면 CLI 재개로, Codex는 Desktop IPC 실패 시 CLI 재개로 넘어간다. 재개 결과의 session ID를 검증하지만 원래 프로세스와의 제어권 공유를 보장하는 것은 아니다.</p>
+<h2 id="_4">근거</h2>
+<p>고정 revision: <code>0dd29e28f8170150b0135d93e55ee1d3b8ffa45a</code>. 수집한 LICENSE는 MIT이며 원문은 snapshot에 보존했다.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>소스에서 확인한 동작</th>
+<th>고정 근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M-1</td>
+<td>기존 세션 탐색과 profile/cwd 분리</td>
+<td><a href="https://github.com/abnegate/magents/blob/0dd29e28f8170150b0135d93e55ee1d3b8ffa45a/src/discover.rs#L41-L117">src/discover.rs:41–117</a></td>
+</tr>
+<tr>
+<td>M-2</td>
+<td>Claude 전달: peer socket → tmux → CLI 재개 순서</td>
+<td><a href="https://github.com/abnegate/magents/blob/0dd29e28f8170150b0135d93e55ee1d3b8ffa45a/src/deliver.rs#L23-L70">src/deliver.rs:23–70</a></td>
+</tr>
+<tr>
+<td>M-3</td>
+<td>Codex 전달: IPC → CLI 재개</td>
+<td><a href="https://github.com/abnegate/magents/blob/0dd29e28f8170150b0135d93e55ee1d3b8ffa45a/src/deliver.rs#L80-L101">src/deliver.rs:80–101</a></td>
+</tr>
+<tr>
+<td>M-4</td>
+<td>Desktop IPC의 별도 요청 메서드와 설정 상속</td>
+<td><a href="https://github.com/abnegate/magents/blob/0dd29e28f8170150b0135d93e55ee1d3b8ffa45a/src/codex_ipc.rs#L29-L78">src/codex_ipc.rs:29–78</a></td>
+</tr>
+<tr>
+<td>M-5</td>
+<td>전달 시도 이후 mailbox 기록, queued=true와 route marker 반환</td>
+<td><a href="https://github.com/abnegate/magents/blob/0dd29e28f8170150b0135d93e55ee1d3b8ffa45a/src/mailbox.rs#L174-L193">src/mailbox.rs:174–193</a></td>
+</tr>
+<tr>
+<td>M-6</td>
+<td>재개 시 provider·session ID 일치 검사</td>
+<td><a href="https://github.com/abnegate/magents/blob/0dd29e28f8170150b0135d93e55ee1d3b8ffa45a/src/runtime.rs#L148-L183">src/runtime.rs:148–183</a></td>
+</tr>
+<tr>
+<td>M-7</td>
+<td>UnixStream 모듈이 조건 없이 포함됨</td>
+<td><a href="https://github.com/abnegate/magents/blob/0dd29e28f8170150b0135d93e55ee1d3b8ffa45a/src/lib.rs#L1-L18">src/lib.rs:1–18</a>; <a href="https://github.com/abnegate/magents/blob/0dd29e28f8170150b0135d93e55ee1d3b8ffa45a/src/deliver.rs#L1-L14">src/deliver.rs:1–14</a></td>
+</tr>
+<tr>
+<td>M-8</td>
+<td>응답은 발신 세션을 찾아 별도 send 수행</td>
+<td><a href="https://github.com/abnegate/magents/blob/0dd29e28f8170150b0135d93e55ee1d3b8ffa45a/src/mailbox.rs#L196-L238">src/mailbox.rs:196–238</a></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="_5">전달 흐름</h3>
+<pre class="mermaid">flowchart TD
+    A[정확한 세션 선택] --&gt; B[provider별 live 전달]
+    B --&gt;|Claude| C[peer socket]
+    C --&gt;|실패| D[tmux]
+    D --&gt;|실패| E[CLI resume]
+    B --&gt;|Codex| F[Desktop IPC]
+    F --&gt;|실패| E
+    E --&gt; G[반환 session ID 검증]
+    B --&gt; H[route marker]
+    G --&gt; H
+    H --&gt; I[mailbox 기록과 queued 응답]
+</pre>
+<h3 id="_6">사용·운영 특성</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>차원</th>
+<th>관측 또는 판단</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>신원</td>
+<td>provider/session뿐 아니라 profile/config dir를 탐색 결과에 포함</td>
+</tr>
+<tr>
+<td>공개 토론 UI</td>
+<td>검토 대상은 MCP/CLI이며 이 프로젝트의 참석자·채널 UI를 대신하지 않음</td>
+</tr>
+<tr>
+<td>응답</td>
+<td>reply/inbox/await 계열은 별도 mailbox 경로. 실행 성공과 응답 완료가 분리됨</td>
+</tr>
+<tr>
+<td>저장</td>
+<td>send 경로에서는 실제 전달 시도가 mailbox 영속 기록보다 먼저 일어남</td>
+</tr>
+<tr>
+<td>Windows</td>
+<td>조건 없는 UnixStream import가 있어 검토 revision을 native Windows에 그대로 가져오는 근거가 없음</td>
+</tr>
+<tr>
+<td>시험 증거</td>
+<td>src/codex_ipc.rs의 mock socket 테스트와 tests/cli.rs 등은 존재하지만 실행하지 않음</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_7">상충 근거</h2>
+<p>기존 세션을 유지한다는 설명을 원래 실행 프로세스에만 전달한다는 뜻으로 읽으면 안 된다. 코드에는 실패 후 resume가 명시적으로 있다. <code>queued=true</code>도 모든 live 경로가 성공했다는 판정이 아니다.</p>
+<h2 id="_8">한계</h2>
+<ul>
+<li>원래 세션이 실행 중인 상태에서 resume가 시도될 때의 실제 host 충돌은 재현하지 않았다.</li>
+<li>전달 성공 후 mailbox 쓰기 실패 또는 프로세스 종료의 결과는 미실험이다. 정적 순서상 복구 경계가 분리되어 있다는 점만 확인했다.</li>
+<li>선택한 핵심 경로를 읽었으며 저장소 전체의 정확성이나 성능을 평가한 것은 아니다.</li>
+<li>latest release API의 0.14.2와 조사한 branch HEAD revision은 동일하다고 가정하지 않는다.</li>
+</ul>
+<h2 id="_9">권고</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>항목</th>
+<th>제안</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>채택 후보</td>
+<td>provider/profile/session/cwd 식별 구조와 재개 결과의 ID 검증</td>
+</tr>
+<tr>
+<td>변경 필요</td>
+<td>live attach·resume·fork를 명시적 capability로 분리</td>
+</tr>
+<tr>
+<td>그대로 채택하지 않을 부분</td>
+<td>live 실패를 새 실행 주체의 재개로 자동 전환하는 정책</td>
+</tr>
+<tr>
+<td>후속 확인</td>
+<td>원래 host가 소유한 기존 세션의 정확한 요청·응답과 단일 실행 주체 증거</td>
+</tr>
+</tbody>
+</table></div>
+<p>이 판정은 정적 분석에 기반한 설계 권고이며 실제 연결 성능 판정이 아니다.</p>
+<h2 id="_10">관련 노트</h2>
+<ul>
+<li><a href="index.html">inter-session-index</a></li>
+<li><a href="benchmark-sources.html">benchmark-sources</a></li>
+<li><a href="benchmark-analysis.html">benchmark-analysis</a></li>
+</ul></article><footer>원본: docs/research/magents-benchmark.md<br>본문 SHA-256: 0e60d5b5b2f4e038f23757bd29cccda6fb5c4443b4156da4618ddc579a8472cc</footer></main></div>
+<!-- Mermaid third-party license: The MIT License (MIT)
+
+Copyright (c) 2014 - 2022 Knut Sveidqvist
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the &quot;Software&quot;), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+ -->
+<script src="assets/mermaid.min.js"></script><script>
+window.designRenderDone=false;
+mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'base',themeVariables:{fontFamily:'Segoe UI, Malgun Gothic, sans-serif',primaryColor:'#e6f2ee',primaryTextColor:'#202c35',lineColor:'#4c7972',primaryBorderColor:'#76a69b'}});
+mermaid.run({querySelector:'.mermaid'}).then(()=>{window.designRenderDone=true}).catch(e=>{window.designRenderError=String(e);console.error(e)});
+</script></body></html>

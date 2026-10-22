@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-22",
+  "status": "design-draft",
+  "spec_check": "pass",
+  "report_lint": {
+    "blocking": 0,
+    "warnings": 0
+  },
+  "wiki_report_body_equal": true,
+  "wiki_comparison_excludes": "tool-managed empty Progress timestamp section",
+  "html_source_sha256": "05957e7c574a9abcb4a13a30341bb58397a93bc0dd1cfaae84d8f5b2ec008cc2",
+  "browser_qa": {
+    "diagrams": 5,
+    "diagram_errors": 0,
+    "page_horizontal_overflow": false,
+    "diagram_horizontal_overflow": false,
+    "visual_review": "revised overview and state diagram inspected"
+  },
+  "wiki_global_lint": {
+    "existing_issues": 52,
+    "scope": "outside this project in displayed findings; not repaired"
+  },
+  "product_runtime": "not implemented; no session messages sent",
+  "stage": "benchmark findings incorporated into draft spec; implementation not started",
+  "acceptance_criteria": 10,
+  "implementation_slices_completed": 0,
+  "implementation_slices_total": 7,
+  "runtime_scenarios": {
+    "planned": 13,
+    "executed": 0
+  },
+  "benchmark_design_traceability": 8
+}

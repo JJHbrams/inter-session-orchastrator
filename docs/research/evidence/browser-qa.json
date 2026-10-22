@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-22",
+  "tool": "Codex in-app browser via cua_repl",
+  "pages": [
+    {
+      "slug": "benchmark-analysis",
+      "diagrams": 2,
+      "expected": 2,
+      "errors": 0,
+      "pageOverflow": false,
+      "diagramOverflow": false
+    },
+    {
+      "slug": "benchmark-sources",
+      "diagrams": 1,
+      "expected": 1,
+      "errors": 0,
+      "pageOverflow": false,
+      "diagramOverflow": false
+    },
+    {
+      "slug": "magents-benchmark",
+      "diagrams": 1,
+      "expected": 1,
+      "errors": 0,
+      "pageOverflow": false,
+      "diagramOverflow": false
+    },
+    {
+      "slug": "intercom-benchmark",
+      "diagrams": 1,
+      "expected": 1,
+      "errors": 0,
+      "pageOverflow": false,
+      "diagramOverflow": false
+    },
+    {
+      "slug": "agentmux-benchmark",
+      "diagrams": 1,
+      "expected": 1,
+      "errors": 0,
+      "pageOverflow": false,
+      "diagramOverflow": false
+    },
+    {
+      "slug": "orchestra-benchmark",
+      "diagrams": 1,
+      "expected": 1,
+      "errors": 0,
+      "pageOverflow": false,
+      "diagramOverflow": false
+    },
+    {
+      "slug": "host-reference-benchmark",
+      "diagrams": 1,
+      "expected": 1,
+      "errors": 0,
+      "pageOverflow": false,
+      "diagramOverflow": false
+    },
+    {
+      "slug": "benchmark-validation-plan",
+      "diagrams": 1,
+      "expected": 1,
+      "errors": 0,
+      "pageOverflow": false,
+      "diagramOverflow": false
+    }
+  ],
+  "scope": "DOM checks for all 8 reports, visual inspection of reading hub; no vendor app runtime tested"
+}

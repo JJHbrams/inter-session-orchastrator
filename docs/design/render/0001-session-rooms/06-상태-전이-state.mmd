@@ -1,0 +1,24 @@
+stateDiagram-v2
+    [*] --> queued: 요청과 대상 영속화
+    queued --> claimed: 세션 writer 예약
+    queued --> blocked: 미지원 또는 권한 없음
+    blocked --> queued: 조건 재검토
+    claimed --> queued: 제출 전 예약 해제
+    claimed --> submitting: attempt와 fence 저장
+    submitting --> accepted: host 접수 증거
+    submitting --> unknown: 결과 유실
+    submitting --> failed: 확정 거부
+    accepted --> running: provider 시작 증거
+    accepted --> unknown: 상태 조회 불가
+    running --> completed: 상관 응답 회수
+    running --> failed: 명시적 오류 또는 취소 확인
+    running --> unknown: 연결 단절
+    unknown --> accepted: 동일 요청 접수 증거 회수
+    unknown --> running: 동일 요청 시작 증거 회수
+    unknown --> completed: 동일 요청 응답 회수
+    unknown --> queued: 미접수 입증 후 명시적 재시도
+    queued --> cancelled: 대기 취소
+    claimed --> cancelled: 제출 전 취소
+    completed --> [*]
+    failed --> [*]
+    cancelled --> [*]

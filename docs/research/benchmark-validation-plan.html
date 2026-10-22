@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="source-sha256" content="11bb6bfde876e620bc1f1dce4d13999a63ec74629d05f63741c72042d63d1773"><title>기존 세션 연결 — 후속 검증 계획</title><style>
+    :root{--ink:#202c35;--muted:#64757a;--accent:#006c62;--line:#dce4e4;--paper:#fff;--bg:#f3f6f5}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}
+    body{margin:0;color:var(--ink);background:var(--bg);font:15px/1.85 'Segoe UI','Malgun Gothic',sans-serif}
+    a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+    .shell{display:grid;grid-template-columns:222px minmax(0,1fr);max-width:1640px;margin:auto}
+    aside{position:sticky;top:0;height:100vh;padding:38px 20px;overflow:auto;border-right:1px solid var(--line)}
+    .brand{font-size:12px;letter-spacing:.1em;font-weight:800;color:var(--accent);line-height:1.6;margin-bottom:18px}
+    .status{display:inline-block;background:#f9e9c6;color:#795308;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:700}
+    nav{margin-top:25px}nav a{display:block;font-size:12px;color:var(--muted);padding:7px 0;line-height:1.5}
+    nav a:hover{color:var(--accent)}main{min-width:0;padding:40px 52px 80px;background:var(--paper)}
+    .meta{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid var(--accent);padding-bottom:17px;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.08em}
+    h1{font-size:34px;line-height:1.45;letter-spacing:-1.1px;margin:30px 0 22px;font-weight:750;max-width:900px}
+    h2{font-size:23px;line-height:1.5;margin:54px 0 20px;padding-top:20px;border-top:1px solid var(--line);letter-spacing:-.5px}
+    h3{font-size:17px;margin:28px 0 12px;color:var(--accent)}p{margin:12px 0;max-width:1060px}
+    blockquote{margin:20px 0;padding:15px 20px;border-left:4px solid var(--accent);background:#edf6f3;color:#345e58}
+    blockquote p{margin:0}ul,ol{padding-left:23px}li{margin:5px 0}
+    .table-scroll{overflow:auto;max-width:100%;margin:18px 0 26px;border:1px solid var(--line);border-radius:8px}
+    table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.75}
+    th{background:#edf3f2;color:#24463f;font-weight:700;text-align:left;white-space:nowrap}
+    td,th{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top;min-width:105px}
+    tr:last-child td{border-bottom:0}td:first-child{font-weight:600}tr:nth-child(even){background:#fafcfc}
+    code{font:12px/1.6 Consolas,'Malgun Gothic',monospace;background:#edf2f2;padding:2px 4px;border-radius:3px;overflow-wrap:anywhere}
+    pre{padding:20px;overflow:auto;border-radius:8px;background:#152c2c;color:#e7f2ef;font:12px/1.9 Consolas,'Malgun Gothic',monospace}
+    pre code{padding:0;background:none;color:inherit;font:inherit;overflow-wrap:normal}
+    pre.mermaid{background:#f7faf9;color:var(--ink);border:1px solid var(--line);text-align:center;padding:24px 12px}
+    .mermaid svg{max-width:100%!important;height:auto!important;display:block;margin:auto}
+    footer{margin-top:50px;border-top:1px solid var(--line);padding-top:18px;color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+    .skip{position:absolute;left:-9999px}.skip:focus{left:16px;top:10px;background:white;padding:8px;z-index:10}
+    @media(max-width:1000px){.shell{grid-template-columns:180px minmax(0,1fr)}main{padding:28px}aside{padding:28px 15px}h1{font-size:28px}}
+    @media(max-width:700px){.shell{display:block}aside{position:static;height:auto;padding:20px;border:0;border-bottom:1px solid var(--line)}nav{display:none}main{padding:22px 18px}h1{font-size:25px}td,th{min-width:135px}h2{font-size:21px}}
+    @media print{aside,.skip{display:none}.shell{display:block}main{padding:0}.table-scroll{overflow:visible}pre.mermaid{break-inside:avoid}body{background:white}}
+    </style></head>
+<body><a class="skip" href="#document">본문으로 이동</a><div class="shell">
+<aside><div class="brand">INTER SESSION<br>ORCHESTRATOR</div><span class="status">정적 조사 · 실행 미검증</span><nav aria-label="문서 목차"><a href="index.html">← 조사 자료 목록</a>
+<a href="#_2">한눈에 보기</a>
+<a href="#_3">질문</a>
+<a href="#_4">짧은 답</a>
+<a href="#_5">근거</a>
+<a href="#_10">상충 근거</a>
+<a href="#_11">한계</a>
+<a href="#_12">권고</a>
+<a href="#_13">관련 노트</a></nav></aside>
+<main id="document"><header class="meta"><span>BENCHMARK → EVIDENCE</span><span>2026.10.22 · WINDOWS / LOCAL</span></header>
+<article><!-- sr:plan
+{"document_type":"research","reader_questions":["어떤 가정을 다음에 검증하는가","기존 세션을 어떻게 식별하는가","통과를 무엇으로 입증하는가","아직 하지 않은 것은 무엇인가"],"visual_plan":[{"kind":"comparison_table","content":"후속 검증 시나리오와 관측 증거","required":true},{"kind":"flowchart","content":"조회부터 제한된 실제 검증까지의 순서","required":true}],"visual_waiver":[]}
+-->
+
+<h1 id="_1">기존 세션 연결 — 후속 검증 계획</h1>
+<blockquote>
+<p>계획 문서다. 아래 시나리오는 아직 실행하지 않았다.</p>
+</blockquote>
+<h2 id="_2">한눈에 보기</h2>
+<ul>
+<li>목적: 벤치마킹에서 남은 연결·소유권·중복·UI 가정을 실제 환경의 관측으로 바꾼다.</li>
+<li>현재 상태: 실행 전 검증 계획. 실제 LLM 세션 생성·메시지 전송·설정 변경은 수행하지 않았다.</li>
+<li>핵심 결론: 첫 검증은 새 에이전트 여러 개를 띄우는 데모가 아니라 기존 Codex와 Claude 세션의 정확한 요청·응답이어야 한다.</li>
+<li>원인 또는 판단 근거: <a href="benchmark-analysis.html">benchmark-analysis</a>의 연결 방식·상태·복구 차이에서 각 시나리오를 도출했다.</li>
+<li>결정: 구현·실험 결과와 계획을 혼동하지 않도록 모든 시나리오를 미실행으로 기록한다.</li>
+<li>다음 행동: 실제 host의 읽기 전용 discovery와 capability부터 확인하고 대상·제어권·한도를 정한다.</li>
+<li>최종 갱신: 2026-10-22, Asia/Seoul.</li>
+</ul>
+<h2 id="_3">질문</h2>
+<p>실제 세션을 건드리기 전에 무엇을 확인하고, 어떤 증거가 있어야 기존 세션 협업이 된다고 말할 수 있는가.</p>
+<h2 id="_4">짧은 답</h2>
+<p>provider, host, native session ID, cwd를 함께 확인한다. 외부 host 소유권을 유지하는 연결과 별도 프로세스 재개를 구분한다. 요청마다 저장 ID·host 접수·turn 시작·상관 응답을 대조하고, 모호한 전송은 완료나 미전송으로 바꾸지 않는다.</p>
+<h2 id="_5">근거</h2>
+<p>근거는 제품별 정적 소스에서 발견한 경계이며 테스트 성공 결과가 아니다. 연결 방식은 <a href="magents-benchmark.html">magents-benchmark</a>, busy 입력은 <a href="intercom-benchmark.html">intercom-benchmark</a>, 영속 전달은 <a href="agentmux-benchmark.html">agentmux-benchmark</a>, claim과 응답은 <a href="orchestra-benchmark.html">orchestra-benchmark</a>, host/UI 수명은 <a href="host-reference-benchmark.html">host-reference-benchmark</a>를 참조한다.</p>
+<h3 id="_6">실행 전 기록할 항목</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>항목</th>
+<th>필요한 기록</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>대상 환경</td>
+<td>Windows/Orca/provider 버전, native/WSL 여부, transport</td>
+</tr>
+<tr>
+<td>기존 대상</td>
+<td>정확한 provider·host·session ID·cwd와 원래 실행 주체</td>
+</tr>
+<tr>
+<td>제어 범위</td>
+<td>조회만 가능한지, 입력 전달·steer·응답 관측이 가능한지</td>
+</tr>
+<tr>
+<td>원래 상태</td>
+<td>idle/busy, 사용자 입력 초안, 작업 중 파일·프로세스</td>
+</tr>
+<tr>
+<td>모델 사용</td>
+<td>실제 provider/model/effort, 소량 canary 요청 수와 중단 한도</td>
+</tr>
+<tr>
+<td>복구 증거</td>
+<td>client request ID, host request/turn ID, 시각, 마지막 확정 상태</td>
+</tr>
+<tr>
+<td>보관 범위</td>
+<td>canary·요청 ID·상태만 최소 기록. 개인 대화 전체를 복제하지 않음</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="_7">시나리오</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>시나리오</th>
+<th>통과 판단을 위한 증거</th>
+<th>현재 상태</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>V-01</td>
+<td>기존 두 provider 세션 식별</td>
+<td>before/after provider·host·session ID·cwd 동일</td>
+<td>미실행</td>
+</tr>
+<tr>
+<td>V-02</td>
+<td>같은 이름·유사 ID의 세션 여러 개</td>
+<td>모호한 대상은 거부, 잘못된 세션 수신 없음</td>
+<td>미실행</td>
+</tr>
+<tr>
+<td>V-03</td>
+<td>idle 세션에 요청하고 답 받기</td>
+<td>정확히 연결된 request/turn/reply와 원래 host의 이력</td>
+<td>미실행</td>
+</tr>
+<tr>
+<td>V-04</td>
+<td>busy 상태에 일반 후속 요청</td>
+<td>현재 turn을 steer하지 않고 대기 후 한 번 처리</td>
+<td>미실행</td>
+</tr>
+<tr>
+<td>V-05</td>
+<td>명시적 방향 수정</td>
+<td>지원되는 host만 예상 turn ID에 추가하고 출처 보존</td>
+<td>미실행</td>
+</tr>
+<tr>
+<td>V-06</td>
+<td>사용자가 초안을 입력 중</td>
+<td>초안이 덮이거나 요청과 이어 붙지 않음</td>
+<td>미실행</td>
+</tr>
+<tr>
+<td>V-07</td>
+<td>전송 전 서비스 종료</td>
+<td>복구 후 미전송 대기 요청만 정해진 순서로 전달</td>
+<td>미실행</td>
+</tr>
+<tr>
+<td>V-08</td>
+<td>provider 접수 직후 응답 유실/서비스 종료</td>
+<td>자동 중복 전송 없이 unknown 유지 후 동일 요청 증거 회수</td>
+<td>미실행</td>
+</tr>
+<tr>
+<td>V-09</td>
+<td>같은 요청 키의 반복 제출</td>
+<td>동일 payload는 동일 요청, 다른 payload는 충돌 표시</td>
+<td>미실행</td>
+</tr>
+<tr>
+<td>V-10</td>
+<td>cross-project 전체 요청과 멤버 변경</td>
+<td>전송 시점 멤버 snapshot에만 전달, 중간 초대자에 소급 전송 안 함</td>
+<td>미실행</td>
+</tr>
+<tr>
+<td>V-11</td>
+<td>같은 세션이 토론 두 곳에 참여</td>
+<td>세션 단위 입력 직렬화와 요청별 응답 목적지 유지</td>
+<td>미실행</td>
+</tr>
+<tr>
+<td>V-12</td>
+<td>토론 정지·이탈·창 닫기</td>
+<td>새 배포는 중지, 외부 원래 프로세스는 보존</td>
+<td>미실행</td>
+</tr>
+<tr>
+<td>V-13</td>
+<td>좌장과 두 세션의 논의</td>
+<td>원문 출처·미합의·결정·담당 보존, 설정 한도에서 종료</td>
+<td>미실행</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="_8">검증 순서</h3>
+<pre class="mermaid">flowchart TD
+    A[현재 버전과 read-only capability] --&gt; B[정확한 대상과 소유권]
+    B --&gt; C{지원되는 연결 경로인가}
+    C --&gt;|아님| D[제약 기록과 설계 재검토]
+    C --&gt;|맞음| E[소량 요청과 상관 응답]
+    E --&gt; F[busy와 사용자 초안]
+    F --&gt; G[중복과 crash 복구]
+    G --&gt; H[cross-project 토론과 좌장]
+    H --&gt; I[원래 실행 환경에서 사용자 경로 확인]
+</pre>
+<h3 id="_9">상태별 판정 규칙</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>관측</th>
+<th>말할 수 있는 것</th>
+<th>아직 말할 수 없는 것</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>archive 다운로드 성공</td>
+<td>특정 소스를 확보함</td>
+<td>해당 제품이 이 PC에서 동작함</td>
+</tr>
+<tr>
+<td>mailbox/outbox 저장 성공</td>
+<td>요청이 영속 접수됨</td>
+<td>상대가 실행함</td>
+</tr>
+<tr>
+<td>입력 수락 영수증</td>
+<td>host가 입력을 접수함</td>
+<td>모델이 요청을 읽고 완료함</td>
+</tr>
+<tr>
+<td>turn 시작</td>
+<td>해당 turn 실행이 시작됨</td>
+<td>요청 작업이 성공함</td>
+</tr>
+<tr>
+<td>idle/프로세스 생존</td>
+<td>대기 또는 생존 상태 관측</td>
+<td>응답 성공 또는 작업 완료</td>
+</tr>
+<tr>
+<td>request-correlated 정상 응답</td>
+<td>해당 요청의 응답을 회수함</td>
+<td>후속 파일 변경까지 검증됨</td>
+</tr>
+<tr>
+<td>권한/파일/작업 증거</td>
+<td>관측한 결과가 확인됨</td>
+<td>다른 host와 버전의 보편적 호환</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_10">상충 근거</h2>
+<p>새 세션으로 canary 대화를 성공시키는 것은 별도 프로세스 기동 능력의 증거다. 현재 Orca에서 작업 중인 기존 세션을 보존하며 협업했다는 증거로 대체할 수 없다.</p>
+<p>같은 session ID로 resume했다고 기존 프로세스가 계속 그 세션을 소유하고 UI가 동기화된다고 단정할 수 없다. 실행 주체와 동시 접근을 별도로 확인해야 한다.</p>
+<h2 id="_11">한계</h2>
+<p>아직 실제 latency·token·비용·전달 성공률을 측정하지 않았다. 임의 수치 목표나 제품 순위를 만들지 않았다. 첫 실제 검증에서 관측한 원자료로만 수치를 채운다.</p>
+<p>상세 구현·실험 승인 범위는 기존 설계의 의도·수용 기준과 이 조사 결과를 함께 반영해 정한다. 이 문서 자체는 전역 MCP 설치나 타 세션 메시지 전송을 수행한 기록이 아니다.</p>
+<h2 id="_12">권고</h2>
+<p>읽기 전용 capability 확인에서부터 순서대로 진행한다. 어떤 단계가 불가하면 성공한 데모로 바꿔치기하지 않고 원래 요구와 차이를 기록한다. 결과에는 항상 “코드 확인 / 격리 실행 / 원래 환경 실행”의 범위를 표시한다.</p>
+<h2 id="_13">관련 노트</h2>
+<ul>
+<li><a href="index.html">inter-session-index</a></li>
+<li><a href="benchmark-analysis.html">benchmark-analysis</a></li>
+<li><a href="benchmark-sources.html">benchmark-sources</a></li>
+<li><a href="../index.html">session-room-foundation</a></li>
+</ul></article><footer>원본: docs/research/benchmark-validation-plan.md<br>본문 SHA-256: 11bb6bfde876e620bc1f1dce4d13999a63ec74629d05f63741c72042d63d1773</footer></main></div>
+<!-- Mermaid third-party license: The MIT License (MIT)
+
+Copyright (c) 2014 - 2022 Knut Sveidqvist
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the &quot;Software&quot;), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+ -->
+<script src="assets/mermaid.min.js"></script><script>
+window.designRenderDone=false;
+mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'base',themeVariables:{fontFamily:'Segoe UI, Malgun Gothic, sans-serif',primaryColor:'#e6f2ee',primaryTextColor:'#202c35',lineColor:'#4c7972',primaryBorderColor:'#76a69b'}});
+mermaid.run({querySelector:'.mermaid'}).then(()=>{window.designRenderDone=true}).catch(e=>{window.designRenderError=String(e);console.error(e)});
+</script></body></html>

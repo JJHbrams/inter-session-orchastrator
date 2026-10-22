@@ -1,0 +1,56 @@
+{
+  "product": "openclaw",
+  "repository": "openclaw/openclaw",
+  "sha": "d920bfc80fe14a6fac9a0019fc7887da66dfa189",
+  "commit_date_utc": "2026-10-22T01:56:23Z",
+  "retrieved_at_utc": "2026-10-22T01:56:46.101284+00:00",
+  "source_path": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator\\.research-cache\\openclaw\\d920bfc80fe14a6fac9a0019fc7887da66dfa189\\source",
+  "files": [
+    {
+      "path": "LICENSE",
+      "url": "https://raw.githubusercontent.com/openclaw/openclaw/d920bfc80fe14a6fac9a0019fc7887da66dfa189/LICENSE",
+      "sha256": "9efd316ecf1c4c60f6fd5d26433142fff2b6794d7d328e9bc6179b29bf9c82a4"
+    },
+    {
+      "path": "package.json",
+      "url": "https://raw.githubusercontent.com/openclaw/openclaw/d920bfc80fe14a6fac9a0019fc7887da66dfa189/package.json",
+      "sha256": "3d873089a05e987c7332b2fbf58528218ccdc8e514066bfd4251dc547c4f4531"
+    },
+    {
+      "path": "docs/concepts/session-tool.md",
+      "url": "https://raw.githubusercontent.com/openclaw/openclaw/d920bfc80fe14a6fac9a0019fc7887da66dfa189/docs/concepts/session-tool.md",
+      "sha256": "44a5180d939b31e6cb19d55ce8bdcd87cb3189478058dacfd769d930aeb31653"
+    },
+    {
+      "path": "src/agents/tools/sessions-send-tool.ts",
+      "url": "https://raw.githubusercontent.com/openclaw/openclaw/d920bfc80fe14a6fac9a0019fc7887da66dfa189/src/agents/tools/sessions-send-tool.ts",
+      "sha256": "332776b069de563f5d9a1fd34a0832fbd466ad238d9bf863afd0d85a5cc5416d"
+    },
+    {
+      "path": "src/agents/tools/sessions-send-tool.input.ts",
+      "url": "https://raw.githubusercontent.com/openclaw/openclaw/d920bfc80fe14a6fac9a0019fc7887da66dfa189/src/agents/tools/sessions-send-tool.input.ts",
+      "sha256": "ab9bed725386ae0e77ffe90d3091fb1c1f6240fc860cd4a3faaa60210830ce36"
+    },
+    {
+      "path": "src/agents/tools/sessions-send-tool.delivery.ts",
+      "url": "https://raw.githubusercontent.com/openclaw/openclaw/d920bfc80fe14a6fac9a0019fc7887da66dfa189/src/agents/tools/sessions-send-tool.delivery.ts",
+      "sha256": "e91121578209d373b6ac9a4b8bac232cc073c420acf1a473f0e293630f3f0d57"
+    },
+    {
+      "path": "src/agents/tools/sessions-send-followup.ts",
+      "url": "https://raw.githubusercontent.com/openclaw/openclaw/d920bfc80fe14a6fac9a0019fc7887da66dfa189/src/agents/tools/sessions-send-followup.ts",
+      "sha256": "4c6884ad5088e7a96389e31cd653ccb00b90d5575dea29da660fab46653bd968"
+    },
+    {
+      "path": "src/agents/tools/sessions-send-reply-flow.ts",
+      "url": "https://raw.githubusercontent.com/openclaw/openclaw/d920bfc80fe14a6fac9a0019fc7887da66dfa189/src/agents/tools/sessions-send-reply-flow.ts",
+      "sha256": "e21f4cca01c43184d80884ed82b12ee1ed30628bc60a3495c79191b4fa19da6d"
+    },
+    {
+      "path": "src/sessions/input-provenance.ts",
+      "url": "https://raw.githubusercontent.com/openclaw/openclaw/d920bfc80fe14a6fac9a0019fc7887da66dfa189/src/sessions/input-provenance.ts",
+      "sha256": "26239f6afc7a7305bac0342186095472930174d8ee84cb4f4a9b67e726a830cb"
+    }
+  ],
+  "verification_level": "selected pinned source files, no runtime execution"
+}

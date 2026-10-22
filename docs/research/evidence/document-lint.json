@@ -1,0 +1,90 @@
+[
+  {
+    "file": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator\\docs\\research\\magents-benchmark.md",
+    "type": "research",
+    "ok": true,
+    "findings": [],
+    "summary": {
+      "blocking": 0,
+      "warning": 0
+    },
+    "score": 100
+  },
+  {
+    "file": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator\\docs\\research\\intercom-benchmark.md",
+    "type": "research",
+    "ok": true,
+    "findings": [],
+    "summary": {
+      "blocking": 0,
+      "warning": 0
+    },
+    "score": 100
+  },
+  {
+    "file": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator\\docs\\research\\agentmux-benchmark.md",
+    "type": "research",
+    "ok": true,
+    "findings": [],
+    "summary": {
+      "blocking": 0,
+      "warning": 0
+    },
+    "score": 100
+  },
+  {
+    "file": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator\\docs\\research\\orchestra-benchmark.md",
+    "type": "research",
+    "ok": true,
+    "findings": [],
+    "summary": {
+      "blocking": 0,
+      "warning": 0
+    },
+    "score": 100
+  },
+  {
+    "file": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator\\docs\\research\\host-reference-benchmark.md",
+    "type": "research",
+    "ok": true,
+    "findings": [],
+    "summary": {
+      "blocking": 0,
+      "warning": 0
+    },
+    "score": 100
+  },
+  {
+    "file": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator\\docs\\research\\benchmark-sources.md",
+    "type": "research",
+    "ok": true,
+    "findings": [],
+    "summary": {
+      "blocking": 0,
+      "warning": 0
+    },
+    "score": 100
+  },
+  {
+    "file": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator\\docs\\research\\benchmark-analysis.md",
+    "type": "research",
+    "ok": true,
+    "findings": [],
+    "summary": {
+      "blocking": 0,
+      "warning": 0
+    },
+    "score": 100
+  },
+  {
+    "file": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator\\docs\\research\\benchmark-validation-plan.md",
+    "type": "research",
+    "ok": true,
+    "findings": [],
+    "summary": {
+      "blocking": 0,
+      "warning": 0
+    },
+    "score": 100
+  }
+]

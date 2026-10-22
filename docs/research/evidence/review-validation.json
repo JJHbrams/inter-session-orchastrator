@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-22",
+  "documents": 8,
+  "claims": 46,
+  "source_archives_verified": 4,
+  "lint_blocking": 0,
+  "lint_warnings": 0,
+  "body_parity": [
+    {
+      "slug": "magents-benchmark",
+      "wiki_body_equal": true,
+      "html_source_hash_equal": true,
+      "body_sha256": "0e60d5b5b2f4e038f23757bd29cccda6fb5c4443b4156da4618ddc579a8472cc"
+    },
+    {
+      "slug": "intercom-benchmark",
+      "wiki_body_equal": true,
+      "html_source_hash_equal": true,
+      "body_sha256": "b1d02eb00e207bd6b09c8aa2d08215298b416b68c30b65a110a2d4274954393d"
+    },
+    {
+      "slug": "agentmux-benchmark",
+      "wiki_body_equal": true,
+      "html_source_hash_equal": true,
+      "body_sha256": "110f3a4875ad7f0ad7f038ebb3fbacc7352082a2d3cecf2b73984ff39d63212c"
+    },
+    {
+      "slug": "orchestra-benchmark",
+      "wiki_body_equal": true,
+      "html_source_hash_equal": true,
+      "body_sha256": "7a3a0f956cba1d4e13602107d8caf81f95bed6a7589d86550d574ea9306d1e43"
+    },
+    {
+      "slug": "host-reference-benchmark",
+      "wiki_body_equal": true,
+      "html_source_hash_equal": true,
+      "body_sha256": "0336a6c9b213f33dccd96cb9e42192631f37bb9d527fa079701dc0ea7ca2cb5e"
+    },
+    {
+      "slug": "benchmark-sources",
+      "wiki_body_equal": true,
+      "html_source_hash_equal": true,
+      "body_sha256": "d9a18bf018b139c11fc587c8bc9b8b1b324cf23d2c8cee64c11d12f4adafb88b"
+    },
+    {
+      "slug": "benchmark-analysis",
+      "wiki_body_equal": true,
+      "html_source_hash_equal": true,
+      "body_sha256": "6ee5a4855be3e74399af716bc6b5847c6ed243c21d9117c588789081be990d83"
+    },
+    {
+      "slug": "benchmark-validation-plan",
+      "wiki_body_equal": true,
+      "html_source_hash_equal": true,
+      "body_sha256": "11bb6bfde876e620bc1f1dce4d13999a63ec74629d05f63741c72042d63d1773"
+    }
+  ],
+  "errors": [],
+  "runtime_verification": "not executed; vendor code not installed or run"
+}

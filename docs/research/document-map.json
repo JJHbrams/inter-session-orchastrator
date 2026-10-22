@@ -1,0 +1,58 @@
+[
+  {
+    "slug": "magents-benchmark",
+    "title": "magents — 기존 세션 탐색과 전달 경로",
+    "wiki_path": "D:/intel_engram/docs/projects/inter-session-orchastrator/research/magents-benchmark.md",
+    "markdown": "docs/research/magents-benchmark.md",
+    "html": "docs/research/magents-benchmark.html"
+  },
+  {
+    "slug": "intercom-benchmark",
+    "title": "agent-intercom — mailbox와 실시간 push",
+    "wiki_path": "D:/intel_engram/docs/projects/inter-session-orchastrator/research/intercom-benchmark.md",
+    "markdown": "docs/research/intercom-benchmark.md",
+    "html": "docs/research/intercom-benchmark.html"
+  },
+  {
+    "slug": "agentmux-benchmark",
+    "title": "agentmux — 영속 전달 대기열과 실행 소유권",
+    "wiki_path": "D:/intel_engram/docs/projects/inter-session-orchastrator/research/agentmux-benchmark.md",
+    "markdown": "docs/research/agentmux-benchmark.md",
+    "html": "docs/research/agentmux-benchmark.html"
+  },
+  {
+    "slug": "orchestra-benchmark",
+    "title": "Orchestra — 세션 inbox와 자동 전달 UX",
+    "wiki_path": "D:/intel_engram/docs/projects/inter-session-orchastrator/research/orchestra-benchmark.md",
+    "markdown": "docs/research/orchestra-benchmark.md",
+    "html": "docs/research/orchestra-benchmark.html"
+  },
+  {
+    "slug": "host-reference-benchmark",
+    "title": "기준 플랫폼과 로컬 UI 조사",
+    "wiki_path": "D:/intel_engram/docs/projects/inter-session-orchastrator/research/host-reference-benchmark.md",
+    "markdown": "docs/research/host-reference-benchmark.md",
+    "html": "docs/research/host-reference-benchmark.html"
+  },
+  {
+    "slug": "benchmark-sources",
+    "title": "벤치마킹 원자료와 검증 범위",
+    "wiki_path": "D:/intel_engram/docs/projects/inter-session-orchastrator/research/benchmark-sources.md",
+    "markdown": "docs/research/benchmark-sources.md",
+    "html": "docs/research/benchmark-sources.html"
+  },
+  {
+    "slug": "benchmark-analysis",
+    "title": "벤치마킹 종합 분석",
+    "wiki_path": "D:/intel_engram/docs/projects/inter-session-orchastrator/report/benchmark-analysis.md",
+    "markdown": "docs/research/benchmark-analysis.md",
+    "html": "docs/research/benchmark-analysis.html"
+  },
+  {
+    "slug": "benchmark-validation-plan",
+    "title": "기존 세션 연결 검증 계획",
+    "wiki_path": "D:/intel_engram/docs/projects/inter-session-orchastrator/report/benchmark-validation-plan.md",
+    "markdown": "docs/research/benchmark-validation-plan.md",
+    "html": "docs/research/benchmark-validation-plan.html"
+  }
+]

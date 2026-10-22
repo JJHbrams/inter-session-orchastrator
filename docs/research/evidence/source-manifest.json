@@ -1,0 +1,115 @@
+[
+  {
+    "product": "agent-intercom",
+    "repository": "iambashar/agent-intercom",
+    "sha": "610cc64f489cba940bab27ff88d0e5f77c004359",
+    "commit_url": "https://github.com/iambashar/agent-intercom/commit/610cc64f489cba940bab27ff88d0e5f77c004359",
+    "commit_date_utc": "2026-10-18T20:28:30Z",
+    "retrieved_at_utc": "2026-10-22T01:52:59.858607+00:00",
+    "archive_url": "https://codeload.github.com/iambashar/agent-intercom/zip/610cc64f489cba940bab27ff88d0e5f77c004359",
+    "archive_sha256": "3dcc33fa6ad1b74c6975b121d0e537eb2d36f5373ea29ab34067ba5ccaeb1f9d",
+    "archive_bytes": 760286,
+    "file_count": 59,
+    "source_path": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator\\.research-cache\\agent-intercom\\610cc64f489cba940bab27ff88d0e5f77c004359\\source",
+    "default_branch": "main",
+    "archived": false,
+    "license_metadata": "MIT",
+    "latest_release": {
+      "tag": "v0.2.5",
+      "published_at": "2026-10-18T19:57:00Z",
+      "url": "https://github.com/iambashar/agent-intercom/releases/tag/v0.2.5",
+      "assets": []
+    },
+    "verification_level": "downloaded source, not installed or executed"
+  },
+  {
+    "product": "agentmux",
+    "repository": "adelost/agentmux",
+    "sha": "3d4244dd7f69254b379814d8bc1231f42c4d93ae",
+    "commit_url": "https://github.com/adelost/agentmux/commit/3d4244dd7f69254b379814d8bc1231f42c4d93ae",
+    "commit_date_utc": "2026-10-21T18:47:33Z",
+    "retrieved_at_utc": "2026-10-22T01:53:42.814781+00:00",
+    "archive_url": "https://codeload.github.com/adelost/agentmux/zip/3d4244dd7f69254b379814d8bc1231f42c4d93ae",
+    "archive_sha256": "65b71c7aa36f098915db19b13dfcd684f6698d099ce4f7ac3efb9f7664434162",
+    "archive_bytes": 12119366,
+    "file_count": 1536,
+    "source_path": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator\\.research-cache\\agentmux\\3d4244dd7f69254b379814d8bc1231f42c4d93ae\\source",
+    "default_branch": "master",
+    "archived": false,
+    "license_metadata": "MIT",
+    "latest_release": {
+      "tag": "agentmux-link-v1.2.24",
+      "published_at": "2026-09-20T12:45:34Z",
+      "url": "https://github.com/adelost/agentmux/releases/tag/agentmux-link-v1.2.24",
+      "assets": [
+        "Agentmux-Link-Phone-1.2.24.apk",
+        "Agentmux-Link-Wear-1.2.24.apk"
+      ]
+    },
+    "verification_level": "downloaded source, not installed or executed"
+  },
+  {
+    "product": "magents",
+    "repository": "abnegate/magents",
+    "sha": "0dd29e28f8170150b0135d93e55ee1d3b8ffa45a",
+    "commit_url": "https://github.com/abnegate/magents/commit/0dd29e28f8170150b0135d93e55ee1d3b8ffa45a",
+    "commit_date_utc": "2026-10-17T06:17:20Z",
+    "retrieved_at_utc": "2026-10-22T01:53:00.034230+00:00",
+    "archive_url": "https://codeload.github.com/abnegate/magents/zip/0dd29e28f8170150b0135d93e55ee1d3b8ffa45a",
+    "archive_sha256": "52d2956fca37819722c4b3300f389b2ed5c293cf046aad1aa47746dbbb7f408b",
+    "archive_bytes": 463608,
+    "file_count": 101,
+    "source_path": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator\\.research-cache\\magents\\0dd29e28f8170150b0135d93e55ee1d3b8ffa45a\\source",
+    "default_branch": "main",
+    "archived": false,
+    "license_metadata": "MIT",
+    "latest_release": {
+      "tag": "0.14.2",
+      "published_at": "2026-10-15T03:12:35Z",
+      "url": "https://github.com/abnegate/magents/releases/tag/0.14.2",
+      "assets": [
+        "magents-aarch64-apple-darwin",
+        "magents-aarch64-apple-darwin.tar.gz",
+        "magents-aarch64-unknown-linux-musl",
+        "magents-aarch64-unknown-linux-musl.tar.gz",
+        "magents-x86_64-apple-darwin",
+        "magents-x86_64-apple-darwin.tar.gz",
+        "magents-x86_64-unknown-linux-musl",
+        "magents-x86_64-unknown-linux-musl.tar.gz",
+        "magents_0.14.2-1_amd64.deb",
+        "magents_0.14.2-1_arm64.deb",
+        "SHA256SUMS"
+      ]
+    },
+    "verification_level": "downloaded source, not installed or executed"
+  },
+  {
+    "product": "orchestra",
+    "repository": "theorchestradev/orchestra",
+    "sha": "50ecf08e96be01c03eb3ee0e4a686d0dfe84b0c5",
+    "commit_url": "https://github.com/theorchestradev/orchestra/commit/50ecf08e96be01c03eb3ee0e4a686d0dfe84b0c5",
+    "commit_date_utc": "2026-10-21T22:00:55Z",
+    "retrieved_at_utc": "2026-10-22T01:53:00.490092+00:00",
+    "archive_url": "https://codeload.github.com/theorchestradev/orchestra/zip/50ecf08e96be01c03eb3ee0e4a686d0dfe84b0c5",
+    "archive_sha256": "921091878fb8002d018114b2dc7e39ff0f2d3eda14a806b68114d6448fc9db0a",
+    "archive_bytes": 3198892,
+    "file_count": 278,
+    "source_path": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator\\.research-cache\\orchestra\\50ecf08e96be01c03eb3ee0e4a686d0dfe84b0c5\\source",
+    "default_branch": "main",
+    "archived": false,
+    "license_metadata": "MIT",
+    "latest_release": {
+      "tag": "v0.9.0",
+      "published_at": "2026-10-21T22:08:02Z",
+      "url": "https://github.com/theorchestradev/orchestra/releases/tag/v0.9.0",
+      "assets": [
+        "Orchestra-0.9.0-linux-x86_64.tar.gz",
+        "Orchestra-0.9.0-macos-universal.dmg",
+        "Orchestra-0.9.0-macos-universal.zip",
+        "Orchestra-macos-universal.dmg",
+        "SHA256SUMS"
+      ]
+    },
+    "verification_level": "downloaded source, not installed or executed"
+  }
+]
