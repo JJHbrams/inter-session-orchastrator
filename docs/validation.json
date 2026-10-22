@@ -81,7 +81,7 @@
     "evidence": "docs/validation/dedicated-chair.json",
     "tests": 38,
     "scope": "separate chair and requested fixes; full project still building",
-    "body_sha256": "89a24614ee5988ede4742857200391eb43e4a447d747e0288705a5f25aa1c554",
+    "body_sha256": "b39e644d880ab6026b0374a50a271dc60dafac7b34ab874d53819083c3720471",
     "wiki_body_equal": true
   },
   "chair_panel": {
@@ -93,5 +93,15 @@
     "participantsSeparateRow": true,
     "localProviderIcons": true,
     "tests": 38
+  },
+  "resizable_panels": {
+    "status": "done",
+    "spec": "docs/design/0004-resizable-panels.md",
+    "html": "docs/resizable-panels.html",
+    "evidence": "docs/validation/resizable-panels.json",
+    "tests": 42,
+    "wiki_body_equal": true,
+    "source_sha256": "39610c91fefc669d62b1636c782ad4f5a7178b7e567614ae9f5e1621c6f82afb",
+    "scope": "transparent icons, persisted panel dimensions, stable display-name edits; full project remains building"
   }
 }

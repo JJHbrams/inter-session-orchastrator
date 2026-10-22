@@ -1,0 +1,281 @@
+{
+  "date": "2026-10-22",
+  "status": "done",
+  "scope": "transparent badges, resizable panels, durable channel/room display names",
+  "tests": {
+    "command": "npm test",
+    "pass": 42,
+    "fail": 0
+  },
+  "browser": {
+    "sidebar": {
+      "before": 218,
+      "after": 288
+    },
+    "chair": {
+      "before": 180,
+      "after": 230
+    },
+    "upper": {
+      "before": 190,
+      "after": 280
+    },
+    "participants": {
+      "before": 90,
+      "after": 110
+    },
+    "composer": {
+      "before": 200,
+      "after": 260
+    },
+    "inspector": {
+      "before": 340,
+      "after": 400
+    },
+    "keyboardChair": "240",
+    "restored": {
+      "resize-chair": "240",
+      "resize-composer": "260",
+      "resize-inspector": "400",
+      "resize-participants": "110",
+      "resize-sidebar": "288",
+      "resize-upper": "280"
+    },
+    "reset": {
+      "resize-chair": "180",
+      "resize-composer": "200",
+      "resize-inspector": "340",
+      "resize-participants": "90",
+      "resize-sidebar": "218",
+      "resize-upper": "190"
+    },
+    "renameBlank": "이름을 입력해줘.",
+    "renameCancel": "패널과 이름 변경 검증",
+    "renamed": {
+      "channel": "# 검증 채널 · 변경됨\n이름 변경",
+      "room": "검증 토론장 · 변경됨"
+    },
+    "viewports": {
+      "normal": {
+        "appWidth": 1280,
+        "bodyMax": "none",
+        "chairBottom": 263.03125,
+        "composerBottom": 720,
+        "composerHeight": 200,
+        "maxBubble": 720,
+        "overflow": false,
+        "participantTop": 270.03125,
+        "sendVisible": true,
+        "summary": 165,
+        "timeline": 145.96875,
+        "viewport": [
+          1280,
+          720
+        ]
+      },
+      "narrow": {
+        "appWidth": 760,
+        "bodyMax": "none",
+        "chairBottom": 375.234375,
+        "composerBottom": 900,
+        "composerHeight": 200,
+        "maxBubble": 645.296875,
+        "overflow": false,
+        "participantTop": 382.234375,
+        "sendVisible": true,
+        "summary": 169,
+        "timeline": 213.765625,
+        "viewport": [
+          760,
+          900
+        ]
+      },
+      "wide": {
+        "appWidth": 1600,
+        "bodyMax": "none",
+        "chairBottom": 263.03125,
+        "composerBottom": 1000,
+        "composerHeight": 200,
+        "maxBubble": 720,
+        "overflow": false,
+        "participantTop": 270.03125,
+        "sendVisible": true,
+        "summary": 165,
+        "timeline": 425.96875,
+        "viewport": [
+          1600,
+          1000
+        ]
+      }
+    },
+    "extremes": [
+      {
+        "key": "upper",
+        "value": "268",
+        "metrics": {
+          "appWidth": 1280,
+          "bodyMax": "none",
+          "chairBottom": 340.03125,
+          "composerBottom": 720,
+          "composerHeight": 174,
+          "maxBubble": 720,
+          "overflow": false,
+          "participantTop": 347.03125,
+          "sendVisible": true,
+          "summary": 243,
+          "timeline": 101.96875,
+          "viewport": [
+            1280,
+            720
+          ]
+        }
+      },
+      {
+        "key": "composer",
+        "value": "322",
+        "metrics": {
+          "appWidth": 1280,
+          "bodyMax": "none",
+          "chairBottom": 192.03125,
+          "composerBottom": 720,
+          "composerHeight": 322,
+          "maxBubble": 720,
+          "overflow": false,
+          "participantTop": 199.03125,
+          "sendVisible": true,
+          "summary": 95,
+          "timeline": 101.96875,
+          "viewport": [
+            1280,
+            720
+          ]
+        }
+      },
+      {
+        "key": "participants",
+        "value": "200",
+        "metrics": {
+          "appWidth": 1280,
+          "bodyMax": "none",
+          "chairBottom": 192.03125,
+          "composerBottom": 720,
+          "composerHeight": 204,
+          "maxBubble": 720,
+          "overflow": false,
+          "participantTop": 199.03125,
+          "sendVisible": true,
+          "summary": 95,
+          "timeline": 101.96875,
+          "viewport": [
+            1280,
+            720
+          ]
+        }
+      }
+    ],
+    "narrowKeyboard": "200",
+    "restartBefore": {
+      "hidden": true,
+      "text": ""
+    },
+    "restartAfter": {
+      "connectionHidden": true,
+      "draft": "[화면 검증용 · 보내지 않은 초안]",
+      "error": "",
+      "title": "연결 검증 · Codex × Claude"
+    },
+    "restartNames": {
+      "channel": "# 검증 채널 · 변경됨\n이름 변경",
+      "room": "검증 토론장 · 변경됨"
+    },
+    "keyboardHome": "120",
+    "finalMainResize": {
+      "before": 190,
+      "after": 280
+    },
+    "finalMain": {
+      "appWidth": 1517.77783203125,
+      "bodyMax": "none",
+      "chairBottom": 353.15972900390625,
+      "composerBottom": 1398.888931274414,
+      "composerHeight": 200.00001525878903,
+      "maxBubble": 720.0000610351562,
+      "overflow": false,
+      "participantTop": 360.1562805175781,
+      "sendVisible": true,
+      "summary": 254.89584350585935,
+      "timeline": 734.7396240234375,
+      "viewport": [
+        1517,
+        1398
+      ]
+    }
+  },
+  "assets": [
+    {
+      "provider": "codex",
+      "sourceFile": "codex-icon-white-256.png",
+      "sourceEqual": true,
+      "sha256": "b4d6a3d96d3d562e1c44500ba02be5cc513184986453164e7186e99b5967c61e",
+      "alpha": [
+        0,
+        255
+      ]
+    },
+    {
+      "provider": "claude",
+      "sourceFile": "claude-icon-256.png",
+      "sourceEqual": true,
+      "sha256": "eb0acd47de648caffc9409a56ccef383d4fad23cd584af9ce94cf24a18a65fd3",
+      "alpha": [
+        0,
+        255
+      ]
+    },
+    {
+      "provider": "antigravity",
+      "sourceFile": "antigravity-icon-256.png",
+      "sourceEqual": true,
+      "sha256": "2be45f96f97d6042609b8bd9611f28840eaa2c6bed3453c02210ad87ad733cb9",
+      "alpha": [
+        0,
+        255
+      ]
+    }
+  ],
+  "records": {
+    "live11TablesEqual": true,
+    "fixtureEqualExceptRoomAndChannelName": true,
+    "comparison": "read-only snapshots by table and all fields; events intentionally excluded"
+  },
+  "modelCallsThisChange": 0,
+  "viewportScope": "main native app; normal/narrow/wide are real browser iframe CSS viewports with GET-only app/API proxy",
+  "screenshots": [
+    "resizable-panels-main.jpg",
+    "resizable-panels-normal.jpg",
+    "resizable-panels-narrow.jpg",
+    "resizable-panels-wide.jpg"
+  ],
+  "limitations": [
+    "Height below620 uses min-height620 and page vertical scroll; not exercised in current screenshots.",
+    "Existing-session automatic wake/host submission remains separate project work."
+  ],
+  "acceptanceAudit": {
+    "AC-1": "PASS",
+    "AC-2": "PASS",
+    "AC-3": "PASS",
+    "AC-4": "PASS",
+    "AC-5": "PASS",
+    "review": "fresh read-only acceptance reviewer; corrected contract IDs and transparent-alpha evidence"
+  },
+  "docs": {
+    "specCheck": "pass",
+    "reportLint": {
+      "blocking": 0,
+      "warnings": 0
+    },
+    "wikiBodyEqual": true,
+    "sourceSha256": "39610c91fefc669d62b1636c782ad4f5a7178b7e567614ae9f5e1621c6f82afb",
+    "htmlVisualReview": "Source/render parity verified; app screenshots visually reviewed. Generated report HTML not separately browser-rendered this change."
+  }
+}

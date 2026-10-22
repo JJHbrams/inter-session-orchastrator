@@ -2,28 +2,28 @@
 id: 0004-resizable-panels
 title: 조절 가능한 패널과 이름 변경
 tier: M
-status: approved
+status: done
 owner: jhjang
 created: 2026-10-22
 updated: 2026-10-22
 ---
 
+# 조절 가능한 패널과 이름 변경
+
 <!-- sr:plan
 {"document_type":"decision","reader_questions":["무엇을 조절하는가","이름을 바꿔도 기록이 유지되는가","어떻게 검증했는가"],"visual_plan":[{"kind":"comparison_table","content":"수용 기준과 검증","required":true},{"kind":"flowchart","content":"크기 저장과 이름 변경","required":true},{"kind":"state_diagram","content":"조절과 편집 상태","required":true}],"visual_waiver":[]}
 -->
-
-# 조절 가능한 패널과 이름 변경
 
 > 좌장 정리를 읽을 공간을 확보하고, 화면 구획과 채널·토론장 표시 이름을 사용자가 조절한다.
 
 ## 한눈에 보기
 
 - 목적: 작은 좌장 정리 영역과 고정 분할 때문에 생기는 읽기 불편을 해결한다.
-- 현재 상태: 구현 중. 사용자 요청으로 범위를 확정했으며 실행 검증 뒤 완료 상태로 전환한다.
+- 현재 상태: 이 후속 기능 AC-1~AC-5 완료. 테스트 42개, 실제 드래그·키보드·저장·이름 변경·재시작과 독립 수용 검토를 통과했다. 프로젝트 전체는 building이다.
 - 핵심 결론: 화면 배치는 브라우저 설정으로, 이름은 기존 ID의 영속 메타데이터로 관리한다.
 - 결정: 투명 원본 아이콘, 브라우저별 패널 크기 저장, ID를 유지하는 이름 변경을 사용한다.
 - 판단 근거: 기존 CSS의 정리 본문 최대 높이 38px와 제공된 PNG의 투명 alpha를 직접 확인했다. (직접 확인, 2026-10-22)
-- 다음 행동: 드래그·키보드·새로고침·이름 변경을 실제 브라우저에서 확인한다.
+- 다음 행동: 기존 세션 자동 wake 어댑터와 원래 host 입력/응답 대조를 이어 검증한다.
 - 최종 갱신: 2026-10-22, Asia/Seoul.
 
 ## 1. 의도 (Intent)
@@ -74,7 +74,7 @@ updated: 2026-10-22
 
 ### 결과
 
-패널 크기는 이 브라우저에서 기억하며, 이름 변경은 SQLite의 기존 ID를 유지하는 표시 메타데이터만 갱신한다. 검증 결과는 구현 후 기록한다.
+패널 크기는 이 브라우저에서 기억하며, 이름 변경은 SQLite의 기존 ID를 유지하는 표시 메타데이터만 갱신한다. 실제 드래그·새로고침·서버 재시작을 확인했고 원래 토론장의 11개 테이블 데이터가 일치했다.
 
 ### 재검토 조건
 
@@ -157,10 +157,42 @@ stateDiagram-v2
 
 ## 11. 착수 순서 (Implementation)
 
-- [ ] AC-1: 투명 원본을 복사하고 배지의 배경 제거 후 화면 확인.
-- [ ] AC-2 AC-3: 제한·저장 모델과 실제 경계, 넓어진 정리 UI를 구현·검증.
-- [ ] AC-4: 같은 ID를 유지하는 저장 경로와 편집 UI, 취소·실패·재접속 확인.
-- [ ] AC-5: 회귀 테스트·실제 서버 재시작·기록 보존 확인.
+- [x] AC-1: 투명 원본을 복사하고 배지의 배경 제거 후 화면 확인.
+- [x] AC-2 AC-3: 제한·저장 모델과 실제 경계, 넓어진 정리 UI를 구현·검증.
+- [x] AC-4: 같은 ID를 유지하는 저장 경로와 편집 UI, 취소·실패·재접속 확인.
+- [x] AC-5: 회귀 테스트·실제 서버 재시작·기록 보존 확인.
+
+## 실행 검증 결과
+
+직접 측정, 2026-10-22. 모든 화면 변경은 로컬 브라우저에서 확인했다. 이번 변경으로 모델 요청은 보내지 않았다.
+
+| 경로 | 결과와 근거 |
+|---|---|
+| 포인터 조절 | sidebar 218→288, chair 180→230, upper 190→280, participants 90→110, composer 200→260, inspector 340→400px. 여섯 값 모두 재접속 후 일치 |
+| 키보드·초기화 | 방향키·Home·End, 좁은 화면 방향키, 초기화 기본값 복원 확인 |
+| 최대 높이 | 1280×720에서 upper/composer/participants End 후에도 timeline 약102px, 보내기 버튼과 입력창 유지 |
+| 정리 | 본문 38px cap 제거, 14px/1.65, 한 영역 스크롤. 크게 보기에서 1300자 fixture 정리 확인 |
+| 이름 | 별도 fixture 채널·토론장 Unicode 이름 변경, 공백 거부·취소·재접속·서버 재시작 확인 |
+| 기록 보존 | 현재 토론장의 rooms/channels/sessions/memberships/bindings/messages/deliveries/decisions/sources/chairs/chair_runs 동일. fixture는 rooms/channels의 name만 변경 |
+| 인증 | 새 UI를 연 상태에서 4318 서버 재시작 뒤 자동 복구, 미전송 초안 보존, 오류 없음 |
+| 회귀 | npm test 42/42. Store 재오픈·참조 보존, HTTP rename의 인증/CSRF/Origin 거부 포함 |
+
+| 화면 | 정리 높이(px) | 대화 높이(px) | 입력창 높이(px) | 가로 넘침 |
+|---|---:|---:|---:|---|
+| 실제 앱 약1518×1399, 상단280으로 조절 | 255 | 735 | 200 | 없음 |
+| 1280×720 iframe | 165 | 146 | 200 | 없음 |
+| 760×900 iframe | 169 | 214 | 200 | 없음 |
+| 1600×1000 iframe | 165 | 426 | 200 | 없음 |
+
+iframe 검증은 같은 production 앱/API를 GET 전용 localhost 프록시로 렌더링한 CSS viewport다. 실제 창 크기를 바꿨다고 보고하지 않는다. 높이620px 미만에서는 앱 최소 높이620px와 페이지 세로 스크롤을 사용한다. 해당 초소형 높이는 이번 화면 증거 범위에 포함하지 않았다.
+
+아이콘은 제공된 codex-icon-white-256.png, claude-icon-256.png, antigravity-icon-256.png와 바이트가 일치하며 alpha 범위는 모두0~255다. CSS 배경과 테두리도 제거했다.
+
+- [검증 JSON](validation/resizable-panels.json)
+- [현재 앱 화면](screenshots/resizable-panels-main.jpg)
+- [1280 화면](screenshots/resizable-panels-normal.jpg) · [760 화면](screenshots/resizable-panels-narrow.jpg) · [1600 화면](screenshots/resizable-panels-wide.jpg)
+
+독립 읽기 전용 수용 검토: AC-1~AC-5 PASS. 투명 alpha·CSS·실행 근거·기록 보존을 대조했다.
 
 ## 관련
 

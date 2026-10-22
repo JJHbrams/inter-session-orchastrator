@@ -235,11 +235,13 @@ CLI 프로토콜·인증 정책이 바뀌거나 초기화 복구가 필요해지
 
 | 항목 | 현재 동작·검증 |
 |---|---|
-| Provider | 사용자 C:/Users/jhjang/Documents/icons의 dark256 PNG를 로컬 정적 에셋으로 복사. Claude·Codex·Antigravity 허용 목록. 외부 이미지 요청 없음 |
+| Provider | 사용자 C:/Users/jhjang/Documents/icons의 투명 PNG를 로컬 정적 에셋으로 복사. Codex는 white256, Claude·Antigravity는 기본 icon256. 후속 [[resizable-panels]]에서 배경·테두리 제거. Claude·Codex·Antigravity 허용 목록. 외부 이미지 요청 없음 |
 | 프로필 배지 | 참석자/좌장 카드, 발언, 멘션 후보와 수신자 칩에 provider 아이콘. 실제 참석자 3개 모두 로딩 확인 |
 | 정리 | 최신 제안 먼저, 이전 정리와 근거 접기/펼치기. polling 후 열린 상태 유지 |
 | 동작 보존 | 세션 native ID 상세 열기/닫기, @마야 키보드 선택, 기존 확정 버튼과 원문 링크 확인. 새 모델 호출 없음 |
 | 검증 | docs/validation/chair-panel.json. 기존 38개 테스트 통과, PNG Content-Type/시그니처와 미허용 에셋404 검증 포함 |
 
-관련: [[inter-session-index]], [[session-room-foundation]], [[session-personas]].
+후속 [[resizable-panels]]에서 정리 본문의 38px cap을 제거하고 패널 조절·저장·확대와 채널/토론장 이름 변경을 추가했다. 테스트는 42개이며 docs/validation/resizable-panels.json에 현재 근거가 있다. 위의 chair-panel 증거는 이전 e548276 시점 기록이다.
+
+관련: [[inter-session-index]], [[session-room-foundation]], [[session-personas]], [[resizable-panels]].
 

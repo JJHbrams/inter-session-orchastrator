@@ -1,6 +1,6 @@
 import {parseAliases, mentionAt, mentionSpans} from '/mentions.js';
 import {createApiClient} from '/api-client.js';
-import {loadLayout,saveLayout,resetLayout} from '/layout.js';
+import {initLayout} from '/layout.js';
 let current, rooms=[], channels=[], pendingSend, selectedRoomId;const stateLabel={queued:'요청 대기',claimed:'전달 예약',submitting:'요청 제공 중',accepted:'호스트 접수',running:'생성 중',completed:'응답 회수',unknown:'확인 필요',blocked:'차단',failed:'실패',cancelled:'취소'}; const $=s=>document.querySelector(s);
 const connection=document.createElement('div');connection.id='connection';connection.setAttribute('role','status');connection.hidden=true;$('#error').before(connection);
 const api=createApiClient({onConnection:state=>{connection.hidden=state==='online';connection.textContent=state==='offline'?'연결 끊김 · 입력은 보존돼. 로컬 서버가 돌아오면 자동으로 다시 연결할게.':state==='reconnecting'?'로컬 서버에 다시 연결하는 중…':'';}});
@@ -227,9 +227,44 @@ const detailToggle=memberButton('세션 상세',()=>{const open=$('.inspector').
 
 const closeInspector=memberButton('닫기',()=>{$('.inspector').classList.remove('open');detailToggle.setAttribute('aria-expanded','false');});closeInspector.className='inspector-close';$('.inspector').prepend(closeInspector);
 
-let layout=loadLayout();
-function applyLayout(){layout=Object.assign(layout,loadLayout({getItem:()=>JSON.stringify(layout)}));for(const [key,value] of Object.entries(layout))document.documentElement.style.setProperty('--'+key,value+'px');}
-function separator(key,label,axis,target){const handle=document.createElement('div');handle.className='resize-handle '+axis;handle.id='resize-'+key;handle.tabIndex=0;handle.setAttribute('role','separator');handle.setAttribute('aria-label',label);handle.setAttribute('aria-orientation',axis==='vertical'?'vertical':'horizontal');handle.setAttribute('aria-valuemin','0');handle.setAttribute('aria-valuemax','9999');const update=()=>handle.setAttribute('aria-valuenow',String(layout[key]));let start;const move=e=>{if(!start)return;e.preventDefault();const delta=axis==='vertical'?e.clientX-start.x:e.clientY-start.y;layout[key]=start.value+(key==='inspector'?-delta:delta);applyLayout();update();};const stop=()=>{if(start){start=null;saveLayout(layout);window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',stop);window.removeEventListener('pointercancel',stop);}};handle.onpointerdown=e=>{e.preventDefault();start={x:e.clientX,y:e.clientY,value:layout[key]};handle.setPointerCapture(e.pointerId);window.addEventListener('pointermove',move);window.addEventListener('pointerup',stop);window.addEventListener('pointercancel',stop);};handle.onkeydown=e=>{const delta=e.key==='ArrowLeft'||e.key==='ArrowUp'?-10:e.key==='ArrowRight'||e.key==='ArrowDown'?10:0;if(e.key==='Home')layout[key]=0;else if(e.key==='End')layout[key]=9999;else if(!delta)return;e.preventDefault();layout[key]+=delta;applyLayout();update();saveLayout(layout);};target.after(handle);update();}
-separator('sidebar','사이드바 너비','vertical',$('.sidebar'));separator('chair','좌장 프로필 너비','vertical',$('.chair-profile'));separator('upper','좌장과 정리 높이','horizontal',$('.chair-row'));separator('participants','참여 세션 행 높이','horizontal',$('.participants-row'));separator('composer','작성 영역 높이','horizontal',$('.timeline'));separator('inspector','세션 상세 너비','vertical',$('.conversation'));
-const reset=memberButton('레이아웃 초기화',()=>{layout=resetLayout();applyLayout();});reset.classList.add('layout-reset');$('.room-actions').append(reset);applyLayout();window.addEventListener('resize',applyLayout);
-function renameDialog(kind,item){const {d,f}=dialog(kind==='channel'?'채널 이름 바꾸기':'토론장 이름 바꾸기');const field=inputField(f,'이름','name',item.name),message=text('p','','form-error');f.append(message);actions(f,'저장');let saving=false;f.onsubmit=async e=>{e.preventDefault();if(saving)return;saving=true;try{await req(`/api/${kind==='channel'?'channels':'rooms'}/${item.id}/rename`,{method:'POST',body:JSON.stringify({name:field.value})});d.close();await refresh(false);if(kind==='room')await openRoom(item.id,false);}catch(e){message.textContent=e.message;saving=false;}};d.showModal();}
+initLayout();
+
+const renameRoomButton=memberButton('이름 변경',()=>{if(current)renameDialog('room',current);});
+renameRoomButton.id='renameRoom';renameRoomButton.className='rename-link';
+renameRoomButton.setAttribute('aria-label','토론장 이름 변경');
+$('#title').after(renameRoomButton);
+
+const expandSummary=memberButton('크게 보기',()=>{
+ const {d,f}=dialog('토론 정리');d.classList.add('summary-dialog');
+ const copy=$('#decisions').cloneNode(true);copy.removeAttribute('id');
+ for(const element of copy.querySelectorAll('[id]'))element.removeAttribute('id');
+ for(const button of copy.querySelectorAll('button'))button.remove();
+ for(const detail of copy.querySelectorAll('details'))detail.open=true;
+ for(const link of copy.querySelectorAll('a'))link.addEventListener('click',()=>d.close());
+ f.append(copy);const close=memberButton('닫기',()=>d.close());f.append(close);d.showModal();
+});
+expandSummary.id='expandSummary';expandSummary.className='summary-expand';
+$('.summary-heading').append(expandSummary);
+
+function renameDialog(kind,item){
+ const isRoom=kind==='room',name=isRoom?current?.id===item.id?current.name:item.name:channels.find(c=>c.id===item.id)?.name||item.name;
+ const {d,f}=dialog(isRoom?'토론장 이름 바꾸기':'채널 이름 바꾸기');
+ const field=inputField(f,'이름','name',name),message=text('p','','form-error');
+ field.maxLength=isRoom?120:80;field.autocomplete='off';message.setAttribute('role','alert');
+ f.append(message);actions(f,'저장');
+ const submit=f.querySelector('button[type=submit]');
+ let saving=false;
+ f.onsubmit=async event=>{
+  event.preventDefault();if(saving)return;
+  if(!field.value.trim()){message.textContent='이름을 입력해줘.';field.focus();return;}
+  saving=true;submit.disabled=true;message.textContent='';
+  try{
+   const renamed=await req('/api/'+(isRoom?'rooms':'channels')+'/'+item.id+'/rename',{method:'POST',body:JSON.stringify({name:field.value.trim()})});
+   if(isRoom){rooms=rooms.map(r=>r.id===item.id?{...r,name:renamed.name}:r);if(current?.id===item.id)current.name=renamed.name;}
+   else channels=channels.map(c=>c.id===item.id?{...c,name:renamed.name}:c);
+   renderNav();if(isRoom&&current?.id===item.id)$('#title').textContent=current.name+(current.archived_at?' · 보관됨':current.paused_at?' · 중지됨':'');
+   d.close();
+  }catch(error){message.textContent=error.message;saving=false;submit.disabled=false;}
+ };
+ d.showModal();field.select();
+}

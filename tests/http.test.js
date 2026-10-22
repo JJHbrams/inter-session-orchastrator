@@ -19,12 +19,16 @@ test('real loopback HTTP and MCP enforce identity, room scope and protocol error
     assert.equal((await call('/api/bootstrap',null,{Origin:'https://unrelated.example'})).status,403);
     for(const provider of ['claude','codex','antigravity']){const icon=await fetch(base+'/assets/providers/'+provider+'.png');assert.equal(icon.status,200);assert.equal(icon.headers.get('content-type'),'image/png');assert.deepEqual([...new Uint8Array(await icon.arrayBuffer()).slice(0,8)],[137,80,78,71,13,10,26,10]);}
     assert.equal((await fetch(base+'/assets/providers/unknown.png')).status,404);
+    const layoutModule=await fetch(base+'/layout.js');assert.equal(layoutModule.status,200);assert.match(layoutModule.headers.get('content-type'),/javascript/);
     assert.ok(cookie.startsWith(`rooms_session_${port}=`));
     const noAuth=await call('/api/rooms',null,{cookie:'rooms_session_other=foreign'});assert.equal(noAuth.status,401);assert.equal(noAuth.data.code,'AUTH_REQUIRED');
     const badCsrf=await call('/api/channels',{name:'never-create'},{'x-csrf-token':'stale'});assert.equal(badCsrf.status,403);assert.equal(badCsrf.data.code,'CSRF_INVALID');
     const foreignOrigin=await call('/api/channels',{name:'never-create'},{Origin:'https://unrelated.example'});assert.equal(foreignOrigin.status,403);assert.equal(foreignOrigin.data.code,'ORIGIN_INVALID');
     const room=(await call('/api/rooms',{name:'test'})).data;
     const channel=(await call('/api/channels',{name:'old channel'})).data;
+    assert.equal((await call(`/api/channels/${channel.id}/rename`,{name:'forbidden'},{'x-csrf-token':'stale'})).status,403);
+    assert.equal((await call(`/api/rooms/${room.id}/rename`,{name:'forbidden'},{Origin:'https://unrelated.example'})).status,403);
+    assert.equal((await call(`/api/rooms/${room.id}/rename`,{name:'forbidden'},{cookie:'foreign'})).status,401);
     assert.equal((await call(`/api/channels/${channel.id}/rename`,{name:'new channel'})).data.name,'new channel');
     assert.equal((await call(`/api/rooms/${room.id}/rename`,{name:'renamed room'})).data.name,'renamed room');
     assert.equal((await call(`/api/rooms/${room.id}/rename`,{name:' ' })).status,400);

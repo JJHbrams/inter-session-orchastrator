@@ -45,4 +45,42 @@ body{background:#080d12}.app{width:100%;max-width:none;margin:0;height:100dvh;gr
 /* Persisted desktop sizing; handles remain keyboard-operable separators. */
 .app{grid-template-columns:var(--sidebar,246px) 7px minmax(0,1fr);max-width:none}.workspace{grid-template-rows:auto calc(var(--upper,190px) + var(--participants,82px) + 14px) minmax(0,1fr)}.session-panel{min-height:0;overflow:auto;display:grid;grid-template-rows:var(--upper,190px) 7px var(--participants,82px) 7px}.chair-row{grid-template-columns:var(--chair,180px) 7px minmax(0,1fr);min-height:0;height:var(--upper,190px)}.participants-row{min-height:0;height:var(--participants,82px)}.content{grid-template-columns:minmax(0,1fr)}.conversation{grid-template-rows:auto auto minmax(0,1fr) 7px var(--composer,170px)}.conversation .composer{grid-row:5;min-height:0;height:var(--composer,170px);overflow:auto}.conversation>.resize-handle.horizontal{grid-row:4}.chair-summary{height:100%;min-height:0;max-height:none;overflow:auto}.chair-summary .decision-body{font-size:14px;line-height:1.65;max-height:none;overflow:visible}.resize-handle{position:relative;z-index:6;background:transparent;touch-action:none}.resize-handle:hover,.resize-handle:focus-visible{background:var(--teal);outline:none}.resize-handle.vertical{width:7px;cursor:col-resize}.resize-handle.horizontal{height:7px;cursor:row-resize;display:block}.content>.resize-handle.vertical{display:none}.inspector.open{width:var(--inspector,305px)}.rename-link,.layout-reset{font-size:10px;padding:3px 6px;margin-left:8px;vertical-align:middle}.channel-label{display:flex;align-items:center;justify-content:space-between;gap:4px}.channel-label .rename-link{margin-left:auto}.topbar h1 .rename-link{font-size:10px;vertical-align:middle}@media(max-width:800px){.app{grid-template-columns:1fr}.content{grid-template-columns:1fr}.chair-row{height:auto;min-height:0}.participants-row{height:auto;min-height:0}.composer{height:auto;min-height:130px}}
 
-body:has(.inspector.open) .content>.resize-handle.vertical{display:block;position:fixed;z-index:9;top:85px;bottom:14px;right:var(--inspector,305px)}
+/* One scroll region for the summary; keep the full room width available. */
+.provider-icon{background:transparent;border:0;border-radius:0;filter:drop-shadow(0 1px 1px #0009)}
+.recipient-chip .provider-icon{border:0;border-radius:0}
+.workspace{overflow:hidden}.session-panel{overflow:hidden}
+.chair-row{height:100%;align-items:stretch;gap:12px;padding:12px 20px;overflow:hidden}
+.chair-profile{overflow:auto}.chair-summary{height:100%;padding-right:8px}
+.chair-summary .decision-body{font-size:14px;line-height:1.65;max-height:none;overflow:visible}
+.summary-heading{position:sticky;top:0;background:#141b26;z-index:1;padding-bottom:5px;flex-wrap:wrap}
+.summary-expand{font-size:11px;padding:3px 8px;margin-left:auto}
+.participants-row{height:100%;overflow:hidden;padding:8px 20px}.participants-row .participants{height:100%;align-items:flex-start;overflow:auto}
+.participants-row .participant{flex:none}.participant-name strong{overflow-wrap:anywhere}
+.resize-handle{background:#24323e;flex:none}.resize-handle::after{content:'';position:absolute;border-radius:2px;background:#718291}
+.resize-handle.vertical{height:100%;min-height:0}.resize-handle.vertical::after{width:2px;height:28px;top:calc(50% - 14px);left:2px}
+.resize-handle.horizontal{width:100%;min-width:0}.resize-handle.horizontal::after{height:2px;width:36px;left:calc(50% - 18px);top:2px}
+.resize-handle:focus-visible{outline:2px solid var(--teal);outline-offset:-2px}
+.resizing{user-select:none;cursor:grabbing}
+.conversation .composer{height:100%;grid-template-rows:auto minmax(60px,1fr) auto auto;gap:5px;padding-block:8px}
+.composer .message-label{min-height:0;display:flex;flex-direction:column;gap:3px}
+.composer textarea{flex:1;min-height:38px;max-height:none;resize:none}
+.recipient-modes{align-self:center}.recipient-preview{min-height:21px}
+.inspector.open{width:min(var(--inspector,340px),calc(100vw - 28px));padding-left:20px}
+.inspector>#resize-inspector{position:absolute;left:0;top:0;bottom:0;height:100%;z-index:10}
+.topbar>div:first-child{flex:1}.topbar h1{display:inline;vertical-align:middle}
+.topbar .rename-link{font-size:10px;padding:3px 6px;margin-left:8px;vertical-align:middle}
+.room-actions{max-width:60%;gap:5px}.layout-reset{margin-left:0}
+.channel-label{flex-wrap:wrap;text-transform:none}.channel-label .rename-link{flex:none}
+.summary-dialog{width:min(960px,94vw);max-width:94vw}.summary-dialog .decision-body{font-size:14px;line-height:1.75;white-space:pre-wrap}
+.summary-dialog .decision{padding:14px}.summary-dialog details{margin-block:8px}.summary-dialog .decision-sources a{font-size:12px}
+.message{max-width:min(90%,720px)}
+@media(max-width:800px){
+ .app{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+ .app>#resize-sidebar{display:none}.workspace{grid-row:2}
+ .chair-row{grid-template-columns:var(--chair,180px) 7px minmax(0,1fr);height:100%;gap:8px;padding:10px 12px}
+ .participants-row{height:100%;padding:7px 12px}
+ .chair-summary .decision-body{font-size:14px;max-height:none}
+ .conversation .composer{height:100%;min-height:0}
+ .topbar h1{font-size:16px}.room-actions{max-width:60%}
+}
+@media(max-height:620px){.app{min-height:620px}body{overflow:auto}}

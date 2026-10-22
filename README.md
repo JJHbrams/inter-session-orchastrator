@@ -4,9 +4,11 @@ Windows에서 기존 Codex·Claude 작업 세션을 채널과 토론 단위로 �
 
 현재 단계는 **로컬 브라우저 실행판 / 전체 명세 building**이다. 채널·참여자·공동 대화·별칭 멘션·반응, SQLite outbox/writer/fence, scoped HTTP/stdio MCP를 구현했다.
 
-**별도 좌장 만들기**로 초대된 참여자와 다른 앱 소유 Claude 대화를 만든다. **좌장에게** 입력하면 같은 native ID로 이어서 질문·취합하며, 좌장의 발화·참여자 질문·미확정 결정도 공용 대화에 남는다. 실제 별도 좌장과 두 검증용 provider의 질문/응답/자동 취합, 재시작 후 동일 ID 답변을 확인했다. 테스트는 **38개 통과**했다.
+**별도 좌장 만들기**로 초대된 참여자와 다른 앱 소유 Claude 대화를 만든다. **좌장에게** 입력하면 같은 native ID로 이어서 질문·취합하며, 좌장의 발화·참여자 질문·미확정 결정도 공용 대화에 남는다. 실제 별도 좌장과 두 검증용 provider의 질문/응답/자동 취합, 재시작 후 동일 ID 답변을 확인했다. 현재 테스트는 **42개 통과**했다.
 
 서버 재시작 시 열린 화면은 자동 재인증하고 초안을 보존한다. 서로 다른 포트의 쿠키를 분리하며 네트워크 단절 시 접수 불명 메시지는 자동 재전송하지 않는다. 앱은 창 전체 폭을 사용하고 메시지 버블만 최대720px로 제한한다. 사용자·좌장 버블은 오른쪽, 참여자 버블은 왼쪽이다. 상단은 좌장·토론 정리와 참여 세션의 두 행으로 나뉘며 프로필에는 provider 아이콘을 표시한다.
+
+경계의 손잡이를 드래그하거나 방향키로 사이드바·좌장 프로필·정리/참여 행·입력창·세션 상세 크기를 조절한다. 크기는 브라우저에 저장하며 **배치 초기화**로 복원한다. **크게 보기**로 긴 정리를 펼치고, 채널 또는 토론장 제목 옆 **이름 변경**으로 기록과 ID를 유지한 채 이름을 바꾼다. 아이콘은 투명 원본이며 Codex는 흰색 버전이다.
 
 ## 실행
 
@@ -46,7 +48,7 @@ API는 loopback·Host/Origin·CSRF·HttpOnly SameSite 쿠키와 room 등록으�
 npm test
 ```
 
-storage 17개, persona/parser/migration 4개, 좌장 조율 9개·CLI runner 2개·인증 클라이언트 4개, 실제 HTTP/MCP 통합 1개, stdio 초기화 1개가 통과했다. 이 테스트가 원래 V-01~V-13의 실제 host 검증을 대체하지는 않는다.
+storage 18개, persona/parser/migration 4개, 좌장 조율 9개·CLI runner 2개·인증 클라이언트 4개, layout 3개, 실제 HTTP/MCP 통합 1개, stdio 초기화 1개가 통과했다. 이 테스트가 원래 V-01~V-13의 실제 host 검증을 대체하지는 않는다.
 
 - [별도 좌장·인증 복구·메신저 명세](docs/dedicated-chair.html) / [원문](docs/design/0003-dedicated-chair.md) / [실제 검증 근거](docs/validation/dedicated-chair.json)
 - [패널 조절·이름 변경 명세](docs/resizable-panels.html) / [원문](docs/design/0004-resizable-panels.md)
