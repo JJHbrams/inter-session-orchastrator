@@ -4,17 +4,20 @@ Windows에서 기존 Codex·Claude 작업 세션을 채널과 토론 단위로 �
 
 현재 단계는 **로컬 브라우저 실행판 / 전체 명세 building**이다. 채널·참여자·공동 대화·별칭 멘션·반응, SQLite outbox/writer/fence, scoped HTTP/stdio MCP를 구현했다.
 
-**별도 좌장 만들기**로 초대된 참여자와 다른 앱 소유 Claude 대화를 만든다. **좌장에게** 입력하면 같은 native ID로 이어서 질문·취합하며, 좌장의 발화·참여자 질문·미확정 결정도 공용 대화에 남는다. 실제 별도 좌장과 두 검증용 provider의 질문/응답/자동 취합, 재시작 후 동일 ID 답변을 확인했다. 현재 테스트는 **42개 통과**했다.
+**별도 좌장 만들기**로 초대된 참여자와 다른 앱 소유 Claude 대화를 만든다. **좌장에게** 입력하면 같은 native ID로 이어서 질문·취합하며, 좌장의 발화·참여자 질문·미확정 결정도 공용 대화에 남는다. 실제 별도 좌장과 두 검증용 provider의 질문/응답/자동 취합, 재시작 후 동일 ID 답변을 확인했다. 현재 테스트는 **53개 통과**했다.
 
 서버 재시작 시 열린 화면은 자동 재인증하고 초안을 보존한다. 서로 다른 포트의 쿠키를 분리하며 네트워크 단절 시 접수 불명 메시지는 자동 재전송하지 않는다. 앱은 창 전체 폭을 사용하고 메시지 버블만 최대720px로 제한한다. 사용자·좌장 버블은 오른쪽, 참여자 버블은 왼쪽이다. 상단은 좌장·토론 정리와 참여 세션의 두 행으로 나뉘며 프로필에는 provider 아이콘을 표시한다.
 
-경계의 손잡이를 드래그하거나 방향키로 사이드바·좌장 프로필·정리/참여 행·입력창·세션 상세 크기를 조절한다. 크기는 브라우저에 저장하며 **배치 초기화**로 복원한다. **크게 보기**로 긴 정리를 펼치고, 채널 또는 토론장 제목 옆 **이름 변경**으로 기록과 ID를 유지한 채 이름을 바꾼다. 아이콘은 투명 원본이며 Codex는 흰색 버전이다.
+경계의 손잡이를 드래그하거나 방향키로 사이드바·좌장 프로필·정리/참여 행·입력창·세션 상세 크기를 조절한다. 크기는 브라우저에 저장하며 **배치 초기화**로 복원한다. **크게 보기**로 긴 정리를 펼치고, 채널 또는 토론장 제목 옆 **이름 변경**으로 기록과 ID를 유지한 채 이름을 바꾼다. Provider 아이콘은 흰 배경 배지다. 오른쪽 말풍선 안에서도 프로필은 왼쪽에 표시한다.
+
+대화와 좌장 정리는 Markdown과 정적 HTML 서식을 표시한다. 스크립트·이벤트·스타일·프레임은 제거하고 외부 이미지는 자동 로드하지 않는다. 파일 선택·작성란 drop·이미지 클립보드 붙여넣기로 최대5개, 각10MiB를 공유한다. 이미지 미리보기와 원본 다운로드, room별 초안·제거·재시도를 제공한다. 별도 좌장은 지원 이미지와 UTF-8 텍스트 내용을 직접 입력받으며 PDF·Office 등의 자동 파서는 아직 없다.
 
 ## 실행
 
-Node 24.14.1에서 검증했다. 외부 npm 의존 패키지는 없다. 내장 SQLite는 experimental 경고가 표시된다.
+Node 24.14.1에서 검증했다. marked·DOMPurify는 고정 버전으로 로컬 제공한다. 내장 SQLite는 experimental 경고가 표시된다.
 
 ```powershell
+npm ci
 npm start
 ```
 
@@ -28,7 +31,7 @@ npm start
 
 참석자 카드와 발언에는 동일 프로필·별칭을, provider는 보조 배지로 표시한다. 생성 테두리는 실제 저장된 running 상태에서만 켜진다. 👍 ❤️ 💡 👀 반응은 로컬 사용자의 피드백이며 새로고침 후에도 유지된다.
 
-`packages/mcp/server.js`는 stdio JSON-RPC MCP 서버다. 실행 환경의 `ROOMS_URL=http://127.0.0.1:4318`과 `ROOMS_TOKEN`으로 선택한 room registration을 전달한다. 토큰은 명령 인자·Git·공유 프롬프트에 넣지 않는다. 도구는 `room_context`, `room_post`, `room_request`, `room_reply`, `room_inbox`, `room_result`다. 모델 클라이언트의 네이티브 MCP 설정은 이번 검증에서 변경하지 않았다.
+`packages/mcp/server.js`는 stdio JSON-RPC MCP 서버다. 실행 환경의 `ROOMS_URL=http://127.0.0.1:4318`과 `ROOMS_TOKEN`으로 선택한 room registration을 전달한다. 토큰은 명령 인자·Git·공유 프롬프트에 넣지 않는다. 도구는 `room_context`, `room_post`, `room_request`, `room_reply`, `room_inbox`, `room_result`, `room_upload_attachment`, `room_read_attachment`다. 모델 클라이언트의 네이티브 MCP 설정은 이번 검증에서 변경하지 않았다.
 
 HTTP helper는 발급받은 비공개 설정 파일 `{ "url": "http://127.0.0.1:4318", "token": "발급값" }`을 사용한다.
 
@@ -36,6 +39,9 @@ HTTP helper는 발급받은 비공개 설정 파일 `{ "url": "http://127.0.0.1:
 node packages/mcp/participant.js --config .local/participant.json inbox
 node packages/mcp/participant.js --config .local/participant.json reply REQUEST_ID "답변"
 node packages/mcp/participant.js --config .local/participant.json request .local/question.json
+node packages/mcp/participant.js --config .local/participant.json upload .local/image.png
+node packages/mcp/participant.js --config .local/participant.json read ATTACHMENT_ID --output .local/download.png
+node packages/mcp/participant.js --config .local/participant.json post "첨부 공유" --attachments ATTACHMENT_ID
 ```
 
 요청 JSON은 `body`, 대상 membership ID 배열 `targets`, 선택적 `requestKey`를 가진다. helper는 명시 키가 없으면 입력 JSON hash를 사용한다. 같은 내용으로 별도 새 요청을 만들려면 새 키를 지정한다. `completed`는 상관 응답 회수를 뜻하고 작업 성공은 별도 outcome이다. 제출 결과가 unknown이면 자동 재전송하지 않는다.
@@ -48,10 +54,11 @@ API는 loopback·Host/Origin·CSRF·HttpOnly SameSite 쿠키와 room 등록으�
 npm test
 ```
 
-storage 18개, persona/parser/migration 4개, 좌장 조율 9개·CLI runner 2개·인증 클라이언트 4개, layout 3개, 실제 HTTP/MCP 통합 1개, stdio 초기화 1개가 통과했다. 이 테스트가 원래 V-01~V-13의 실제 host 검증을 대체하지는 않는다.
+현재53개 테스트가 통과했다. 추가 검증은 첨부 권한·멱등·재시작·원본 바이트, HTTP/stdio/helper, 실제 Markdown 정제와 초안 경계다. 실제 브라우저의 파일 선택·클립보드·drop 이벤트·재시도 및 새 좌장의 이미지/텍스트 판독을 확인했다. OS 물리 드래그는 자동화 도구 입력 실패로 별도 미검증이다. 이 테스트가 원래 V-01~V-13의 실제 host 검증을 대체하지는 않는다.
 
 - [별도 좌장·인증 복구·메신저 명세](docs/dedicated-chair.html) / [원문](docs/design/0003-dedicated-chair.md) / [실제 검증 근거](docs/validation/dedicated-chair.json)
 - [패널 조절·이름 변경 명세](docs/resizable-panels.html) / [원문](docs/design/0004-resizable-panels.md)
+- [서식 있는 대화·공유 첨부 명세](docs/rich-attachments.html) / [원문](docs/design/0005-rich-attachments.md) / [검증 근거](docs/validation/rich-attachments.json)
 - [실행·검증 보고서](docs/runtime-validation.html) / [원문](docs/runtime-validation.md)
 - [프로필·멘션·이모지 기능 명세](docs/session-personas.html) / [원문](docs/design/0002-session-personas.md)
 - [검증 근거 JSON](docs/validation/runtime.json)

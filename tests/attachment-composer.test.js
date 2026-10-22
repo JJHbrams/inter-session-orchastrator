@@ -8,3 +8,9 @@ test('attachment drafts remain room scoped and retry keeps request key',async()=
  const item=composer.items()[0],requestKey=item.requestKey;assert.equal(item.status,'failed');composer.setRoom('two');assert.equal(composer.items().length,0);composer.setRoom('one');fail=false;composer.retry(item);await new Promise(resolve=>setTimeout(resolve));assert.equal(composer.items()[0].status,'ready');assert.equal(calls[1].key,requestKey);
 });
 test('attachment cap rejects oversized files',()=>{const composer=createAttachmentComposer({upload:async()=>({id:'x'})});composer.setRoom('one');composer.add([{name:'huge',type:'application/octet-stream',size:MAX_ATTACHMENT_BYTES+1}]);assert.equal(composer.items()[0].status,'failed');});
+
+test('sixth file cannot bypass cap through retry, and removing in-flight draft discards later upload',async()=>{
+ let calls=0,finish;const discarded=[];
+ const c=createAttachmentComposer({upload:async()=>{calls++;return {id:String(calls)};}});c.setRoom('a');c.add(Array.from({length:6},()=>({name:'x',type:'text/plain',size:1})));await new Promise(r=>setTimeout(r));c.retry(c.items().at(-1));assert.equal(calls,5);assert.equal(c.readyIds().length,5);
+ const d=createAttachmentComposer({upload:()=>new Promise(r=>finish=r),discard:async(room,id)=>discarded.push([room,id])});d.setRoom('a');d.add([{name:'x',type:'text/plain',size:1}]);d.remove(d.items()[0]);finish({id:'late'});await new Promise(r=>setTimeout(r));assert.deepEqual(discarded,[['a','late']]);assert.equal(d.items().length,0);
+});

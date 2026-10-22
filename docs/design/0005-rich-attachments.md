@@ -2,7 +2,7 @@
 id: 0005-rich-attachments
 title: 서식 있는 대화와 공유 첨부
 tier: L
-status: approved
+status: done
 owner: jhjang
 created: 2026-10-22
 updated: 2026-10-22
@@ -19,11 +19,12 @@ updated: 2026-10-22
 ## 한눈에 보기
 
 - 목적: 문서·코드·이미지를 세션마다 복사하지 않고 토론의 원문과 함께 전달한다.
-- 현재 상태: 사용자 요청으로 범위 확정, 구현 전 명세 작성. 전체 프로젝트는 building이다.
+- 현재 상태: 이 기능 AC-1~AC-6 구현·검증 완료. 전체 테스트 53/53과 독립 수용 검토를 통과했다. 전체 프로젝트는 building이다.
 - 핵심 결론: 원문은 보존하고 표시만 정제하며, 첨부는 SQLite BLOB과 room/message ID에 연결한다.
-- 판단 근거: 현재 body는 plain text, API JSON은262144byte, MCP는 텍스트6도구, 좌장은 stdin text만 받는다. (코드 직접 확인, 2026-10-22)
+- 판단 근거: 실제 브라우저 입력·동일 원본 바이트·좌장 판독, 기존 11개 테이블 보존과 53개 회귀 테스트를 확인했다. (직접 검증, 2026-10-22)
 - 결정: marked18.1.1·DOMPurify3.4.17을 로컬 제공하고, room 권한으로 첨부를 업로드·조회한다.
-- 다음 행동: 브라우저 입력부터 MCP 원본 조회·좌장 이미지 입력까지 수직 검증한다.
+- 검증 경계: drop은 실제 브라우저 DataTransfer 이벤트로 제품 핸들러를 실행했다. OS 마우스 드래그는 자동화 입력 실패로 미검증이다.
+- 다음 행동: 기존 세션 자동 wake와 host 제출·응답 대조를 후속 검증한다.
 - 최종 갱신: 2026-10-22, Asia/Seoul.
 
 ## 1. 의도 (Intent)
@@ -49,9 +50,9 @@ updated: 2026-10-22
 
 | 사실 | 근거 |
 |---|---|
-| 본문은 p.textContent와 mention span으로 구성됐다. | apps/desktop/app.js |
-| messages에 첨부 참조가 없고 JSON 제한은262144byte다. | Store schema와 server.body |
-| MCP는 room_context/post/request/reply/inbox/result6개다. | packages/mcp/server.js |
+| 변경 전 본문은 plain text였다. 현재 marked→DOMPurify로 정제 표시한다. | apps/desktop/app.js, rich-text.js |
+| 첨부 원본 BLOB과 메시지 참조를 영속 저장한다. 업로드 JSON만15MiB이며 일반 JSON은262144byte다. | Store schema와 server.body |
+| MCP는 기존6개와 upload/read_attachment의 총8개다. | packages/mcp/server.js |
 | Claude CLI는 --input-format stream-json을 제공한다. | 설치 --help와 공식 CLI reference, 2026-10-22 |
 | marked는 정제 기능을 제공하지 않아 후단 sanitizer가 필요하다. | [공식 문서](https://marked.js.org/), 2026-10-22 |
 | DOMPurify는 태그·속성 허용 목록을 제공한다. | [공식 README](https://github.com/cure53/DOMPurify), 2026-10-22 |
@@ -210,11 +211,11 @@ erDiagram
 
 ## 11. 착수 순서 (Implementation)
 
-- [ ] AC-1 AC-2: 흰 배지·프로필과 정제 렌더러.
-- [ ] AC-4 AC-5: Store·HTTP/MCP·helper의 원본 공유와 ACL.
-- [ ] AC-3: 세 입력 경로·room별 초안·미리보기·재시도.
-- [ ] AC-5: 좌장 이미지·텍스트 입력과 실제 응답 검증.
-- [ ] AC-6: 회귀·재시작·기존 데이터 보존·브라우저 검증.
+- [x] AC-1 AC-2: 흰 배지·프로필과 정제 렌더러.
+- [x] AC-4 AC-5: Store·HTTP/MCP·helper의 원본 공유와 ACL.
+- [x] AC-3: 세 입력 경로·room별 초안·미리보기·재시도.
+- [x] AC-5: 좌장 이미지·텍스트 입력과 실제 응답 검증.
+- [x] AC-6: 회귀·재시작·기존 데이터 보존·브라우저 검증.
 
 ## 12. 추적성 (Traceability)
 
@@ -224,6 +225,27 @@ erDiagram
 | AC-3 | attachment composer | picker/drop/paste | 초안 유실 |
 | AC-4 AC-5 | Store/API/MCP/chair | 바이트·권한·runner | room 경계·내용 누락 |
 | AC-6 | 기존 실행 경로 | 회귀·재시작 | 기존 기록·unknown |
+
+## 13. 검증 결과
+
+| 구분 | 직접 확인한 결과 |
+|---|---|
+| 표시 | 실제 provider 배경 rgb(255,255,255), filter none. 말풍선 우측 끝1459px, 프로필 왼쪽 여백16px, 최대720px. |
+| 서식 | 실제 Markdown·HTML 대화/정리 표시, marked+DOMPurify hostile matrix 통과. |
+| 입력 | 실제 chooser 이미지+텍스트, Control+V 이미지, room 전환 초안 복원, 제거, 서버 단절 실패→재시작→재시도 준비됨. |
+| drop | 검증용 loopback 프록시에서 브라우저 DataTransfer/File/DragEvent를 실제 composer에 전달해 두 파일 업로드·게시. OS 물리 드래그는 별도 미검증. |
+| 한도 | 실제10MiB+1 chooser 오류, 최대5개와 여섯째 재시도 우회 차단 테스트. |
+| 원본 | HTTP 업로드→stdio MCP image block→helper 저장 바이트 일치, Store 재오픈 뒤 일치. post/request/reply/result 참조·ACL·멱등 확인. |
+| 좌장 | 새 검증 전용 Claude 대화가 BIRD-47 및 MEDIA_TEXT_7Q29을 정확히 응답. 질문·파일명에는 두 답이 없었다. 응답에도 같은 첨부 연결. |
+| 회귀 | 53/53. 실제4318 서버 재시작 후 기존 기록 표시, 기존11개 테이블 원본 값 일치. unknown 자동 재전송·writer·frozen 수신자·인증 복구·협력 pull 회귀 통과. |
+
+원본 근거: [검증 JSON](../validation/rich-attachments.json), [화면](../screenshots/rich-attachments.jpg). 백엔드315ec52·통합fe65964, 좌장b950bb5, UI605e99e와 후속 통합 수정에 대응한다.
+
+### 해석과 입력 한계
+
+파일 업로드는10MiB/개·메시지5개다. 직접 좌장 입력은 현재 메시지 우선 최근5개, PNG/JPEG/GIF/WebP 각5MiB·총8MiB, UTF-8 텍스트 각16000자·총48000자다. 잘린 텍스트·제외 이미지·미지원 바이너리는 metadata와 제한 사유를 알려준다. PDF·Office 등은 원본 공유/다운로드이며 자동 문서 파서는 아직 없다. stdio read 도구는 이미지 block, helper read는 원본 파일 저장을 제공한다.
+
+초안은 열린 브라우저의 room별 메모리에 유지된다. 서버 재시작·room 전환에는 남지만 브라우저 자체 새로고침 뒤에는 복원하지 않는다. 제거된 미게시 첨부는 폐기하고 이미 메시지에 연결된 원본은 보존한다. 업로드는 room당 미연결50개로 제한한다.
 
 ## 참고
 

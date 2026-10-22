@@ -17,7 +17,10 @@ function renderNav(){const nav=$('#rooms');nav.replaceChildren();const groups=[.
 async function refresh(keep=true){const [rs,cs]=await Promise.all([req('/api/rooms'),req('/api/channels')]);rooms=rs.rooms;channels=cs.channels;renderNav();if(keep&&current){const found=rooms.find(r=>r.id===current.id);if(found)await openRoom(found.id,false)}}
 function deliveryText(message){const ds=current.deliveries.filter(d=>d.message_id===message.id);if(!ds.length)return null;const wrap=document.createElement('div');wrap.className='delivery-list';for(const d of ds){const m=current.members.find(x=>x.id===d.membership_id);const badge=text('span',`${m?.alias||m?.display_name||m?.native_id||'수신자'} · ${stateLabel[d.state]||d.state}`,'badge '+d.state);badge.title=`요청: ${d.request_id}${d.blocked_reason?'\n사유: '+d.blocked_reason:''}`;wrap.append(badge)}return wrap}
 
+let timelineSignature;
 function renderTimeline() {
+  const signature=JSON.stringify([current.id,current.messages,current.deliveries,current.reactions,current.members.map(m=>[m.session_id,m.alias,m.avatar,m.provider])]);
+  if(signature===timelineSignature)return;timelineSignature=signature;
   const view=$('#timeline'); view.replaceChildren();
   if(!current.messages.length) {view.append(text('div','@별칭으로 질문하거나, 게시로 대화의 맥락을 남겨보세요.','empty'));return;}
   for(const m of current.messages) {
@@ -80,6 +83,7 @@ function renderDecisions(){
   const render=d=>{
     const item=text('article','','decision');item.id='decision-'+d.id;
     const body=text('div','','decision-body rich-body');body.tabIndex=0;body.setAttribute('aria-label','토론 정리 내용');body.append(renderMarkdown(d.body,{roomId:current.id,mentions:current.members.map(member=>member.alias)}));item.append(body);
+    renderAttachments(d.attachments,item);
     const footer=text('div','','decision-footer'),owner=current.members.find(m=>m.session_id===d.owner);
     footer.append(text('small',(d.status==='confirmed'?'사용자 확정':'미확정 제안')+(owner?' · '+memberName(owner):'')));
     const sourceIds=(d.source_ids||'').split(',').filter(Boolean);
@@ -208,7 +212,8 @@ $('#body').required=false;
 const asBase64=file=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(reader.error);reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.readAsDataURL(file);});
 const attachmentComposer=createAttachmentComposer({
   upload:async(roomId,file,requestKey)=>req(`/api/rooms/${roomId}/attachments`,{method:'POST',body:JSON.stringify({filename:file.name,mime:file.type||'application/octet-stream',base64:await asBase64(file),requestKey})}),
-  render:items=>{attachmentStrip.replaceChildren();for(const item of items){const chip=text('div','','attachment-chip '+item.status);if(item.file.type.startsWith('image/')){const preview=document.createElement('img');preview.src=URL.createObjectURL(item.file);preview.alt='';chip.append(preview);}chip.append(text('span',item.file.name),text('small',item.status==='ready'?'준비됨':item.status==='uploading'?'업로드 중':item.error||'실패'));if(item.status==='failed'){const retry=text('button','재시도');retry.type='button';retry.onclick=()=>attachmentComposer.retry(item);chip.append(retry);}const remove=text('button','제거');remove.type='button';remove.onclick=()=>attachmentComposer.remove(item);chip.append(remove);attachmentStrip.append(chip);}renderPreview();},
+  discard:async(roomId,id)=>req(`/api/rooms/${roomId}/attachments/${id}/discard`,{method:'POST',body:'{}'}),
+  render:items=>{for(const image of attachmentStrip.querySelectorAll('img'))URL.revokeObjectURL(image.src);attachmentStrip.replaceChildren();for(const item of items){const chip=text('div','','attachment-chip '+item.status);if(item.file.type.startsWith('image/')){const preview=document.createElement('img');preview.src=URL.createObjectURL(item.file);preview.alt='';chip.append(preview);}chip.append(text('span',item.file.name),text('small',item.status==='ready'?'준비됨':item.status==='uploading'?'업로드 중':item.error||'실패'));if(item.status==='failed'&&!item.invalid){const retry=text('button','재시도');retry.type='button';retry.onclick=()=>attachmentComposer.retry(item);chip.append(retry);}const remove=text('button','제거');remove.type='button';remove.onclick=()=>attachmentComposer.remove(item);chip.append(remove);attachmentStrip.append(chip);}renderPreview();},
   onChange:()=>updateRoomControls()
 });
 attachButton.onclick=()=>attachInput.click();attachInput.onchange=()=>{attachmentComposer.add(attachInput.files);attachInput.value='';};

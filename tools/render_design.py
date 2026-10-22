@@ -32,6 +32,8 @@ def render(bundle: Path, source: Path | None = None, output: Path | None = None,
         flags=re.S,
     )
     content = re.sub(r"<table>(.*?)</table>", r'<div class="table-scroll"><table>\1</table></div>', content, flags=re.S)
+    if source.parent == ROOT / 'docs/design':
+        content = re.sub(r'(href|src)="\.\./(validation|screenshots)/', r'\1="\2/', content)
     if source.parent == ROOT / "docs/research":
         mapping = json.loads((ROOT / 'docs/research/document-map.json').read_text(encoding='utf-8'))
         known = {row['slug'] for row in mapping}
@@ -48,6 +50,7 @@ def render(bundle: Path, source: Path | None = None, output: Path | None = None,
             local_links['session-personas'] = 'session-personas.html'
             local_links['dedicated-chair'] = 'dedicated-chair.html'
             local_links['resizable-panels'] = 'resizable-panels.html'
+            local_links['rich-attachments'] = 'rich-attachments.html'
             content = re.sub(r'\[\[([\w-]+)\]\]', lambda m: f'<a href="{local_links[m[1]]}">{m[1]}</a>' if m[1] in local_links else m[0], content)
     headings = re.findall(r'<h2 id="([^"]+)">(.*?)</h2>', content)
     nav = "\n".join(f'<a href="#{html.escape(anchor)}">{label}</a>' for anchor, label in headings)

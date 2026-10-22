@@ -1,0 +1,163 @@
+{
+  "date": "2026-10-22",
+  "scope": "isolated fixture, real dedicated Claude chair; original app preserved",
+  "tests": {
+    "command": "node --test",
+    "passed": 53,
+    "failed": 0,
+    "passNames": [
+      "✔ restart authentication retries a rejected mutation once with identical payload",
+      "✔ network ambiguity never replays a mutation; a later GET can reconnect",
+      "✔ concurrent bootstrap is shared; foreign Origin rejection is never retried",
+      "✔ stale CSRF recovers once, repeated authentication denial terminates",
+      "✔ attachment drafts remain room scoped and retry keeps request key",
+      "✔ attachment cap rejects oversized files",
+      "✔ sixth file cannot bypass cap through retry, and removing in-flight draft discards later upload",
+      "✔ attachment ownership, immutable message links, reply/result sharing and restart bytes",
+      "✔ strict base64 and byte limit reject invalid or oversized uploads before persistence",
+      "✔ chair stdin carries real image content blocks with exact native session identity",
+      "✔ chair sees linked image bytes, bounded UTF-8 excerpts and explicit binary notices",
+      "✔ chair image budget reports exclusions and missing attachments without pretending to read them",
+      "✔ CLI runner confirms exact native identity, safe arguments and actual model start",
+      "✔ CLI runner rejects wrong ID and bounds timeout without retrying",
+      "✔ dedicated chair owns a distinct session and processes its queued delivery once",
+      "✔ chair restart recovery leaves fenced work unknown without replay",
+      "✔ chair invalid targets roll back every output and never auto replay",
+      "✔ reply consolidation is correlated, system authored and not repeated",
+      "✔ chair serializes concurrent ticks and keeps actual start evidence distinct",
+      "✔ chair pause stops invocation and a budget failure leaves no partial questions",
+      "✔ decision publication is canonical and idempotent across migration",
+      "✔ stored result can be applied after raising limit without a second provider turn",
+      "✔ legacy decision publication survives a departed owner and archived room",
+      "✔ real loopback HTTP and MCP enforce identity, room scope and protocol errors",
+      "✔ restore rejects malformed storage and nonnumeric dimensions without losing defaults",
+      "✔ panel dimensions fit measured header space and protect the conversation",
+      "✔ saved sizes round trip, reset clears preferences, storage denial is harmless",
+      "✔ MCP stdio initializes without an SDK",
+      "✔ browser uploads are available as real MCP image blocks and helper bytes in the same room",
+      "✔ shared mention parser ignores email, escaped symbols and closed or open code",
+      "✔ legacy session schema backfills persona once and keeps original identity on reopen",
+      "✔ canonical request hash remains compatible and incomplete or read-only mentions do not broadcast",
+      "✔ chair routing targets only the current writable chair and replays its original snapshot",
+      "✔ real Markdown parser formats tables/code and purifier blocks executable HTML and remote images",
+      "✔ renderer preserves static formatting and removes hostile markup",
+      "✔ channel and archived room rename trim Unicode text and survive reopen without changing history",
+      "✔ same payload idempotency returns the frozen recipient snapshot",
+      "✔ unresolved session writer blocks another room before external submission",
+      "✔ restart changes in-flight deliveries to unknown without resending",
+      "✔ registration scope rejects cross room reply and revokes on leave",
+      "✔ cooperative inbox offers one request and exact reply is atomic and idempotent",
+      "✔ paused room stops queued cooperative offers without deleting them",
+      "✔ pause between reservation and submission prevents the external side-effect fence",
+      "✔ new runtime binding invalidates a queued request before it is offered",
+      "✔ a cooperative offer blocks other rooms and stays fenced across restart recovery",
+      "✔ stale execution evidence cannot advance delivery or clear another writer",
+      "✔ chair rounds are bounded, replay does not spend another round, and empty rounds cannot bypass the limit",
+      "✔ leaving before submission cancels reservations and permits an explicit rejoin",
+      "✔ archiving stops new requests while preserving a late correlated reply",
+      "✔ Windows path separators and case do not create a second session identity",
+      "✔ personas survive reopen, identity registration, and room changes",
+      "✔ mention routing is exact, deduped, frozen, and never falls back to all",
+      "✔ reactions are room scoped, idempotent, and create no deliveries"
+    ]
+  },
+  "browser": {
+    "application": "http://127.0.0.1:4318/",
+    "fixture": "http://127.0.0.1:4320/",
+    "providerBackground": "rgb(255, 255, 255)",
+    "providerFilter": "none",
+    "outgoing": {
+      "maximumWidth": 720,
+      "rightEdge": 1459,
+      "profileLeftInset": 16
+    },
+    "viewports": [
+      "1518 CSS viewport",
+      "1280x620 iframe",
+      "760x900 iframe"
+    ],
+    "picker": [
+      "image.png",
+      "note.txt"
+    ],
+    "clipboard": "real Control+V from browser clipboard PNG → clipboard.png ready",
+    "draft": "text and image restored after switching rooms",
+    "retry": "server stopped → failed upload; restart same DB → Enter on retry → both ready; text preserved",
+    "remove": "Enter on two remove buttons → empty attachment strip",
+    "drop": "actual browser DataTransfer/File/DragEvent through isolated test proxy to product composer → text and PNG ready → submitted → shared image visible",
+    "physicalOSDrag": "UNVERIFIED: CUA drag could not send input",
+    "oversize": "actual picker 10 MiB + 1 byte → Korean size error, remove only",
+    "imageAfterRestart": {
+      "naturalWidth": 600,
+      "naturalHeight": 260
+    },
+    "screenshot": "docs/screenshots/rich-attachments.jpg"
+  },
+  "chair": {
+    "nativeId": "e6430d53-d6bd-4c8b-aa6e-2fe894a4693a",
+    "questionId": "409bff01-3ca4-42a9-9a31-a41f276205eb",
+    "question": "새 질문은 참여자에게 보내지 말고, 첨부 이미지에 크게 쓰인 코드와 텍스트 파일의 검증 문구를 각각 그대로 답해줘.",
+    "replyId": "f20bcc54-b7cc-4637-8fb2-753c13da326e",
+    "reply": "요청하신 대로 참여자에게 새 질문은 보내지 않았습니다. 첨부 파일 두 개를 직접 확인한 결과입니다.\n\n- **이미지(image.png)에 크게 쓰인 코드:** `BIRD-47`\n  - 이미지 블록을 직접 보고 확인했습니다. 글자 왼쪽 위에는 초록색 사각형이 있습니다.\n- **텍스트 파일(note.txt)의 검증 문구:** `MEDIA_TEXT_7Q29`\n  - UTF-8 본문을 잘림 없이 전부 읽었습니다. 원문은 \"파일 공유 검증 문구: MEDIA_TEXT_7Q29\"입니다.",
+    "exactImageValue": "BIRD-47",
+    "exactTextValue": "MEDIA_TEXT_7Q29",
+    "answersAbsentFromPrompt": true,
+    "attachments": [
+      {
+        "id": "8ea712dc-1eb7-4caf-8b93-6190399cd6e3",
+        "filename": "image.png",
+        "mime": "image/png",
+        "size": 5669,
+        "sha256": "6ff6cc445eb2b09294a42ce4ea39d507f8bb74c4b3f53d036bb610315e7b65ca",
+        "digestMatches": true
+      },
+      {
+        "id": "7c81f8a6-0061-4354-99aa-d62fc5d6ed59",
+        "filename": "note.txt",
+        "mime": "application/octet-stream",
+        "size": 119,
+        "sha256": "8ca6389c2a544a372ea35c696ae480092782f3cf28032db6fa5c2f7e60291311",
+        "digestMatches": true
+      }
+    ]
+  },
+  "preservation": {
+    "beforeSha256": "9a5d07bb14c6aeed2bd3fa732f542a3ddf6582a9690e27ecaf15fe0a37f0bb5f",
+    "afterSha256": "9a5d07bb14c6aeed2bd3fa732f542a3ddf6582a9690e27ecaf15fe0a37f0bb5f",
+    "equal": true,
+    "tables": {
+      "rooms": 2,
+      "channels": 1,
+      "sessions": 3,
+      "memberships": 3,
+      "bindings": 4,
+      "messages": 21,
+      "deliveries": 10,
+      "decisions": 2,
+      "sources": 10,
+      "chairs": 1,
+      "chair_runs": 3
+    }
+  },
+  "acceptance": {
+    "AC1": "PASS",
+    "AC2": "PASS",
+    "AC3": "PASS (browser drop event; physical OS drag unverified)",
+    "AC4": "PASS",
+    "AC5": "PASS",
+    "AC6": "PASS",
+    "reviewer": "fresh independent planner",
+    "overall": "PASS"
+  },
+  "limits": {
+    "uploadBytes": 10485760,
+    "perMessage": 5,
+    "stagedPerRoom": 50,
+    "chairImageEachBytes": 5242880,
+    "chairImageTotalBytes": 8388608,
+    "chairRecentAttachments": 5,
+    "chairTextEachCharacters": 16000,
+    "chairTextTotalCharacters": 48000,
+    "unsupportedBinary": "metadata and original download; no automatic PDF/Office parser"
+  }
+}
