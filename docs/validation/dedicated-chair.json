@@ -1,0 +1,298 @@
+{
+  "date": "2026-10-22",
+  "scope": "dedicated chair, canonical timeline, auth recovery, responsive messaging",
+  "tests": {
+    "command": "npm test",
+    "pass": 38,
+    "fail": 0
+  },
+  "roomId": "4928678e-04b5-4d48-8cfe-ecd6ed894103",
+  "chair": {
+    "nativeId": "cc814236-53b6-4612-a4cf-79b111feb2f3",
+    "status": "ready",
+    "sessionId": "595fd148-f8ec-43ac-8fb5-304be1e9dc87",
+    "identity": {
+      "provider": "claude",
+      "host": "local",
+      "profile": "dedicated-chair"
+    }
+  },
+  "runs": [
+    {
+      "id": "69490f54-5278-48f7-987d-59325bab721d",
+      "request_key": "aabeaa20-6829-4b29-85e7-176c21ccbacd",
+      "delivery_id": "3fe20637-6bb7-456d-a894-b4494dcebde7",
+      "status": "completed",
+      "error": null
+    },
+    {
+      "id": "d8219ba6-7099-4f19-83fe-71db7512cd74",
+      "request_key": "3e041aed-3ca3-40cf-ab7c-26032d754389",
+      "delivery_id": "cb4d688d-73eb-4fd1-a2a6-c142266702da",
+      "status": "completed",
+      "error": null
+    },
+    {
+      "id": "9c78c757-d461-4643-a550-2f09a21999a3",
+      "request_key": "751062f0-8904-45e3-a70d-085e288668b7",
+      "delivery_id": "728e1de1-b6b9-4919-8218-99701be688f2",
+      "status": "completed",
+      "error": null
+    }
+  ],
+  "deliveries": [
+    {
+      "request_id": "aabeaa20-6829-4b29-85e7-176c21ccbacd",
+      "state": "completed",
+      "message_id": "da902363-97ca-44e8-9a7f-f6cb3b5efaf3",
+      "membership_id": "5ff27c0e-37cd-4807-9433-bc63d2d07833"
+    },
+    {
+      "request_id": "751062f0-8904-45e3-a70d-085e288668b7",
+      "state": "completed",
+      "message_id": "639af859-d31f-4124-ba5b-688c196a43c6",
+      "membership_id": "5ff27c0e-37cd-4807-9433-bc63d2d07833"
+    },
+    {
+      "request_id": "03155be9-2eff-49d0-8870-828deecc0859",
+      "state": "completed",
+      "message_id": "0f2cc978-ae72-4b6c-9057-45b94763cef2",
+      "membership_id": "3cd39d4e-dfdd-46c4-8eae-561ba03101d9"
+    },
+    {
+      "request_id": "b02dab92-251a-40c9-baba-dfc0070fe8d9",
+      "state": "completed",
+      "message_id": "f2d3ea7c-379c-4ec3-9053-ddce3c838f92",
+      "membership_id": "70a4e7f0-a796-4e5f-b73f-f52a141d9abc"
+    },
+    {
+      "request_id": "3e041aed-3ca3-40cf-ab7c-26032d754389",
+      "state": "completed",
+      "message_id": "72a2af97-879b-412a-9c66-124c789d99ae",
+      "membership_id": "5ff27c0e-37cd-4807-9433-bc63d2d07833"
+    },
+    {
+      "request_id": "5e8ce6bf-beb7-4c07-9ae5-1d03fa93a9cc",
+      "state": "completed",
+      "message_id": "409604b5-8fe7-493a-b465-6ffc9261a106",
+      "membership_id": "3cd39d4e-dfdd-46c4-8eae-561ba03101d9"
+    },
+    {
+      "request_id": "3369fcf3-7674-413b-adb4-ecb4432af678",
+      "state": "completed",
+      "message_id": "409604b5-8fe7-493a-b465-6ffc9261a106",
+      "membership_id": "70a4e7f0-a796-4e5f-b73f-f52a141d9abc"
+    },
+    {
+      "request_id": "5804c64a-4c19-44f3-9fd3-7ae7e4e22e73",
+      "state": "completed",
+      "message_id": "6d8be375-f4dd-42f0-bbc5-0ebe3c0abc33",
+      "membership_id": "3cd39d4e-dfdd-46c4-8eae-561ba03101d9"
+    },
+    {
+      "request_id": "40014894-b74e-462b-bad6-b38511d749d9",
+      "state": "completed",
+      "message_id": "289f7d60-4d9b-4f7a-8a33-2e98342c3b2b",
+      "membership_id": "3cd39d4e-dfdd-46c4-8eae-561ba03101d9"
+    },
+    {
+      "request_id": "d854db7c-3083-482b-84dd-da9d855ae254",
+      "state": "completed",
+      "message_id": "289f7d60-4d9b-4f7a-8a33-2e98342c3b2b",
+      "membership_id": "70a4e7f0-a796-4e5f-b73f-f52a141d9abc"
+    }
+  ],
+  "newMessages": [
+    {
+      "id": "72d3a255-410f-485f-b463-06ba58755550",
+      "sender_session_id": "21c770de-a040-4db6-a65a-e65438faec80",
+      "sender_role": "chair",
+      "reply_to": null,
+      "reply_request_id": null,
+      "decision_id": "d11efa96-526b-4f86-8f56-52ee5a701b6c",
+      "bodySha256": "d69ef1867fcd823c3897b2bc6f465a6647846673a0c6169e6d57240be878c4ab"
+    },
+    {
+      "id": "9f4b1e67-1ca0-406b-b564-2c6253b2cecc",
+      "sender_session_id": "595fd148-f8ec-43ac-8fb5-304be1e9dc87",
+      "sender_role": "chair",
+      "reply_to": null,
+      "reply_request_id": null,
+      "decision_id": null,
+      "bodySha256": "89347866497ea6e81d2156e752536554aa88cb80fce69d03373512b5a068337b"
+    },
+    {
+      "id": "da902363-97ca-44e8-9a7f-f6cb3b5efaf3",
+      "sender_session_id": null,
+      "sender_role": null,
+      "reply_to": null,
+      "reply_request_id": null,
+      "decision_id": null,
+      "bodySha256": "e5395e69286fbed75e3de27ef0b8f305328563640df89f915efae08aa8c0030b"
+    },
+    {
+      "id": "265920d0-c52d-4141-ac51-f99a10232ec0",
+      "sender_session_id": "595fd148-f8ec-43ac-8fb5-304be1e9dc87",
+      "sender_role": "chair",
+      "reply_to": "da902363-97ca-44e8-9a7f-f6cb3b5efaf3",
+      "reply_request_id": "aabeaa20-6829-4b29-85e7-176c21ccbacd",
+      "decision_id": null,
+      "bodySha256": "c682de1656cb89582b823ca526eb97048b185c7087e1fadd85a7f87ece16192d"
+    },
+    {
+      "id": "289f7d60-4d9b-4f7a-8a33-2e98342c3b2b",
+      "sender_session_id": "595fd148-f8ec-43ac-8fb5-304be1e9dc87",
+      "sender_role": "chair",
+      "reply_to": "da902363-97ca-44e8-9a7f-f6cb3b5efaf3",
+      "reply_request_id": null,
+      "decision_id": null,
+      "bodySha256": "0537f36754df283b707bb0d0efad19e936b782582200bb1f916fd6d101b4333c"
+    },
+    {
+      "id": "15318188-db06-4a9f-be05-c9ebddcbea87",
+      "sender_session_id": "92c002eb-bdc5-452b-88fc-66aecce9f84e",
+      "sender_role": "member",
+      "reply_to": "409604b5-8fe7-493a-b465-6ffc9261a106",
+      "reply_request_id": "5e8ce6bf-beb7-4c07-9ae5-1d03fa93a9cc",
+      "decision_id": null,
+      "bodySha256": "efce3dbbc4a8ce3c707f53194514bd7bd44f8b9d8a625410f4d85e8bf80c3b30"
+    },
+    {
+      "id": "edaae1bf-b4b2-4ba5-b70d-38e3c7076724",
+      "sender_session_id": "21c770de-a040-4db6-a65a-e65438faec80",
+      "sender_role": "member",
+      "reply_to": "409604b5-8fe7-493a-b465-6ffc9261a106",
+      "reply_request_id": "3369fcf3-7674-413b-adb4-ecb4432af678",
+      "decision_id": null,
+      "bodySha256": "5a77e392c4493e4f259e1c5f80929ad8503991a28f0df8e200d2b3c1d4102066"
+    },
+    {
+      "id": "d912048e-ab23-484e-9738-4ec3314eb90d",
+      "sender_session_id": "21c770de-a040-4db6-a65a-e65438faec80",
+      "sender_role": "member",
+      "reply_to": "289f7d60-4d9b-4f7a-8a33-2e98342c3b2b",
+      "reply_request_id": "d854db7c-3083-482b-84dd-da9d855ae254",
+      "decision_id": null,
+      "bodySha256": "6430c9e4ffbcf4095edf363865649918cdc14016bc6a84702b2238686be5a09e"
+    },
+    {
+      "id": "74eea4d5-8368-4cd6-8c85-852d2e3577c2",
+      "sender_session_id": "92c002eb-bdc5-452b-88fc-66aecce9f84e",
+      "sender_role": "member",
+      "reply_to": "289f7d60-4d9b-4f7a-8a33-2e98342c3b2b",
+      "reply_request_id": "40014894-b74e-462b-bad6-b38511d749d9",
+      "decision_id": null,
+      "bodySha256": "4239a9e211df31318543b2fca52d5f2eaf1bb9786d0071e6b8654bee418471d9"
+    },
+    {
+      "id": "72a2af97-879b-412a-9c66-124c789d99ae",
+      "sender_session_id": null,
+      "sender_role": "system",
+      "reply_to": "74eea4d5-8368-4cd6-8c85-852d2e3577c2",
+      "reply_request_id": null,
+      "decision_id": null,
+      "bodySha256": "063993babd3265c3cb0f73649c6ab256016055bd5e15ec0a2ba8d71416ee788b"
+    },
+    {
+      "id": "2f350e22-cc73-402d-ab3a-54b344516041",
+      "sender_session_id": "595fd148-f8ec-43ac-8fb5-304be1e9dc87",
+      "sender_role": "chair",
+      "reply_to": "72a2af97-879b-412a-9c66-124c789d99ae",
+      "reply_request_id": "3e041aed-3ca3-40cf-ab7c-26032d754389",
+      "decision_id": null,
+      "bodySha256": "c487fb87d2d9ffb296cf9f0f1a1437cade6dc39c34cf9eccf114c76ea01ba023"
+    },
+    {
+      "id": "379fa2ef-b515-4ec7-9317-e8a3d3a4eb0f",
+      "sender_session_id": "595fd148-f8ec-43ac-8fb5-304be1e9dc87",
+      "sender_role": "chair",
+      "reply_to": null,
+      "reply_request_id": null,
+      "decision_id": "885a762f-3a65-4dd5-aaa2-31bd8100e4a4",
+      "bodySha256": "792665adc3a0e37a46ff5005af6732241dfa0a96deaff9173f8cc726187cc6b9"
+    },
+    {
+      "id": "639af859-d31f-4124-ba5b-688c196a43c6",
+      "sender_session_id": null,
+      "sender_role": null,
+      "reply_to": null,
+      "reply_request_id": null,
+      "decision_id": null,
+      "bodySha256": "34f9d436a184e583f63fa9ddc356acf0d23f98676f72b27dc8bfe7fd92d43190"
+    },
+    {
+      "id": "6acc3913-3b03-48a8-89e7-025122685b64",
+      "sender_session_id": "595fd148-f8ec-43ac-8fb5-304be1e9dc87",
+      "sender_role": "chair",
+      "reply_to": "639af859-d31f-4124-ba5b-688c196a43c6",
+      "reply_request_id": "751062f0-8904-45e3-a70d-085e288668b7",
+      "decision_id": null,
+      "bodySha256": "ea74bf1711f9a9f790e35e00c9702061b6813b7616de6425057d5af3f7e758ee"
+    }
+  ],
+  "preservation": {
+    "sessions": {
+      "originals": 2,
+      "changed": []
+    },
+    "messages": {
+      "originals": 7,
+      "changed": []
+    },
+    "decisions": {
+      "originals": 1,
+      "changed": []
+    },
+    "sources": {
+      "originals": 4,
+      "changed": []
+    }
+  },
+  "expectedChanges": {
+    "memberships": "old chair promoted participant returns to member only after separate chair ready; IDs preserved",
+    "deliveries": "previous two queued user-question deliveries now completed by the approved canary sessions",
+    "limits": "test room request budget6->20 via UI; round budget2 retained"
+  },
+  "auth": {
+    "offlineDraftPreserved": true,
+    "restartReauthenticatedWithoutReload": true,
+    "port4318And4320Coexist": true,
+    "networkMutationsNotAutoReplayed": true
+  },
+  "layout": {
+    "narrow": "1280x720 native browser, no horizontal overflow",
+    "wide": "1600x1000 real iframe CSS viewport through GET-only proxy, no mock data",
+    "shellMaxWidth": 1440,
+    "screenshots": [
+      "screenshots/dedicated-chair-1280.jpg",
+      "screenshots/dedicated-chair-1600-frame.jpg"
+    ],
+    "wideMeasured": {
+      "bodyWidth": 1600,
+      "appWidth": 1440,
+      "appLeft": 80,
+      "composerBottom": 1000,
+      "overflow": false
+    }
+  },
+  "limits": [
+    "Borrowed Orca sessions remain cooperative MCP pull; only approved canaries were manually woken for this validation",
+    "Failed/unknown initialization is not silently recreated; its existing identity requires inspection",
+    "1920 browser override ignored; no 1920 test claimed"
+  ],
+  "recovery": {
+    "firstTurn": "Existing6request budget exhausted. Original exact-session CLI transcript matched exact request ID; result recovered once. Subsequent implementation persists output_json before applying and exposes cached-result application without CLI replay."
+  },
+  "independentAcceptance": "AC-1..AC-5 PASS; initialization failure retry remains follow-up",
+  "docs": {
+    "wikiBodyEqual": true,
+    "htmlBodySha256": "c42ae5c938890340dbbf6e13967dde77824234d73a396f78e6f5689797e2b9d4",
+    "specCheck": "pass",
+    "reportLint": {
+      "blocking": 0,
+      "warnings": 0
+    },
+    "htmlVisualReview": "not performed; actual app UI reviewed separately",
+    "wikiGlobalLintExistingIssues": 52
+  }
+}

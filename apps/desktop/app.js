@@ -1,6 +1,9 @@
 import {parseAliases, mentionAt, mentionSpans} from '/mentions.js';
-let csrf, current, rooms=[], channels=[], pendingSend, selectedRoomId;const stateLabel={queued:'요청 대기',claimed:'전달 예약',submitting:'요청 제공 중',accepted:'호스트 접수',running:'생성 중',completed:'응답 회수',unknown:'확인 필요',blocked:'차단',failed:'실패',cancelled:'취소'}; const $=s=>document.querySelector(s);
-const req=async(path,opt={})=>{const r=await fetch(path,{...opt,headers:{'Content-Type':'application/json','X-CSRF-Token':csrf,...opt.headers}});const data=await r.json();if(!r.ok)throw Error(data.error||'요청을 처리하지 못했습니다.');return data};
+import {createApiClient} from '/api-client.js';
+let current, rooms=[], channels=[], pendingSend, selectedRoomId;const stateLabel={queued:'요청 대기',claimed:'전달 예약',submitting:'요청 제공 중',accepted:'호스트 접수',running:'생성 중',completed:'응답 회수',unknown:'확인 필요',blocked:'차단',failed:'실패',cancelled:'취소'}; const $=s=>document.querySelector(s);
+const connection=document.createElement('div');connection.id='connection';connection.setAttribute('role','status');connection.hidden=true;$('#error').before(connection);
+const api=createApiClient({onConnection:state=>{connection.hidden=state==='online';connection.textContent=state==='offline'?'연결 끊김 · 입력은 보존돼. 로컬 서버가 돌아오면 자동으로 다시 연결할게.':state==='reconnecting'?'로컬 서버에 다시 연결하는 중…':'';}});
+const req=api.request;
 const text=(tag,value,cls)=>{const x=document.createElement(tag);x.textContent=value;if(cls)x.className=cls;return x};
 function error(value=''){const e=$('#error');e.textContent=value;e.hidden=!value}
 function active(){return current&&!current.archived_at}
@@ -14,10 +17,13 @@ function renderTimeline() {
   for(const m of current.messages) {
     const card=document.createElement('section');card.className='message';card.id='message-'+m.id;
     const author=current.members.find(x=>x.session_id===m.sender_session_id);
+    const speaker=m.sender_role||(!m.sender_session_id?'user':'member');
+    card.classList.add(speaker==='user'?'message-user':speaker==='chair'?'message-chair':'message-member');
     const head=text('div','','message-head');
-    head.append(author?avatar(author):text('span','나','avatar human'));
-    head.append(text('strong',author?memberName(author):'사용자','message-author'));
+    head.append(author?avatar(author):text('span',speaker==='system'?'↻':'나','avatar human'));
+    head.append(text('strong',author?memberName(author):speaker==='system'?'조율 서비스':'사용자','message-author'));
     if(author)head.append(text('span',providerName(author),'provider-badge'));
+    if(speaker==='chair')head.append(text('span','좌장','speaker-role'));
     const body=text('p','');let cursor=0;
     for(const span of mentionSpans(m.body)) {
       body.append(document.createTextNode(m.body.slice(cursor,span.start)));
@@ -29,6 +35,7 @@ function renderTimeline() {
     card.append(head,body);
     const meta=text('div',`${m.kind} · ${new Date(m.created_at).toLocaleString('ko-KR')}`,'message-meta');
     if(m.reply_to){const a=text('a','원문 보기');a.href='#message-'+m.reply_to;meta.append(document.createTextNode(' · '),a);}
+    if(m.decision_id){const a=text('a','결정 제안 보기');a.href='#decision-'+m.decision_id;meta.append(document.createTextNode(' · '),a);}
     card.append(meta);const ds=deliveryText(m);if(ds)card.append(ds);
     renderReactions(m,card);view.append(card);
   }
@@ -43,13 +50,14 @@ function renderParticipants() {
     b.disabled=!!m.left_at;b.dataset.state=state||'idle';
     const identity=text('span','','participant-identity');identity.append(avatar(m),text('strong',memberName(m)));
     b.append(identity,text('span',providerName(m)+(m.role==='chair'?' · 좌장':''),'provider-badge'));
-    b.append(text('span',m.left_at?'이탈':m.read_only?'읽기 전용':state?stateLabel[state]:'참여 중',state==='unknown'||m.read_only?'blocked':'ok'));
+    const ownedChair=current.chair?.session_id===m.session_id;
+    b.append(text('span',m.left_at?'이탈':ownedChair&&current.chair.status!=='ready'?chairStatus(current.chair.status):m.read_only?'읽기 전용':state?stateLabel[state]:ownedChair?'별도 좌장 · 자동 응답':'참여 중 · 협력 연결',state==='unknown'||m.read_only?'blocked':'ok'));
     b.title=`${m.display_name||''}\n${m.provider} · ${m.mode}`;
-    b.onclick=()=>{const detail=$('#memberDetail');detail.replaceChildren(text('strong',memberName(m)),text('div',`원래 이름: ${m.display_name||'없음'}\nNative ID: ${m.native_id}\nCWD: ${m.cwd}\n연결 모드: ${m.mode}\n소유: ${m.ownership}\n정책: ${m.policy_revision||'관측 불가'}\n상태: ${m.blocked_reason||'사용자가 확인한 참여 정보'}`,'detail'));const raw=text('button','원래 세션 출력 보기');raw.disabled=JSON.parse(m.capabilities||'{}').rawInspect!==true;raw.title=raw.disabled?'이 참여자에 원래 출력 조회가 허용되지 않았어.':'';raw.onclick=async()=>{try{const r=await req(`/api/rooms/${current.id}/sessions/${m.session_id}/output`);detail.replaceChildren(text('p',r.warning||'선택한 출력입니다.','muted'),text('pre',(r.lines||[]).join('\n'),'detail'))}catch(e){error(e.message)}};detail.append(raw,memberButton('좌장으로 지정',()=>setRole(m,'chair')),memberButton('참여 정보 발급',()=>provision(m)),memberButton('토론에서 빼기',()=>leaveMember(m)))};area.append(b);
+    b.onclick=()=>{const detail=$('#memberDetail');detail.replaceChildren(text('strong',memberName(m)),text('div',`원래 이름: ${m.display_name||'없음'}\nNative ID: ${m.native_id}\nCWD: ${m.cwd}\n연결 모드: ${m.mode}\n소유: ${m.ownership}\n정책: ${m.policy_revision||'관측 불가'}\n상태: ${m.blocked_reason||'사용자가 확인한 참여 정보'}`,'detail'));const raw=text('button','원래 세션 출력 보기');raw.disabled=JSON.parse(m.capabilities||'{}').rawInspect!==true;raw.title=raw.disabled?'이 참여자에 원래 출력 조회가 허용되지 않았어.':'';raw.onclick=async()=>{try{const r=await req(`/api/rooms/${current.id}/sessions/${m.session_id}/output`);detail.replaceChildren(text('p',r.warning||'선택한 출력입니다.','muted'),text('pre',(r.lines||[]).join('\n'),'detail'))}catch(e){error(e.message)}};detail.append(raw);if(ownedChair){detail.append(text('p',current.chair.error||'이 토론장만 맡는 별도 세션이야. 초대한 참여자와 다른 대화 ID로 이어가.','muted'));for(const run of current.chair_runs||[]){if(run.status==='unknown'){detail.append(text('p','결과 확인 필요 · '+(run.error||'응답 접수 여부 미확인'),'form-error'));if(run.output_json)detail.append(memberButton('저장된 결과 적용',async()=>{await req(`/api/rooms/${current.id}/chair/reconcile`,{method:'POST',body:JSON.stringify({runId:run.id})});await openRoom(current.id,false);detail.replaceChildren(text('p','저장된 결과를 적용했어. 모델을 다시 실행하지 않았어.'));}));}}}else{detail.append(memberButton('참여 정보 발급',()=>provision(m)),memberButton('토론에서 빼기',()=>leaveMember(m)));}};area.append(b);
   }
 }
-function renderDecisions(){const box=$('#decisions');box.replaceChildren();if(!current.decisions.length){box.append(text('p','아직 제안된 결정이 없습니다.','muted'));return}for(const d of current.decisions){const item=document.createElement('div');item.className='decision';item.append(text('p',d.body),text('small',`${d.status==='confirmed'?'사용자 확정':'좌장 제안'} · 근거 ${d.source_ids?d.source_ids.split(',').length:0}개`));for(const source of (d.source_ids||'').split(',').filter(Boolean)){const a=text('a','근거 보기');a.href='#message-'+source;item.append(a)}if(d.status==='proposed'){const b=text('button','사용자 확정');b.onclick=async()=>{try{await req(`/api/rooms/${current.id}/decisions/${d.id}/confirm`,{method:'POST',body:'{}'});openRoom(current.id)}catch(e){error(e.message)}};item.append(b)}box.append(item)}}
-async function openRoom(id,scroll=true){try{if(scroll)selectedRoomId=id;const view=await req('/api/rooms/'+id);if(id!==selectedRoomId)return;current=view;$('#title').textContent=current.name+(current.archived_at?' · 보관됨':current.paused_at?' · 중지됨':'');$('#pause').textContent=current.paused_at?'재개':'중지';$('#pause').disabled=!active();$('#archive').disabled=!active();renderNav();renderParticipants();renderTimeline();renderDecisions();renderMentionMenu();updateRoomControls();if(scroll)$('#timeline').scrollTop=$('#timeline').scrollHeight}catch(e){error(e.message)}}
+function renderDecisions(){const box=$('#decisions');box.replaceChildren();if(!current.decisions.length){box.append(text('p','아직 제안된 결정이 없습니다.','muted'));return}for(const d of current.decisions){const item=document.createElement('div');item.className='decision';item.id='decision-'+d.id;item.append(text('p',d.body),text('small',`${d.status==='confirmed'?'사용자 확정':'좌장 제안'} · 근거 ${d.source_ids?d.source_ids.split(',').length:0}개`));for(const source of (d.source_ids||'').split(',').filter(Boolean)){const a=text('a','근거 보기');a.href='#message-'+source;item.append(a)}if(d.status==='proposed'){const b=text('button','사용자 확정');b.onclick=async()=>{try{await req(`/api/rooms/${current.id}/decisions/${d.id}/confirm`,{method:'POST',body:'{}'});openRoom(current.id)}catch(e){error(e.message)}};item.append(b)}box.append(item)}}
+async function openRoom(id,scroll=true){try{const timeline=$('#timeline'),follow=timeline.scrollHeight-timeline.scrollTop-timeline.clientHeight<60;if(scroll)selectedRoomId=id;const view=await req('/api/rooms/'+id);if(id!==selectedRoomId)return;current=view;$('#title').textContent=current.name+(current.archived_at?' · 보관됨':current.paused_at?' · 중지됨':'');$('#pause').textContent=current.paused_at?'재개':'중지';$('#pause').disabled=!active();$('#archive').disabled=!active();renderNav();renderParticipants();renderTimeline();renderDecisions();renderMentionMenu();updateRoomControls();renderChairControl();if(scroll||follow)$('#timeline').scrollTop=$('#timeline').scrollHeight}catch(e){if(e.code!=='NETWORK_UNCERTAIN')error(e.message)}}
 
 const memberName=m=>m?.alias||m?.display_name||'참여자';
 const providerName=m=>({codex:'Codex',claude:'Claude'}[m.provider]||m.provider);
@@ -86,14 +94,17 @@ function chooseMention(member) {
 function resolvedPreview() {
   if(!current)return {members:[],problem:''};
   if(recipientMode==='chair'){
+    if(!current.chair)return {members:[],problem:'별도 좌장을 먼저 만들어줘.'};
+    if(current.chair.status!=='ready')return {members:[],problem:chairStatus(current.chair.status)+(current.chair.error?' · '+current.chair.error:'')};
+    if(current.deliveries.some(d=>d.session_id===current.chair.session_id&&d.state==='unknown'))return {members:[],problem:'좌장 카드에서 이전 실행 결과를 먼저 확인해줘.'};
     const chairs=current.members.filter(m=>!m.left_at&&m.role==='chair');
-    if(chairs.length!==1)return {members:[],problem:chairs.length?'좌장이 여러 명이야. 한 명으로 지정해줘.':'좌장이 없어. 참여자 카드를 눌러 좌장으로 지정해줘.'};
+    if(chairs.length!==1)return {members:[],problem:chairs.length?'좌장이 여러 명이야. 한 명으로 지정해줘.':'별도 좌장을 먼저 만들어줘.'};
     if(chairs[0].read_only)return {members:[],problem:`${memberName(chairs[0])} · 읽기 전용 좌장이라 질문을 보낼 수 없어.`};
     return {members:chairs,problem:'',chair:true};
   }
   if(mentionSpans($('#body').value,true).some(span=>!span.alias))return {members:[],problem:'멘션할 이름을 골라줘.'};
   const aliases=parseAliases($('#body').value),members=current.members.filter(m=>!m.left_at);
-  if(!aliases.length)return {members:members.filter(m=>!m.read_only),problem:'',all:true};
+  if(!aliases.length)return {members:members.filter(m=>!m.read_only&&m.session_id!==current.chair?.session_id),problem:'',all:true};
   const chosen=[];
   for(const alias of aliases) {
     const matches=members.filter(m=>m.alias===alias);
@@ -146,16 +157,19 @@ $('#composer').addEventListener('submit',async event=>{
   event.preventDefault();if(!active())return error('보관된 토론장에는 새 입력을 남길 수 없습니다.');
   const kind=$('#kind').value,preview=resolvedPreview();
   if(['followup','steer'].includes(kind)&&(preview.problem||!preview.members.length))return error(preview.problem||'질문할 수 있는 참여자가 없어.');
-  const payload={body:$('#body').value,kind,routingMode:recipientMode,targets:[]};
+  const roomId=current.id,payload={body:$('#body').value,kind,routingMode:recipientMode,targets:[]};
   const signature=JSON.stringify({room:current.id,...payload});
   if(pendingSend?.signature!==signature)pendingSend={signature,key:crypto.randomUUID()};
-  try{await req(`/api/rooms/${current.id}/messages`,{method:'POST',body:JSON.stringify({...payload,requestKey:pendingSend.key})});pendingSend=null;$('#body').value='';mentionClosed=false;await openRoom(current.id);error();}
+  const sending=pendingSend;
+  try{await req(`/api/rooms/${roomId}/messages`,{method:'POST',body:JSON.stringify({...payload,requestKey:sending.key})});if(pendingSend===sending)pendingSend=null;if(current?.id===roomId){if($('#body').value===payload.body){$('#body').value='';mentionClosed=false;}await openRoom(roomId);error();}}
   catch(e){error(e.message);}
 });
 $('#newRoom').onclick=()=>$('#roomDialog').showModal();$('#newChannel').onclick=()=>$('#channelDialog').showModal();$('#createRoom').onclick=async e=>{e.preventDefault();try{const r=await req('/api/rooms',{method:'POST',body:JSON.stringify({name:$('#roomName').value,channelId:$('#channelChoice').value||null})});$('#roomDialog').close();await refresh(false);openRoom(r.id)}catch(e){error(e.message)}};$('#createChannel').onclick=async e=>{e.preventDefault();try{await req('/api/channels',{method:'POST',body:JSON.stringify({name:$('#channelName').value})});$('#channelDialog').close();refresh(false)}catch(e){error(e.message)}};
 $('#pause').onclick=async()=>{try{await req(`/api/rooms/${current.id}/${current.paused_at?'resume':'pause'}`,{method:'POST',body:'{}'});openRoom(current.id)}catch(e){error(e.message)}};$('#archive').onclick=async()=>{try{await req(`/api/rooms/${current.id}/archive`,{method:'POST',body:'{}'});await refresh(false);error('토론장을 보관했습니다.')}catch(e){error(e.message)}};$('#discover').onclick=async()=>{try{const d=await req('/api/discovery');$('#memberDetail').textContent=d.error||d.sessions.map(s=>`${s.provider}: ${s.handle}\n${s.blockedReason}`).join('\n\n')||'발견된 세션이 없습니다.'}catch(e){error(e.message)}};
 $('#kind').onchange=()=>renderPreview();
-(async()=>{const b=await req('/api/bootstrap');csrf=b.csrf;await refresh(false);const first=rooms.find(r=>!r.archived_at)||rooms[0];if(first)openRoom(first.id);else updateRoomControls();setInterval(()=>{if(current)openRoom(current.id,false).catch(()=>{})},8000)})().catch(e=>error(e.message));
+let polling=false;
+async function pollRoom(){if(polling)return;polling=true;try{if(current)await openRoom(current.id,false);else{await refresh(false);const first=rooms.find(r=>!r.archived_at)||rooms[0];if(first)await openRoom(first.id);else updateRoomControls();}}catch(e){if(e.code!=='NETWORK_UNCERTAIN')error(e.message);}finally{polling=false;}}
+pollRoom();setInterval(pollRoom,5000);
 
 function memberButton(label,action){const b=text('button',label);b.onclick=async()=>{try{await action()}catch(e){error(e.message)}};return b}
 async function setRole(member,role){await req(`/api/rooms/${current.id}/role`,{method:'POST',body:JSON.stringify({sessionId:member.session_id,role})});await openRoom(current.id,false)}
@@ -175,3 +189,13 @@ const audienceButton=text('button','참여자에게','selected'),chairButton=tex
 for(const [button,mode] of [[audienceButton,'mentions'],[chairButton,'chair']]){button.type='button';button.setAttribute('aria-pressed',String(mode===recipientMode));button.onclick=()=>{recipientMode=mode;audienceButton.classList.toggle('selected',mode==='mentions');chairButton.classList.toggle('selected',mode==='chair');audienceButton.setAttribute('aria-pressed',String(mode==='mentions'));chairButton.setAttribute('aria-pressed',String(mode==='chair'));$('#composer button[type=submit]').textContent=mode==='chair'?'좌장에게 보내기':'보내기';renderPreview();};recipientModes.append(button);}
 $('#recipientPreview').before(recipientModes);
 $('#kind').value='followup';$('#kind').dispatchEvent(new Event('change'));
+
+const chairStatus=state=>({initializing:'좌장 생성 중',ready:'좌장 준비됨',submitting:'좌장에게 전달 중',running:'응답 생성 중',unknown:'좌장 실행 확인 필요',failed:'좌장 연결 실패'}[state]||state);
+const createChairButton=memberButton('별도 좌장 만들기',async()=>{
+  if(!active())return;
+  const roomId=current.id;createChairButton.disabled=true;
+  try{await req(`/api/rooms/${roomId}/chair`,{method:'POST',body:'{}'});await openRoom(roomId,false);}finally{renderChairControl();}
+});
+createChairButton.id='createChair';createChairButton.title='이 토론장만 맡는 별도 Claude 대화를 만들고, 이후에는 같은 ID로 이어가.';$('.room-actions').prepend(createChairButton);
+function renderChairControl(){const chair=current?.chair;createChairButton.disabled=!active()||!!chair;createChairButton.textContent=chair?chairStatus(chair.status):'별도 좌장 만들기';createChairButton.title=chair?.error||'초대한 참여자와 다른 전용 Claude 세션';if(chair?.error)error('좌장 · '+chair.error);}
+const detailToggle=memberButton('결정·상세',()=>{const open=$('.inspector').classList.toggle('open');detailToggle.setAttribute('aria-expanded',String(open));});detailToggle.classList.add('details-toggle');detailToggle.setAttribute('aria-expanded','false');$('.room-actions').append(detailToggle);

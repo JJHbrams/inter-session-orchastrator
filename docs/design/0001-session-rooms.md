@@ -442,3 +442,9 @@ room은 보관하고 membership은 이탈 시각을 기록한다. 이탈이나 U
 - [[host-reference-benchmark]] — OpenClaw·설치 Orca·NotebookLM 분석.
 - [[benchmark-validation-plan]] — 미실행 V-01~V-13과 실행 전 기록 항목.
 - 로컬 열람본: [벤치마킹 조사](../research/index.html). Wiki에서는 위 관련 노트 링크를 사용한다.
+
+## 후속 기능
+
+2026-10-22 후속 [[dedicated-chair]]에서 별도 앱 소유 Claude 좌장, 공용 질문·발화·제안 타임라인, 서버 재시작 인증 복구와 메신저 최대 폭·좌우 정렬을 구현했다. 실제 전용 좌장과 두 검증용 참여자의 질문/응답/자동 취합 및 동일 ID 재개를 확인했고 테스트 38개가 통과했다.
+
+이 후속 범위의 AC-1~AC-5는 완료했으며 원래 프로젝트 전체 AC 완료를 뜻하지 않는다. 기존 외부 세션의 자동 wake·busy/draft 제어·기존 host 응답 대조와 전용 좌장의 초기화 실패 재시도 UI는 남아 있다.

@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="source-sha256" content="590c27ccc90cae375b6d04f8c2c7cee31848b7afb37d7664733a5929fcfcb154"><title>세션 토론장 — 벤치마킹과 첫 버전 설계</title><style>
+<meta name="source-sha256" content="5db2643e5be9da61eff9ec24303934db3923ba52c9ef6993405a09ea1892871a"><title>세션 토론장 — 벤치마킹과 첫 버전 설계</title><style>
     :root{--ink:#202c35;--muted:#64757a;--accent:#006c62;--line:#dce4e4;--paper:#fff;--bg:#f3f6f5}
     *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}
     body{margin:0;color:var(--ink);background:var(--bg);font:15px/1.85 'Segoe UI','Malgun Gothic',sans-serif}
@@ -48,7 +48,8 @@
 <a href="#10-risks">10. 잠재 문제 (Risks)</a>
 <a href="#11-slices">11. 착수 순서 (Slices)</a>
 <a href="#12-traceability">12. 추적성 (Traceability)</a>
-<a href="#_14">참고</a></nav></aside>
+<a href="#_14">참고</a>
+<a href="#_15">후속 기능</a></nav></aside>
 <main id="document"><header class="meta"><span>BENCHMARK → DESIGN</span><span>2026.10.22 · WINDOWS / LOCAL</span></header>
 <article><!-- sr:plan
 {
@@ -934,7 +935,10 @@
 <li><a href="research/host-reference-benchmark.html">host-reference-benchmark</a> — OpenClaw·설치 Orca·NotebookLM 분석.</li>
 <li><a href="research/benchmark-validation-plan.html">benchmark-validation-plan</a> — 미실행 V-01~V-13과 실행 전 기록 항목.</li>
 <li>로컬 열람본: <a href="../research/index.html">벤치마킹 조사</a>. Wiki에서는 위 관련 노트 링크를 사용한다.</li>
-</ul></article><footer>원본: docs/design/0001-session-rooms.md<br>본문 SHA-256: 590c27ccc90cae375b6d04f8c2c7cee31848b7afb37d7664733a5929fcfcb154</footer></main></div>
+</ul>
+<h2 id="_15">후속 기능</h2>
+<p>2026-10-22 후속 <a href="dedicated-chair.html">dedicated-chair</a>에서 별도 앱 소유 Claude 좌장, 공용 질문·발화·제안 타임라인, 서버 재시작 인증 복구와 메신저 최대 폭·좌우 정렬을 구현했다. 실제 전용 좌장과 두 검증용 참여자의 질문/응답/자동 취합 및 동일 ID 재개를 확인했고 테스트 38개가 통과했다.</p>
+<p>이 후속 범위의 AC-1~AC-5는 완료했으며 원래 프로젝트 전체 AC 완료를 뜻하지 않는다. 기존 외부 세션의 자동 wake·busy/draft 제어·기존 host 응답 대조와 전용 좌장의 초기화 실패 재시도 UI는 남아 있다.</p></article><footer>원본: docs/design/0001-session-rooms.md<br>본문 SHA-256: 5db2643e5be9da61eff9ec24303934db3923ba52c9ef6993405a09ea1892871a</footer></main></div>
 <!-- Mermaid third-party license: The MIT License (MIT)
 
 Copyright (c) 2014 - 2022 Knut Sveidqvist

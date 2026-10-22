@@ -2,9 +2,11 @@
 
 Windows에서 기존 Codex·Claude 작업 세션을 채널과 토론 단위로 모아 협업하는 개인용 앱.
 
-현재 단계는 **로컬 브라우저 실행판 검증 완료 / 전체 명세 building**이다. 채널·참석자·공동 대화·별칭 멘션, SQLite outbox/writer/fence, room-scoped HTTP와 실제 stdio MCP를 구현했다. 사용자 지정 신규 Codex·Claude 세션에서 응답 3건과 좌장 제안 1건을 확인했고, 후속 프로필·멘션·이모지 기능까지 자동화 테스트 22개가 통과했다.
+현재 단계는 **로컬 브라우저 실행판 / 전체 명세 building**이다. 채널·참여자·공동 대화·별칭 멘션·반응, SQLite outbox/writer/fence, scoped HTTP/stdio MCP를 구현했다.
 
-좌장 수신 경로를 추가한 최신 테스트는 23개 통과했다. 입력창의 **좌장에게**를 고르면 좌장 프로필을 미리 보여주며, 본문에 다른 별칭을 언급해도 좌장 한 명만 수신한다. 좌장 부재·읽기 전용·모호함은 전송을 막는다. 이 선택은 좌장의 자동 wake와 자율 토론 실행을 대신하지 않는다.
+**별도 좌장 만들기**로 초대된 참여자와 다른 앱 소유 Claude 대화를 만든다. **좌장에게** 입력하면 같은 native ID로 이어서 질문·취합하며, 좌장의 발화·참여자 질문·미확정 결정도 공용 대화에 남는다. 실제 별도 좌장과 두 검증용 provider의 질문/응답/자동 취합, 재시작 후 동일 ID 답변을 확인했다. 테스트는 **38개 통과**했다.
+
+서버 재시작 시 열린 화면은 자동 재인증하고 초안을 보존한다. 서로 다른 포트의 쿠키를 분리하며 네트워크 단절 시 접수 불명 메시지는 자동 재전송하지 않는다. 앱은 최대1440px, 사용자·좌장 버블은 오른쪽, 참여자 버블은 왼쪽이다.
 
 ## 실행
 
@@ -36,7 +38,7 @@ node packages/mcp/participant.js --config .local/participant.json request .local
 
 요청 JSON은 `body`, 대상 membership ID 배열 `targets`, 선택적 `requestKey`를 가진다. helper는 명시 키가 없으면 입력 JSON hash를 사용한다. 같은 내용으로 별도 새 요청을 만들려면 새 키를 지정한다. `completed`는 상관 응답 회수를 뜻하고 작업 성공은 별도 outcome이다. 제출 결과가 unknown이면 자동 재전송하지 않는다.
 
-API는 loopback·Host/Origin·CSRF·HttpOnly SameSite 쿠키와 room 등록으로 범위를 제한한다. 동일 Windows 사용자 프로세스는 신뢰 경계 안에 있다. 설치형 shell, provider별 new/resume/fork, 전용 세 번째 좌장 및 자동 진행은 후속 작업이다.
+API는 loopback·Host/Origin·CSRF·HttpOnly SameSite 쿠키와 room 등록으로 범위를 제한한다. 동일 Windows 사용자 프로세스는 신뢰 경계 안에 있다. 별도 좌장은 설치된 Claude CLI를 도구·MCP·프로젝트 훅 없이 실행한다. 실행 파일은 CLAUDE_CHAIR_COMMAND로 지정할 수 있다. 이미 생성된 좌장은 정확한 ID만 resume하며, 초기화 실패 때 새 ID로 조용히 대체하지 않는다. 초기화 자체의 재시도 UI, 설치형 shell, 일반 참여자 new/resume/fork·기존 세션 자동 wake는 후속이다.
 
 ## 검증과 문서
 
@@ -44,8 +46,9 @@ API는 loopback·Host/Origin·CSRF·HttpOnly SameSite 쿠키와 room 등록으�
 npm test
 ```
 
-storage 17개, persona/parser/migration 3개, 실제 HTTP/MCP 통합 1개, stdio 초기화 1개가 통과했다. 이 테스트가 원래 V-01~V-13의 실제 host 검증을 대체하지는 않는다.
+storage 17개, persona/parser/migration 4개, 좌장 조율 9개·CLI runner 2개·인증 클라이언트 4개, 실제 HTTP/MCP 통합 1개, stdio 초기화 1개가 통과했다. 이 테스트가 원래 V-01~V-13의 실제 host 검증을 대체하지는 않는다.
 
+- [별도 좌장·인증 복구·메신저 명세](docs/dedicated-chair.html) / [원문](docs/design/0003-dedicated-chair.md) / [실제 검증 근거](docs/validation/dedicated-chair.json)
 - [실행·검증 보고서](docs/runtime-validation.html) / [원문](docs/runtime-validation.md)
 - [프로필·멘션·이모지 기능 명세](docs/session-personas.html) / [원문](docs/design/0002-session-personas.md)
 - [검증 근거 JSON](docs/validation/runtime.json)

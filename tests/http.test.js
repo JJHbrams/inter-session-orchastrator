@@ -17,7 +17,12 @@ test('real loopback HTTP and MCP enforce identity, room scope and protocol error
     const base=`http://127.0.0.1:${port}`,boot=await fetch(base+'/api/bootstrap'),cookie=boot.headers.get('set-cookie').split(';')[0],{csrf}=await boot.json();
     const call=async(path,data,extra={})=>{const r=await fetch(base+path,{method:data?'POST':'GET',headers:{cookie,'x-csrf-token':csrf,'Content-Type':'application/json',...extra},body:data?JSON.stringify(data):undefined});return {status:r.status,data:await r.json()}};
     assert.equal((await call('/api/bootstrap',null,{Origin:'https://unrelated.example'})).status,403);
+    assert.ok(cookie.startsWith(`rooms_session_${port}=`));
+    const noAuth=await call('/api/rooms',null,{cookie:'rooms_session_other=foreign'});assert.equal(noAuth.status,401);assert.equal(noAuth.data.code,'AUTH_REQUIRED');
+    const badCsrf=await call('/api/channels',{name:'never-create'},{'x-csrf-token':'stale'});assert.equal(badCsrf.status,403);assert.equal(badCsrf.data.code,'CSRF_INVALID');
+    const foreignOrigin=await call('/api/channels',{name:'never-create'},{Origin:'https://unrelated.example'});assert.equal(foreignOrigin.status,403);assert.equal(foreignOrigin.data.code,'ORIGIN_INVALID');
     const room=(await call('/api/rooms',{name:'test'})).data;
+    await call(`/api/rooms/${room.id}/pause`,{});assert.equal((await call(`/api/rooms/${room.id}/chair`,{})).status,400);assert.equal((await call(`/api/rooms/${room.id}`)).data.chair,null);await call(`/api/rooms/${room.id}/resume`,{});
     const reg=(await call('/api/sessions',{provider:'codex',host:'test',nativeId:'test-id',cwd:'C:/test',profile:'test',mode:'live_attach',verified:true,capabilities:{followup:true,mcpPull:true}})).data;
     const member=(await call(`/api/rooms/${room.id}/join`,{sessionId:reg.session.id,readOnly:false})).data;
     const provision=(await call(`/api/rooms/${room.id}/provision`,{sessionId:reg.session.id})).data;

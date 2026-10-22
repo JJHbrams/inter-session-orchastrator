@@ -8,7 +8,7 @@
   },
   "wiki_report_body_equal": true,
   "wiki_comparison_excludes": "tool-managed empty Progress timestamp section",
-  "html_source_sha256": "590c27ccc90cae375b6d04f8c2c7cee31848b7afb37d7664733a5929fcfcb154",
+  "html_source_sha256": "5db2643e5be9da61eff9ec24303934db3923ba52c9ef6993405a09ea1892871a",
   "browser_qa": {
     "diagrams": 5,
     "diagram_errors": 0,
@@ -73,5 +73,15 @@
     "wiki_body_equal": true,
     "html_source_sha256": "53ec2f453b5586a200fc17c62f32d5fb6c55183457bbb4496af8925549026b88",
     "scope": "single-chair request routing; automatic wake and autonomous mediation remain unimplemented"
+  },
+  "dedicated_chair": {
+    "status": "done",
+    "spec": "docs/design/0003-dedicated-chair.md",
+    "html": "docs/dedicated-chair.html",
+    "evidence": "docs/validation/dedicated-chair.json",
+    "tests": 38,
+    "scope": "separate chair and requested fixes; full project still building",
+    "body_sha256": "c42ae5c938890340dbbf6e13967dde77824234d73a396f78e6f5689797e2b9d4",
+    "wiki_body_equal": true
   }
 }
