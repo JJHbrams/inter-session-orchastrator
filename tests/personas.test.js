@@ -64,3 +64,41 @@ test('chair routing targets only the current writable chair and replays its orig
   assert.throws(()=>store.post({roomId:room.id,body:'ambiguous',kind:'followup',routingMode:'chair'}),/exactly one/);
   const post=store.post({roomId:room.id,body:'record',kind:'post',routingMode:'chair'});assert.equal(post.deliveries.length,0);store.db.close();
 });
+
+test('auto routing sends plain execution only to the ready dedicated chair and freezes explicit aliases',()=>{
+  const store=new Store(),room=store.createRoom('auto');
+  const member=store.registerSession({provider:'codex',host:'test',nativeId:'member',cwd:'C:/member',profile:'default',mode:'live_attach',verified:true,capabilities:{followup:true}}).session;
+  const memberMembership=store.join(room.id,member.id,false);
+  store.beginChair(room.id,'chair-native');const chair=store.readyChair(room.id,{nativeId:'chair-native',cwd:'C:/chair'});
+  const chairMembership=store.room(room.id).members.find(m=>m.session_id===chair.session_id);
+  const implicit=store.post({roomId:room.id,body:'please coordinate',kind:'followup',routingMode:'auto',requestKey:'implicit'});
+  assert.deepEqual(implicit.deliveries.map(d=>d.membership_id),[chairMembership.id]);
+  const explicit=store.post({roomId:room.id,body:`@${member.alias} @${chairMembership.alias} decide`,kind:'followup',routingMode:'auto',requestKey:'mixed'});
+  assert.deepEqual(explicit.deliveries.map(d=>d.membership_id).sort(),[chairMembership.id,memberMembership.id].sort());
+  store.leave(room.id,member.id);
+  assert.equal(store.post({roomId:room.id,body:`@${member.alias} @${chairMembership.alias} decide`,kind:'followup',routingMode:'auto',requestKey:'mixed'}).message.id,explicit.message.id);
+  assert.throws(()=>store.post({roomId:room.id,body:'@missing',kind:'followup',routingMode:'auto'}),/unknown/);
+  assert.throws(()=>store.post({roomId:room.id,body:'@ ',kind:'followup',routingMode:'auto'}),/incomplete/);
+  assert.equal(store.post({roomId:room.id,body:'notice @missing',kind:'notify',routingMode:'auto'}).deliveries.length,0);
+  store.db.close();
+});
+
+test('auto routing permits an ordinary member without a chair but rejects an unavailable mentioned chair',()=>{
+  const store=new Store(),room=store.createRoom('explicit');
+  const member=store.registerSession({provider:'codex',host:'test',nativeId:'ordinary',cwd:'C:/ordinary',profile:'default',mode:'live_attach',verified:true,capabilities:{followup:true}}).session;
+  store.join(room.id,member.id,false);
+  assert.equal(store.post({roomId:room.id,body:`@${member.alias} direct`,kind:'followup',routingMode:'auto'}).deliveries.length,1);
+  store.beginChair(room.id,'chair-native');const chair=store.readyChair(room.id,{nativeId:'chair-native',cwd:'C:/chair'});
+  const chairMember=store.room(room.id).members.find(m=>m.session_id===chair.session_id);
+  store.db.prepare("UPDATE chairs SET status='initializing' WHERE room_id=?").run(room.id);
+  assert.throws(()=>store.post({roomId:room.id,body:`@${chairMember.alias} direct`,kind:'followup',routingMode:'auto'}),/ready writable dedicated chair/);
+  store.db.close();
+});
+
+test('auto routing fails closed without one ready writable dedicated chair',()=>{
+  const store=new Store(),room=store.createRoom('blocked');
+  assert.throws(()=>store.post({roomId:room.id,body:'plain',kind:'followup',routingMode:'auto'}),/ready writable dedicated chair/);
+  store.beginChair(room.id,'pending');
+  assert.throws(()=>store.post({roomId:room.id,body:'plain',kind:'followup',routingMode:'auto'}),/ready writable dedicated chair/);
+  store.db.close();
+});
