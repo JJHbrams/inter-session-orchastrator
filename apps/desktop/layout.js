@@ -6,7 +6,8 @@ const clamp=(n,min,max)=>Math.round(Math.max(min,Math.min(max,n)));
 export function layoutLimits(viewport={}){
  const width=Math.max(320,finite(viewport.width,1280)),height=Math.max(320,finite(viewport.height,720));
  const available=Math.max(0,finite(viewport.availableHeight,height-90));
- return {width,available,budget:Math.max(174,available-123),ranges:{
+ const sessionHeight=Math.max(0,finite(viewport.sessionHeight,250));
+ return {width,available,budget:Math.max(174,available-sessionHeight-112),ranges:{
   ...RANGE,sidebar:[160,Math.min(420,Math.max(160,width-487))],
   inspector:[230,Math.min(520,Math.max(230,width-28))]
  }};
@@ -34,7 +35,7 @@ export function resetLayout(storage){try{(storage??globalThis.localStorage).remo
 export function initLayout(){
  const $=s=>document.querySelector(s),handles=new Map();
  let preferred,layout,drag;
- const viewport=()=>({width:innerWidth,height:innerHeight,availableHeight:$('.workspace').clientHeight-$('.topbar').offsetHeight,sidebar:layout?.sidebar});
+ const viewport=()=>({width:innerWidth,height:innerHeight,availableHeight:$('.workspace').clientHeight-$('.topbar').offsetHeight,sessionHeight:$('.session-panel').offsetHeight,sidebar:layout?.sidebar});
  function apply(key){
   layout=clampLayout(preferred,viewport(),key);
   for(const [name,value] of Object.entries(layout))document.documentElement.style.setProperty('--'+name,value+'px');
