@@ -1,6 +1,6 @@
 import {parseAliases, mentionAt, mentionSpans} from '/mentions.js';
 import {createApiClient} from '/api-client.js';
-import {initLayout} from '/layout.js';
+import {initLayout,mentionMenuGeometry} from '/layout.js';
 import {marked} from '/vendor/marked.js';
 import DOMPurify from '/vendor/purify.js';
 import {createRenderer} from '/rich-text.js';
@@ -96,6 +96,7 @@ function renderDecisions(){
 }
 async function openRoom(id,scroll=true){
  try{
+  if(current?.id!==id)closeMentionMenu();
   const timeline=$('#timeline'),follow=timeline.scrollHeight-timeline.scrollTop-timeline.clientHeight<60;
   if(scroll)selectedRoomId=id;
   const previousId=current?.id,view=await req('/api/rooms/'+id);
@@ -130,6 +131,21 @@ function renderReactions(message,card) {
   card.append(wrap);
 }
 let mentionIndex=0,mentionClosed=false;
+const mentionMenu=$('#mentionMenu');
+document.body.append(mentionMenu);
+function closeMentionMenu(){mentionClosed=true;renderMentionMenu();}
+function positionMentionMenu(){
+ if(mentionMenu.hidden)return;
+ const anchor=$('#body').getBoundingClientRect(),menu=mentionMenu.getBoundingClientRect();
+ const geometry=mentionMenuGeometry(anchor,menu,{width:window.innerWidth,height:window.innerHeight});
+ mentionMenu.style.left=geometry.left+'px';mentionMenu.style.top=geometry.top+'px';mentionMenu.style.maxHeight=geometry.maxHeight+'px';
+}
+window.addEventListener('resize',positionMentionMenu);
+window.addEventListener('scroll',positionMentionMenu,true);
+window.addEventListener('blur',closeMentionMenu);
+document.addEventListener('focusin',event=>{if(event.target.closest('dialog'))closeMentionMenu();});
+document.addEventListener('pointerdown',event=>{if(event.target!==$('#body')&&!mentionMenu.contains(event.target))closeMentionMenu();});
+new ResizeObserver(positionMentionMenu).observe($('#composer'));
 function currentMention() {const body=$('#body');return mentionAt(body.value,body.selectionStart);}
 function mentionCandidates() {
   const span=currentMention();if(!span||!current)return [];
@@ -187,6 +203,7 @@ function renderMentionMenu() {
     option.onmousedown=e=>e.preventDefault();option.onclick=()=>chooseMention(member);menu.append(option);
     if(!menu.hidden&&index===mentionIndex)$('#body').setAttribute('aria-activedescendant',option.id);
   });
+  if(!menu.hidden)requestAnimationFrame(positionMentionMenu);
   renderPreview();
 }
 $('#body').addEventListener('input',()=>{if(current)draftBodies.set(current.id,$('#body').value);error();mentionClosed=false;mentionIndex=0;renderMentionMenu();});
