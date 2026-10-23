@@ -98,7 +98,7 @@ function claudeFromIndex(row, projectDir) {
   if (!sessionId) return null;
   return catalogSession({ provider: 'claude', sessionId, cwd: row.cwd || row.projectPath || row.project_path || null, project: row.project || row.projectName || basename(dirname(projectDir)), title: row.title || row.displayName || row.name, summary: row.summary || row.firstPrompt || row.first_prompt, updatedAt: row.updatedAt || row.updated_at || row.modifiedAt || row.timestamp, source: 'claude-sessions-index' });
 }
-async function claudeProjects(root) {
+async function claudeProjects(root, query = '') {
   let entries;
   try { entries = await readdir(root, { withFileTypes: true }); } catch { return []; }
   const projects = [];
@@ -112,29 +112,36 @@ async function claudeProjects(root) {
     }));
     projects.push({ directory, index: files.some(item => item.isFile() && item.name === 'sessions-index.json') ? join(directory, 'sessions-index.json') : null, jsonl: jsonl.sort((a, b) => b.mtime - a.mtime).slice(0, MAX_CLAUDE_JSONL_PER_PROJECT) });
   }
-  return projects;
+  const needle = text(query).toLocaleLowerCase();
+  if (!needle) return projects;
+  return projects.map(project => ({ ...project, jsonl: project.jsonl.sort((a, b) => Number(basename(b.file).toLocaleLowerCase().includes(needle)) - Number(basename(a.file).toLocaleLowerCase().includes(needle)) || b.mtime - a.mtime) }));
 }
 function jsonlMetadata(content, file, mtime) {
-  let firstUser = '', row = null;
+  let firstUser = '', sessionId = '', cwd = '', project = '', title = '', updatedAt = null, sidechain = false;
   for (const line of content.split(/\r?\n/)) {
     if (!line.trim()) continue;
     try {
       const parsed = JSON.parse(line);
-      row ||= parsed;
+      sessionId ||= text(parsed.sessionId || parsed.session_id);
+      cwd ||= text(parsed.cwd || parsed.projectPath);
+      project ||= text(parsed.project || parsed.projectPath);
+      title ||= text(parsed.title || parsed.summary);
+      updatedAt = parsed.timestamp || parsed.updatedAt || updatedAt;
+      sidechain ||= parsed.isSidechain === true || parsed.isSubagent === true;
       if (!firstUser && (parsed.type === 'user' || parsed.message?.role === 'user')) {
         const body = parsed.message?.content ?? parsed.content ?? parsed.text;
         firstUser = typeof body === 'string' ? body : Array.isArray(body) ? body.find(part => typeof part?.text === 'string')?.text : '';
       }
     } catch { /* malformed history entries are deliberately ignored */ }
   }
-  if (!row || row.isSidechain || row.isSubagent || row.parentSessionId || /^(agent-|subagent-)/i.test(basename(file))) return null;
-  const sessionId = text(row.sessionId || row.session_id) || (UUID.test(basename(file, '.jsonl')) ? basename(file, '.jsonl') : '');
-  if (!sessionId) return null;
-  return catalogSession({ provider: 'claude', sessionId, cwd: row.cwd || row.projectPath || null, project: row.project || row.projectPath || null, title: row.title || row.summary || firstUser, summary: firstUser, updatedAt: row.timestamp || row.updatedAt || mtime, source: 'claude-jsonl-metadata' });
+  if (sidechain || /^(agent-|subagent-)/i.test(basename(file))) return null;
+  const nativeId = sessionId || (UUID.test(basename(file, '.jsonl')) ? basename(file, '.jsonl') : '');
+  if (!nativeId) return null;
+  return catalogSession({ provider: 'claude', sessionId: nativeId, cwd, project: project || cwd, title: title || firstUser, summary: firstUser, updatedAt: updatedAt || mtime, source: 'claude-jsonl-metadata' });
 }
-async function claudeSessions(paths, errors) {
+async function claudeSessions(paths, errors, query) {
   const root = pathFrom(paths, 'claudeProjectsPath', join(process.env.USERPROFILE || '', '.claude', 'projects'));
-  const projects = await claudeProjects(root);
+  const projects = await claudeProjects(root, query);
   const results = [], known = new Set();
   for (const project of projects) if (project.index) try {
       const { content } = await readBounded(project.index, MAX_INDEX_BYTES);
@@ -144,7 +151,8 @@ async function claudeSessions(paths, errors) {
         if (session) { results.push(session); known.add(session.sessionId); }
       }
     } catch (cause) { error(errors, 'claude', 'sessions-index.json', cause); }
-  const candidates = projects.flatMap(project => project.jsonl).sort((a, b) => b.mtime - a.mtime).slice(0, MAX_CLAUDE_JSONL_FILES);
+  const needle = text(query).toLocaleLowerCase();
+  const candidates = projects.flatMap(project => project.jsonl).sort((a, b) => Number(basename(b.file).toLocaleLowerCase().includes(needle)) - Number(basename(a.file).toLocaleLowerCase().includes(needle)) || b.mtime - a.mtime).slice(0, MAX_CLAUDE_JSONL_FILES);
   for (const candidate of candidates) try {
     const { content, truncated } = await readBounded(candidate.file, MAX_JSONL_BYTES);
     const session = jsonlMetadata(content, candidate.file, candidate.mtime);
@@ -159,7 +167,7 @@ export async function listSessions({ query = '', provider = '', limit = DEFAULT_
   if (provider && !selected) return { sessions: [], errors: [{ provider: String(provider), source: 'request', message: 'unknown provider' }] };
   const sources = await Promise.all([
     !selected || selected === 'codex' ? codexSessions(paths, errors, text(query)) : [],
-    !selected || selected === 'claude' ? claudeSessions(paths, errors) : [],
+    !selected || selected === 'claude' ? claudeSessions(paths, errors, text(query)) : [],
   ]);
   const needle = text(query).toLocaleLowerCase();
   const sessions = sources.flat().filter(session => !needle || [session.provider, session.sessionId, session.cwd, session.project, session.title, session.summary].some(value => text(value).toLocaleLowerCase().includes(needle))).sort((a, b) => (Date.parse(b.updatedAt || 0) || 0) - (Date.parse(a.updatedAt || 0) || 0)).slice(0, Math.min(MAX_LIMIT, Math.max(1, Number(limit) || DEFAULT_LIMIT)));

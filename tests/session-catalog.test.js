@@ -74,3 +74,13 @@ test('bounded JSONL reads retain only metadata from a huge history file', async 
     assert.equal(result.sessions[0].sessionId, id); assert.equal(result.sessions[0].truncated, true); assert.equal(result.sessions[0].summary, 'small metadata');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+test('Claude metadata can start with non-conversation events and acquire native ID and cwd later', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'session-catalog-later-metadata-'));
+  try {
+    const projects = join(root, 'projects', 'project'); mkdirSync(projects, { recursive: true });
+    const id = '3f3f3f3f-3333-4333-8333-333333333333';
+    writeFileSync(join(projects, `${id}.jsonl`), `{"type":"file-history-snapshot","id":"event-id-not-session"}\n{"type":"attachment","sessionId":"${id}","cwd":"C:/later-cwd","timestamp":"2025-03-01T00:00:00Z"}\n`);
+    const result = await listSessions({ provider: 'claude', query: id, paths: { claudeProjectsPath: join(root, 'projects') } });
+    assert.equal(result.sessions.length, 1); assert.equal(result.sessions[0].nativeId, id); assert.equal(result.sessions[0].cwd, 'C:/later-cwd'); assert.equal(result.sessions[0].project, 'C:/later-cwd');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
