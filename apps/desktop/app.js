@@ -19,6 +19,7 @@ function deliveryText(message){const ds=current.deliveries.filter(d=>d.message_i
 
 let timelineSignature;
 function renderTimeline() {
+  renderReactionRoster();
   const signature=JSON.stringify([current.id,current.messages,current.deliveries,current.reactions,current.members.map(m=>[m.session_id,m.alias,m.avatar,m.provider])]);
   if(signature===timelineSignature)return;timelineSignature=signature;
   const view=$('#timeline'); view.replaceChildren();
@@ -118,17 +119,63 @@ function avatar(member) {
   if(['codex','claude','antigravity'].includes(member.provider)){const icon=document.createElement('img');icon.className='provider-icon';icon.src='/assets/providers/'+member.provider+'.png';icon.alt=providerName(member)+' 아이콘';icon.title=providerName(member);wrap.append(icon);}
   return wrap;
 }
+const reactionTypes=[
+ ['👍','좋아요','답변에 대한 긍정 평가예요. 결정 확정은 아니에요.'],
+ ['👎','반대','구체적인 근거가 없으면 다음 입력에서 반대 이유를 확인해요.'],
+ ['❓','모르겠음','어려운 지점을 확인하고 설명을 보완할 신호예요.'],
+ ['✅','확인(알았음)','내용을 받았거나 이해했어요. 동의·작업 완료와는 달라요.'],
+ ['💡','아이디어 있음','구체적인 내용이 없으면 다음 입력에서 반응한 사람에게 아이디어를 물어요.'],
+ ['❤️','공감','기존 공감 반응이에요. 긍정적인 의견으로 보존해요.',true],
+ ['👀','확인 중','기존 확인 중 반응이에요. 이해했다는 확인과는 달라요.',true]
+];
+let reactionRosterSelection;
+function reactor(row){
+ const sessionId=row.session_id||(row.actor?.startsWith('session:')?row.actor.slice(8):null);
+ const member=current?.members.find(m=>m.session_id===sessionId);
+ return row.actor==='local-human'?{alias:'사용자',avatar:'#394657',human:true}:{...member,...row,alias:row.alias||member?.alias||'알 수 없는 세션'};
+}
+function renderReactionRoster(){
+ const dialog=$('#reactionRoster');if(!dialog?.open||!reactionRosterSelection)return;
+ const {roomId,messageId,emoji}=reactionRosterSelection;
+ if(current?.id!==roomId){dialog.close();return;}
+ const type=reactionTypes.find(r=>r[0]===emoji),rows=(current.reactions||[]).filter(r=>r.message_id===messageId&&r.emoji===emoji);
+ dialog.querySelector('h2').textContent=`${emoji} ${type[1]} · ${rows.length}명`;
+ dialog.querySelector('.reaction-meaning').textContent=type[2];
+ const list=dialog.querySelector('.reactor-list'),scroll=list.scrollTop;list.replaceChildren();
+ for(const row of rows){
+  const person=reactor(row),item=text('li','','reactor-row'),identity=text('div','','reactor-identity');
+  item.append(avatar(person.human?{alias:'나',avatar:person.avatar}:person));
+  identity.append(text('strong',person.alias),text('small',person.human?'사용자':`${providerName(person)||'Agent'}${person.left_at?' · 토론에서 나감':''}`));
+  item.append(identity);list.append(item);
+ }
+ if(!rows.length)list.append(text('li','아직 반응한 사람이 없어요.','muted'));
+ list.scrollTop=scroll;
+}
+function openReactionRoster(messageId,emoji){
+ let dialog=$('#reactionRoster');
+ if(!dialog){
+  dialog=document.createElement('dialog');dialog.id='reactionRoster';dialog.className='reaction-dialog';dialog.setAttribute('aria-labelledby','reactionRosterTitle');
+  const heading=text('h2','');heading.id='reactionRosterTitle';
+  const close=text('button','닫기','reaction-roster-close');close.type='button';close.onclick=()=>dialog.close();
+  const list=document.createElement('ul');list.className='reactor-list';
+  dialog.append(heading,text('p','','reaction-meaning'),list,close);document.body.append(dialog);
+ }
+ reactionRosterSelection={roomId:current.id,messageId,emoji};dialog.showModal();renderReactionRoster();
+}
 function renderReactions(message,card) {
-  const wrap=text('div','','reactions');wrap.setAttribute('aria-label','메시지 반응');
-  for(const [emoji,name] of [['👍','좋아요'],['❤️','공감'],['💡','아이디어'],['👀','확인 중']]) {
-    const on=(current.reactions||[]).some(r=>r.message_id===message.id&&r.emoji===emoji&&r.actor==='local-human');
-    const button=text('button',emoji+(on?' 1':''),'reaction'+(on?' selected':''));button.type='button';
-    button.setAttribute('aria-label',name+' 반응');button.setAttribute('aria-pressed',String(on));
-    button.title=name+(on?' 취소':'');
-    button.onclick=async()=>{button.disabled=true;try{await req(`/api/rooms/${current.id}/messages/${message.id}/reactions`,{method:'POST',body:JSON.stringify({emoji,active:!on})});await openRoom(current.id,false);}catch(e){error(e.message);button.disabled=false;}};
-    wrap.append(button);
-  }
-  card.append(wrap);
+ const wrap=text('div','','reactions');wrap.setAttribute('aria-label','메시지 반응');
+ for(const [emoji,name,meaning,legacy] of reactionTypes){
+  const rows=(current.reactions||[]).filter(r=>r.message_id===message.id&&r.emoji===emoji);if(legacy&&!rows.length)continue;
+  const on=rows.some(r=>r.actor==='local-human'),group=text('span','','reaction-group'+(on?' selected':''));
+  const button=text('button',emoji,'reaction'+(on?' selected':''));button.type='button';
+  button.setAttribute('aria-label',name+' 반응');button.setAttribute('aria-pressed',String(on));
+  button.title=name+(on?' · 내 반응 취소':'')+' — '+meaning+(rows.length?'\n'+rows.map(r=>reactor(r).alias).join(', '):'');
+  button.onclick=async()=>{button.disabled=true;try{await req(`/api/rooms/${current.id}/messages/${message.id}/reactions`,{method:'POST',body:JSON.stringify({emoji,active:!on})});await openRoom(current.id,false);}catch(e){error(e.message);button.disabled=false;}};
+  group.append(button);
+  if(rows.length){const count=text('button',String(rows.length),'reaction-count');count.type='button';count.setAttribute('aria-label',`${name} 반응자 ${rows.length}명 보기`);count.title=rows.map(r=>reactor(r).alias).join(', ');count.onclick=()=>openReactionRoster(message.id,emoji);group.append(count);}
+  wrap.append(group);
+ }
+ card.append(wrap);
 }
 let mentionIndex=0,mentionClosed=false;
 const mentionInput=createMentionInput({textarea:$('#body'),getSpans:value=>{

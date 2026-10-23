@@ -61,3 +61,12 @@ body{background:#080d12}.app{width:100%;max-width:none;margin:0;height:100dvh;gr
 .mention-editor textarea{position:relative;z-index:1;background:transparent;line-height:1.55;color:var(--text);margin:0;width:100%;height:100%}
 .mention-backdrop{position:absolute;top:0;left:0;height:100%;overflow:hidden;pointer-events:none;border:1px solid transparent;border-radius:7px;white-space:pre-wrap;overflow-wrap:break-word;color:transparent}
 .mention-backdrop .mention{color:transparent;padding:0;box-shadow:0 0 0 1px #518cf780}
+
+.reactions{flex-wrap:wrap;gap:5px}.reaction-group{display:inline-flex;align-items:center;border:1px solid transparent;border-radius:8px;background:#15212d}
+.reaction-group:hover{border-color:#45627a}.reaction-group.selected{border-color:#5c8ed0;background:#203b60}
+.reaction-group .reaction{margin:0;padding:5px 6px;border:0;min-width:27px;background:transparent;box-shadow:none}
+.reaction-group .reaction-count{padding:4px 7px 4px 1px;border:0;background:transparent;font-size:11px;color:#c3d5ed;min-width:20px}
+.reaction-group button:focus-visible{outline:2px solid #72a8ff;outline-offset:1px}
+.reaction-dialog{width:min(430px,92vw);padding:22px}.reaction-dialog h2{font-size:18px;margin:0 0 8px}.reaction-meaning{font-size:13px;line-height:1.6;color:var(--muted)}
+.reactor-list{list-style:none;margin:16px 0;padding:0;max-height:45vh;overflow:auto}.reactor-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.reactor-identity{display:grid;gap:3px}.reactor-identity strong{font-size:14px}.reaction-roster-close{display:block;margin-left:auto;padding:6px 13px}
