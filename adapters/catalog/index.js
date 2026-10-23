@@ -10,6 +10,7 @@ const MAX_JSONL_BYTES = 64_000;
 const MAX_CLAUDE_JSONL_FILES = 160;
 const MAX_CLAUDE_JSONL_PER_PROJECT = 8;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const SAO_WORKER_PREAMBLE = '[worker 지시 — 최우선] 이 프로세스에는 MCP 도구가 없다.';
 
 const text = value => typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
 const short = value => {
@@ -58,6 +59,7 @@ const codexInternal = row => {
   if (text(row.thread_source) === 'guardian_review') return 'thread_source:guardian_review';
   if (internalSource(row.source)) return 'source:subagent';
   if (text(row.agent_role) && text(row.agent_nickname)) return 'agent_role+nickname';
+  if (text(row.source) === 'cli' && text(row.first_user_message).startsWith(SAO_WORKER_PREAMBLE)) return 'sao_worker_preamble';
   return null;
 };
 const claudeInternal = (row, file = '') => {
@@ -100,10 +102,11 @@ async function codexSessions(paths, errors, query, includedIds, includeInternal 
     if (query && searchable.length) { clauses.push(`(${searchable.map(name => `LOWER(CAST(${name} AS TEXT)) LIKE LOWER(?)`).join(' OR ')})`); values.push(...searchable.map(() => `%${query}%`)); }
     if (indexedIds.length) { clauses.push(`id IN (${indexedIds.map(() => '?').join(',')})`); values.push(...indexedIds); }
     const search = clauses.length ? `(${clauses.join(' OR ')})` : '1';
-    const internal = [`COALESCE(${field('thread_source')} IN ('subagent', 'guardian_review'), 0)`, `COALESCE(${field('source')} LIKE '%\"subagent\"%', 0)`, `(${field('agent_role')} IS NOT NULL AND ${field('agent_nickname')} IS NOT NULL)`].join(' OR ');
+    const internal = [`COALESCE(${field('thread_source')} IN ('subagent', 'guardian_review'), 0)`, `COALESCE(${field('source')} LIKE '%\"subagent\"%', 0)`, `(${field('agent_role')} IS NOT NULL AND ${field('agent_nickname')} IS NOT NULL)`, `COALESCE((${field('source')} = 'cli' AND ${field('first_user_message')} LIKE ?), 0)`].join(' OR ');
     const included = [...includedIds];
     const visibility = includeInternal ? '1' : included.length ? `(NOT (${internal}) OR id IN (${included.map(() => '?').join(',')}))` : `NOT (${internal})`;
-    const rows = db.prepare(`SELECT id, ${field('cwd')} AS cwd, ${field('title')} AS title, ${field('preview')} AS preview, ${field('first_user_message')} AS first_user_message, ${field('updated_at_ms')} AS updated_at_ms, ${field('updated_at')} AS updated_at, ${field('source')} AS source, ${field('thread_source')} AS thread_source, ${field('agent_role')} AS agent_role, ${field('agent_nickname')} AS agent_nickname FROM threads WHERE ${search} AND ${visibility} ORDER BY COALESCE(${field('updated_at_ms')}, ${field('updated_at')}, 0) DESC LIMIT ?`).all(...values, ...included, MAX_LIMIT);
+    const visibilityValues = includeInternal ? [] : [`${SAO_WORKER_PREAMBLE}%`, ...included];
+    const rows = db.prepare(`SELECT id, ${field('cwd')} AS cwd, ${field('title')} AS title, ${field('preview')} AS preview, ${field('first_user_message')} AS first_user_message, ${field('updated_at_ms')} AS updated_at_ms, ${field('updated_at')} AS updated_at, ${field('source')} AS source, ${field('thread_source')} AS thread_source, ${field('agent_role')} AS agent_role, ${field('agent_nickname')} AS agent_nickname FROM threads WHERE ${search} AND ${visibility} ORDER BY COALESCE(${field('updated_at_ms')}, ${field('updated_at')}, 0) DESC LIMIT ?`).all(...values, ...visibilityValues, MAX_LIMIT);
     return rows.filter(row => text(row.id)).map(row => {
       const indexed = index.get(row.id) || {};
       const internalReason = codexInternal(row);
@@ -196,6 +199,7 @@ export async function listSessions({ query = '', provider = '', limit = DEFAULT_
   const errors = [];
   const selected = canonical(provider);
   const includedIds = explicitIds({ registeredSessionIds, explicitlyIncludedSessionIds });
+  if (UUID.test(text(query))) includedIds.add(text(query));
   if (provider && !selected) return { sessions: [], errors: [{ provider: String(provider), source: 'request', message: 'unknown provider' }] };
   const sources = await Promise.all([
     !selected || selected === 'codex' ? codexSessions(paths, errors, text(query), includedIds, includeInternal) : [],

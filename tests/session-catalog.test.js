@@ -120,6 +120,25 @@ test('explicit registered IDs can retain an internal selection without mutating 
     assert.equal(result.sessions[0].internalReason, 'thread_source:guardian_review');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+test('SAO worker preamble is filtered before the limit but an exact UUID query retains it', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'session-catalog-sao-worker-'));
+  const dbPath = join(root, 'state.sqlite');
+  const db = new DatabaseSync(dbPath);
+  db.exec('CREATE TABLE threads (id TEXT, title TEXT, first_user_message TEXT, updated_at_ms INTEGER, source TEXT)');
+  const insert = db.prepare('INSERT INTO threads VALUES(?,?,?,?,?)');
+  const workerId = '4f4f4f4f-4444-4444-8444-444444444444';
+  insert.run('human-discussion', 'SAO worker design discussion', 'Can we discuss the SAO worker envelope?', 20, 'cli');
+  insert.run(workerId, 'worker task', '[worker 지시 — 최우선] 이 프로세스에는 MCP 도구가 없다. 아래 brief를 수행한다.', 30, 'cli');
+  db.close();
+  try {
+    const paths = { codexDbPath: dbPath, codexIndexPath: join(root, 'missing-index'), claudeProjectsPath: join(root, 'missing-claude') };
+    assert.deepEqual((await listSessions({ provider: 'codex', limit: 1, paths })).sessions.map(item => item.sessionId), ['human-discussion']);
+    const exact = await listSessions({ provider: 'codex', query: workerId, paths });
+    assert.deepEqual(exact.sessions.map(item => item.sessionId), [workerId]);
+    assert.equal(exact.sessions[0].internalReason, 'sao_worker_preamble');
+    assert.equal((await listSessions({ provider: 'codex', includeInternal: true, paths })).sessions[0].sessionId, workerId);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
 test('Claude native sidechains are hidden by default and can be requested explicitly', async () => {
   const root = mkdtempSync(join(tmpdir(), 'session-catalog-claude-internal-'));
   try {
