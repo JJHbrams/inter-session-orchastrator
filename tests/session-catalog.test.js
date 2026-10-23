@@ -84,3 +84,54 @@ test('Claude metadata can start with non-conversation events and acquire native 
     assert.equal(result.sessions.length, 1); assert.equal(result.sessions[0].nativeId, id); assert.equal(result.sessions[0].cwd, 'C:/later-cwd'); assert.equal(result.sessions[0].project, 'C:/later-cwd');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+test('catalog hides native provider children by default without hiding ordinary SAO discussions', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'session-catalog-internal-'));
+  const dbPath = join(root, 'state.sqlite');
+  const db = new DatabaseSync(dbPath);
+  db.exec('CREATE TABLE threads (id TEXT, cwd TEXT, title TEXT, updated_at_ms INTEGER, source TEXT, thread_source TEXT, agent_role TEXT, agent_nickname TEXT)');
+  const insert = db.prepare('INSERT INTO threads VALUES(?,?,?,?,?,?,?,?)');
+  insert.run('human-sao-discussion', 'C:/work', 'Should we use SAO for this?', 30, 'vscode', 'user', null, null);
+  insert.run('codex-native-child', 'C:/work', 'Child work', 40, '{"subagent":{"thread_spawn":{}}}', 'subagent', 'coder', 'Ada');
+  insert.run('sao-worker-wrapper', 'C:/work', 'worker output', 50, 'exec', 'subagent', 'worker', 'Turing');
+  db.close();
+  try {
+    const paths = { codexDbPath: dbPath, codexIndexPath: join(root, 'missing-index'), claudeProjectsPath: join(root, 'missing-claude') };
+    const defaultResult = await listSessions({ provider: 'codex', paths, limit: 1 });
+    assert.deepEqual(defaultResult.sessions.map(item => item.sessionId), ['human-sao-discussion']);
+    const includeInternal = await listSessions({ provider: 'codex', paths, includeInternal: true });
+    assert.deepEqual(includeInternal.sessions.map(item => item.sessionId), ['sao-worker-wrapper', 'codex-native-child', 'human-sao-discussion']);
+    assert.equal(includeInternal.sessions[0].internal, true);
+    assert.equal(includeInternal.sessions[0].internalReason, 'thread_source:subagent');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+test('explicit registered IDs can retain an internal selection without mutating caller IDs', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'session-catalog-explicit-'));
+  const dbPath = join(root, 'state.sqlite');
+  const db = new DatabaseSync(dbPath);
+  db.exec('CREATE TABLE threads (id TEXT, title TEXT, updated_at_ms INTEGER, source TEXT, thread_source TEXT, agent_role TEXT, agent_nickname TEXT)');
+  db.prepare('INSERT INTO threads VALUES(?,?,?,?,?,?,?)').run('child-target', 'background child', 10, '{"subagent":{"other":"guardian"}}', 'guardian_review', 'reviewer', 'Grace');
+  db.close();
+  const registeredSessionIds = Object.freeze(['child-target']);
+  try {
+    const paths = { codexDbPath: dbPath, codexIndexPath: join(root, 'missing-index'), claudeProjectsPath: join(root, 'missing-claude') };
+    const result = await listSessions({ provider: 'codex', query: 'child-target', registeredSessionIds, paths });
+    assert.deepEqual(result.sessions.map(item => item.sessionId), ['child-target']);
+    assert.deepEqual(registeredSessionIds, ['child-target']);
+    assert.equal(result.sessions[0].internalReason, 'thread_source:guardian_review');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+test('Claude native sidechains are hidden by default and can be requested explicitly', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'session-catalog-claude-internal-'));
+  try {
+    const project = join(root, 'projects', 'project'); mkdirSync(project, { recursive: true });
+    writeFileSync(join(project, 'sessions-index.json'), JSON.stringify({ sessions: [
+      { sessionId: 'claude-primary', title: 'Discussing SAO plans', updatedAt: '2025-01-01T00:00:00Z' },
+      { sessionId: 'claude-child', title: 'child task', isSubagent: true, updatedAt: '2025-01-02T00:00:00Z' },
+    ] }));
+    const paths = { claudeProjectsPath: join(root, 'projects') };
+    assert.deepEqual((await listSessions({ provider: 'claude', paths })).sessions.map(item => item.sessionId), ['claude-primary']);
+    const internal = await listSessions({ provider: 'claude', includeInternal: true, paths });
+    assert.equal(internal.sessions[0].internalReason, 'isSubagent');
+    assert.deepEqual((await listSessions({ provider: 'claude', registeredSessionIds: ['claude-child'], paths })).sessions.map(item => item.sessionId), ['claude-child', 'claude-primary']);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
