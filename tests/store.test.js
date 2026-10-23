@@ -56,11 +56,17 @@ test('stale execution evidence cannot advance delivery or clear another writer',
   assert.throws(()=>s.evidence(a.id,'reply','isolated-test','proof'),/stale attempt/);
   assert.equal(s.db.prepare('SELECT state FROM deliveries WHERE id=?').get(d.id).state,'submitting');
 });
-test('chair rounds are bounded, replay does not spend another round, and empty rounds cannot bypass the limit',()=>{
+test('automatic rounds are bounded per user request; parallel questions share a round and replay is frozen',()=>{
   const s=new Store(),r=s.createRoom('r'),{session}=registered(s),m=s.join(r.id,session.id,false);s.role(r.id,session.id,'chair');s.limits(r.id,20,1);
-  const args={roomId:r.id,senderSessionId:session.id,body:'ask',kind:'followup',requestKey:'round-one',targets:[m.id]};
+  const root=s.post({roomId:r.id,body:'user request',kind:'post'}).message;
+  const args={roomId:r.id,senderSessionId:session.id,body:'ask',kind:'followup',requestKey:'round-one',targets:[m.id],replyTo:root.id};
   const first=s.post(args);assert.equal(s.post(args).message.id,first.message.id);
-  assert.throws(()=>s.post({...args,requestKey:'round-two'}),/round budget/);
+  assert.doesNotThrow(()=>s.post({...args,requestKey:'parallel'}));
+  assert.throws(()=>s.post({...args,requestKey:'round-two',replyTo:first.message.id}),/round budget/);
+  const next=s.post({roomId:r.id,body:'new user request',kind:'post',replyTo:first.message.id});
+  assert.equal(s.dialogueLoop(next.message.id).rootId,next.message.id);
+  assert.doesNotThrow(()=>s.post({...args,requestKey:'new-loop',replyTo:next.message.id}));
+  assert.throws(()=>s.post({...args,targets:[],requestKey:'empty'}),/recipients/);
 });
 test('leaving before submission cancels reservations and permits an explicit rejoin',()=>{
   const s=new Store(),r=s.createRoom('r'),{session}=registered(s),m=s.join(r.id,session.id,false);

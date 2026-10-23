@@ -47,17 +47,25 @@ test('chair serializes concurrent ticks and keeps actual start evidence distinct
  await c.create(r.id);const first=s.post({roomId:r.id,body:'one',kind:'followup',routingMode:'chair'});s.post({roomId:r.id,body:'two',kind:'followup',routingMode:'chair'});const work=c.tick(r.id);assert.equal(s.snapshot(first.message.id).deliveries[0].state,'submitting');assert.equal(await c.tick(r.id),null);assert.equal(calls,1);finish();await work;assert.equal(s.snapshot(first.message.id).deliveries[0].state,'completed');
 });
 
-test('chair pause stops invocation and a budget failure leaves no partial questions',async()=>{
- const s=new Store(),r=s.createRoom('budget'),p=participant(s,r);let calls=0;const c=new ChairCoordinator(s,{runner:{...readyRunner,resume:async({nativeId,onStarted})=>{calls++;onStarted();return {nativeId,started:true,output:{speech:'partial speech',questions:[{targetMembershipIds:[p.id],body:'q1'},{targetMembershipIds:[p.id],body:'q2'}],proposal:null}};}}});await c.create(r.id);s.limits(r.id,2,3);s.post({roomId:r.id,body:'ask',kind:'followup',routingMode:'chair'});s.pause(r.id);assert.equal(await c.tick(r.id),null);assert.equal(calls,0);s.pause(r.id,false);await c.tick(r.id);assert.equal(calls,1);assert.equal(s.room(r.id).messages.some(m=>m.body==='partial speech'||m.body==='q1'),false);assert.equal(s.room(r.id).chair_runs[0].status,'unknown');
+test('chair pause stops invocation; loop budget preserves speech and stops all extra questions',async()=>{
+ const s=new Store(),r=s.createRoom('budget'),p=participant(s,r);let calls=0;const c=new ChairCoordinator(s,{runner:{...readyRunner,resume:async({nativeId,onStarted})=>{calls++;onStarted();return {nativeId,started:true,output:{speech:'partial speech',questions:[{targetMembershipIds:[p.id],body:'q1'},{targetMembershipIds:[p.id],body:'q2'}],proposal:null}};}}});await c.create(r.id);s.limits(r.id,2,3);s.post({roomId:r.id,body:'ask',kind:'followup',routingMode:'chair'});s.pause(r.id);assert.equal(await c.tick(r.id),null);assert.equal(calls,0);s.pause(r.id,false);await c.tick(r.id);assert.equal(calls,1);assert.equal(s.room(r.id).messages.some(m=>m.body==='partial speech'),true);assert.equal(s.room(r.id).messages.some(m=>m.body==='q1'||m.body==='q2'),false);assert.equal(s.room(r.id).chair_runs[0].status,'completed');assert.equal(s.room(r.id).messages.some(m=>m.body.includes('[자동 대화 한도]')),true);assert.doesNotThrow(()=>s.post({roomId:r.id,body:'new user request',kind:'followup',routingMode:'auto'}));
 });
 
 test('decision publication is canonical and idempotent across migration',()=>{
  const s=new Store(),r=s.createRoom('legacy'),p=participant(s,r);s.role(r.id,p.session.id,'chair');const d=s.result({membership_id:p.id,session_id:p.session.id},'decision',[]);const before=s.room(r.id).messages;s.publishLegacyDecisions();assert.equal(s.room(r.id).messages.length,before.length);assert.equal(before[0].decision_id,d.id);
 });
 
-test('stored result can be applied after raising limit without a second provider turn',async()=>{
- const s=new Store(),r=s.createRoom('cached'),p=participant(s,r);let calls=0;const c=new ChairCoordinator(s,{runner:{...readyRunner,resume:async({nativeId,onStarted})=>{calls++;onStarted();return {nativeId,started:true,output:{speech:'stored speech',questions:[{targetMembershipIds:[p.id],body:'first'},{targetMembershipIds:[p.id],body:'second'}],proposal:null}};}}});
- await c.create(r.id);s.limits(r.id,2,3);s.post({roomId:r.id,body:'ask',kind:'followup',routingMode:'chair'});const run=await c.tick(r.id);assert.equal(run.status,'unknown');assert.ok(run.output_json);s.limits(r.id,10,3);c.reconcile(r.id,run.id);c.reconcile(r.id,run.id);assert.equal(calls,1);assert.equal(s.room(r.id).messages.filter(m=>m.body==='stored speech').length,1);assert.equal(s.room(r.id).chair_runs[0].status,'completed');
+test('legacy budget-only unknown is reconciled from saved output without invoking a provider',async()=>{
+ const s=new Store(),r=s.createRoom('cached'),p=participant(s,r);let calls=0;
+ const c=new ChairCoordinator(s,{runner:{...readyRunner,resume:async()=>{calls++;throw Error('must not invoke');}}});
+ const chair=await c.create(r.id),input=s.post({roomId:r.id,body:'ask',kind:'followup',routingMode:'chair'}),d=input.deliveries[0],claim=s.claim(d.id);s.fence(d.id,claim.fence);
+ const run=s.chairRun(r.id,d.request_id),output={speech:'stored speech',questions:[{targetMembershipIds:[p.id],body:'first'},{targetMembershipIds:[p.id],body:'second'}],proposal:null};
+ s.updateChairRun(run.id,'unknown','chair round budget reached',d.id);s.db.prepare("UPDATE chair_runs SET output_json=? WHERE id=?").run(JSON.stringify(output),run.id);s.db.prepare("UPDATE deliveries SET state='unknown',blocked_reason='chair round budget reached' WHERE id=?").run(d.id);
+ c.recoverSavedBudgetFailures(r.id);c.recoverSavedBudgetFailures(r.id);
+ assert.equal(calls,0);assert.equal(s.room(r.id).messages.filter(m=>m.body==='stored speech').length,1);assert.equal(s.room(r.id).chair_runs[0].status,'completed');assert.equal(s.snapshot(input.message.id).deliveries[0].state,'completed');
+ assert.equal(s.db.prepare('SELECT unresolved_delivery_id FROM writers WHERE session_id=?').get(chair.session_id).unresolved_delivery_id,null);
+ assert.equal(s.db.prepare('SELECT output_json FROM chair_runs WHERE id=?').get(run.id).output_json,JSON.stringify(output));
+ assert.doesNotThrow(()=>s.post({roomId:r.id,body:'next user request',kind:'followup',routingMode:'auto'}));s.db.close();
 });
 
 test('legacy decision publication survives a departed owner and archived room',()=>{

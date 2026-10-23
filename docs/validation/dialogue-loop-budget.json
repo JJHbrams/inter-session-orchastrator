@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-23",
+  "tests": {
+    "command": "npm test",
+    "pass": 75,
+    "fail": 0
+  },
+  "canary": {
+    "database": ".local/loop-recovery-canary.sqlite",
+    "repaired": [
+      {
+        "runId": "82d689aa-fbbd-47a3-ab01-88558561a78f",
+        "roomId": "4928678e-04b5-4d48-8cfe-ecd6ed894103",
+        "status": "completed",
+        "sourceOutputPreserved": true
+      }
+    ],
+    "providerCalls": 0,
+    "originalMessagesPreserved": 24,
+    "newMessages": 3,
+    "idempotentRecovery": true,
+    "unknownChairDeliveries": 0
+  },
+  "actual": {
+    "database": ".local/rooms.sqlite",
+    "repaired": [
+      {
+        "runId": "82d689aa-fbbd-47a3-ab01-88558561a78f",
+        "roomId": "4928678e-04b5-4d48-8cfe-ecd6ed894103",
+        "status": "completed",
+        "sourceOutputPreserved": true
+      }
+    ],
+    "providerCalls": 0,
+    "originalMessagesPreserved": 24,
+    "newMessages": 3,
+    "idempotentRecovery": true,
+    "unknownChairDeliveries": 0
+  },
+  "newChairRuns": [],
+  "originalLimitsPreserved": true,
+  "browser": {
+    "inputBlocked": false,
+    "error": "",
+    "draftPreserved": true
+  },
+  "productionTestInputs": 0
+}
