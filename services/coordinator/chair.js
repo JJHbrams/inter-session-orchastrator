@@ -6,15 +6,16 @@ const normalizedExecutionBody=body=>{let cursor=0,text='';for(const span of ment
 
 export class ChairCoordinator {
   constructor(store,{runner,cwdForRoom=roomId=>`.local/chairs/${roomId}`}={}){this.store=store;this.runner=runner;this.cwdForRoom=cwdForRoom;this.busy=new Set();}
-  async create(roomId){
+  async create(roomId,settings={}){
     const old=this.store.chair(roomId);if(old)return old;
-    const nativeId=randomUUID();this.store.beginChair(roomId,nativeId);
+    const nativeId=randomUUID();this.store.beginChair(roomId,nativeId,settings);
     try{
-      const result=await this.runner.initialize({nativeId,cwd:this.cwdForRoom(roomId)});
-      if(result.nativeId!==nativeId||!result.started)throw Error('좌장 초기화 신원을 확인하지 못했어.');
+      const created=this.store.chair(roomId),initial={provider:created.provider,nativeId:created.native_id,cwd:this.cwdForRoom(roomId),model:created.model,effort:created.effort};
+      const result=await this.runner.initialize({...initial,onNativeId:actual=>{if(created.provider==='codex'&&actual)this.store.bindChairNativeId(roomId,actual);}});
+      const bound=this.store.chair(roomId);if(!result.started||!result.nativeId||(created.provider==='claude'&&result.nativeId!==nativeId)||(created.provider==='codex'&&result.nativeId!==bound.native_id))throw Error('좌장 초기화 신원을 확인하지 못했어.');
       const room=this.store.room(roomId);if(room.archived_at)throw Error('초기화 중 토론장이 보관됐어.');
       return this.store.tx(()=>{
-        const chair=this.store.readyChair(roomId,{nativeId,cwd:this.cwdForRoom(roomId)});
+        const chair=this.store.readyChair(roomId,{nativeId:bound.native_id,cwd:this.cwdForRoom(roomId)});
         this.store.post({roomId,senderSessionId:chair.session_id,body:requireText(result.output.speech,'speech'),kind:'post',requestKey:'chair-initialized'});
         return chair;
       });
@@ -89,9 +90,10 @@ export class ChairCoordinator {
       delivery=s.db.prepare("SELECT d.*,m.body FROM deliveries d JOIN messages m ON m.id=d.message_id WHERE d.membership_id=? AND d.state='queued' AND d.kind='followup' ORDER BY d.created_at,d.rowid LIMIT 1").get(member.id);
       if(!delivery)return null;
       run=s.chairRun(roomId,delivery.request_id);if(run.status!=='queued')return run;
-      const claim=s.claim(delivery.id);attempt=s.fence(delivery.id,claim.fence);s.updateChairRun(run.id,'submitting',null,delivery.id);
+      const claim=s.claim(delivery.id);attempt=s.fence(delivery.id,claim.fence);run=s.claimChairRun(run.id,delivery.id);s.updateChairRun(run.id,'submitting',null,delivery.id);
       const media=this.attachmentContext(s.room(roomId),chair,delivery);
-      const result=await this.runner.resume({nativeId:chair.native_id,cwd:chair.cwd||this.cwdForRoom(roomId),body:this.context(roomId,chair,delivery,media),images:media.images,onStarted:()=>{s.evidence(attempt.id,'turn_started','claude-chair',chair.native_id);s.updateChairRun(run.id,'running');}});
+      const settings=Object.freeze({provider:run.provider,model:run.model,effort:run.effort,settingsRevision:run.settings_revision});
+      const result=await this.runner.resume({provider:settings.provider,nativeId:chair.native_id,cwd:chair.cwd||this.cwdForRoom(roomId),model:settings.model,effort:settings.effort,body:this.context(roomId,chair,delivery,media),images:media.images,onStarted:()=>{s.evidence(attempt.id,'turn_started',`${settings.provider}-chair`,chair.native_id);s.updateChairRun(run.id,'running');}});
       if(result.nativeId!==chair.native_id||!result.started)throw Error('좌장 모델 응답 신원을 확인하지 못했어.');
       s.db.prepare('UPDATE chair_runs SET output_json=? WHERE id=?').run(JSON.stringify(result.output),run.id);
       this.applyOutput(roomId,chair,delivery,run,attempt,result.output);
@@ -115,7 +117,7 @@ export class ChairCoordinator {
         for(const reaction of output.reactions||[])s.setReaction(roomId,reaction.messageId,reaction.emoji,reaction.active,`session:${chair.session_id}`);
         if(output.proposal)s.resultForChair(roomId,chair.session_id,output.proposal.body,output.proposal.sourceIds,output.proposal.attachmentIds||[]);
         s.db.prepare('UPDATE messages SET reply_request_id=? WHERE id=?').run(delivery.request_id,response.message.id);
-        s.evidence(attempt.id,'reply','claude-chair',response.message.id);s.updateChairRun(run.id,'completed');
+        s.evidence(attempt.id,'reply',`${run.provider||chair.provider}-chair`,response.message.id);s.updateChairRun(run.id,'completed');
       });
   }
   reconcile(roomId,runId){
