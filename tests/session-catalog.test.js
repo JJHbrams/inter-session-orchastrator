@@ -154,3 +154,16 @@ test('Claude native sidechains are hidden by default and can be requested explic
     assert.deepEqual((await listSessions({ provider: 'claude', registeredSessionIds: ['claude-child'], paths })).sessions.map(item => item.sessionId), ['claude-child', 'claude-primary']);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('Claude generated SAO worker envelopes are hidden without hiding conversations about workers',async()=>{
+ const root=mkdtempSync(join(tmpdir(),'session-catalog-claude-sao-'));
+ try{const project=join(root,'projects','project');mkdirSync(project,{recursive:true});
+  const write=(name,id,prompt)=>writeFileSync(join(project,name+'.jsonl'),JSON.stringify({type:'user',sessionId:id,cwd:'C:/work',message:{role:'user',content:prompt}})+'\n');
+  write('human','human-sao','SAO의 worker 지시를 검토하고 싶어.');
+  write('worker','worker-sao','[worker 지시 — 최우선] 이 프로세스에는 MCP 도구가 없다. 아래 brief를 수행한다.');
+  write('chair','room-chair','You are a dedicated discussion chair. Tools are disabled. Coordinate only through the supplied JSON schema. Initialize now.');
+  const paths={claudeProjectsPath:join(root,'projects')};assert.deepEqual((await listSessions({provider:'claude',paths})).sessions.map(s=>s.sessionId),['human-sao']);
+  const all=await listSessions({provider:'claude',paths,includeInternal:true});assert.equal(all.sessions.find(s=>s.sessionId==='worker-sao').internalReason,'sao_worker_preamble');
+  assert.equal(all.sessions.find(s=>s.sessionId==='room-chair').internalReason,'room_chair_preamble');
+ }finally{rmSync(root,{recursive:true,force:true});}
+});

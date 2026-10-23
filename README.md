@@ -35,6 +35,10 @@ npm start
 
 좌측 목록의 채널·토론장을 우클릭하고 **이름 변경**을 선택해 개별 수정한다. 키보드는 항목에 포커스를 두고 **Shift+F10** 또는 메뉴 키로 연다. `#`은 실제 채널 제목에만 붙이고 토론장 이름과 ‘채널 없음’에는 붙이지 않는다. 동일한 등록 세션 ID의 별칭·색상은 다른 채널의 토론장에도 유지한다.
 
+같은 컨텍스트 메뉴에서 **보관/복원**한다. 채널은 하위 토론장이 모두 보관돼야 보관할 수 있다. 보관된 채널·토론장은 기본 숨김이고 왼쪽 아래 **보관 항목 표시**로 확인한다. 방을 복원하면 보관된 상위 채널도 복원하며, 채널만 복원하면 하위 방의 보관 상태는 유지한다.
+
+세션 선택창은 검색·provider 필터와 짧은 목록, 선택 상세로 구성한다. 방향키·Enter로 선택하며 ID·작업 폴더를 확인한 뒤 초대한다. native subagent·SAO worker·앱 전용 좌장은 기본 제외한다. **작업용 세션 포함** 또는 정확한 native ID 검색으로 명시적으로 찾을 수 있다. 상단은 초대·좌장·작업공간을 우선 표시하고 한도·중지·보관·배치 초기화는 **더 보기**로 묶는다.
+
 입력창에서 **Enter는 전송**, **Shift+Enter는 줄바꿈**이다. 멘션 후보가 열려 있으면 Enter는 후보를 선택하며, 한글 조합 중 Enter는 전송하지 않는다.
 
 `@to_all`은 좌장·이탈자·읽기 전용을 제외한 현재 참여자 모두에게 직접 질문한다. 멘션 후보와 파란 강조를 지원하며 전송 전 실제 수신자를 보여준다. 개별 멘션과 겹쳐도 한 번만 전달하고, 좌장도 명시적으로 멘션했을 때만 좌장을 추가한다. 잘못된 개별 멘션을 섞거나 수신자가 없으면 전송을 차단한다.
@@ -70,11 +74,12 @@ API는 loopback·Host/Origin·CSRF·HttpOnly SameSite 쿠키와 room 등록으�
 npm test
 ```
 
-현재96개 테스트가 통과했다. 실제 opt-in Codex·Claude 자동 응답, 중단된 Claude 답변의 같은 요청 ID 재호출, 별도 좌장의 질문→두 provider 응답→출처가 있는 미확정 제안을 확인했다. Claude canary는 해당 프로세스에서만 room 전용 native MCP와 빈 도구 목록을 사용했고 프롬프트 제안을 껐다. 원래 빌린 Claude 세션의 작성 중 입력은 보존해 대기시켰다. 자동 전달 검증은 모든 CLI 버전이나 임의의 기존 세션에 대한 무조건적 지원을 뜻하지 않는다.
+현재104개 테스트가 통과했다. 실제 opt-in Codex·Claude 자동 응답, 중단된 Claude 답변의 같은 요청 ID 재호출, 별도 좌장의 질문→두 provider 응답→출처가 있는 미확정 제안을 확인했다. Claude canary는 해당 프로세스에서만 room 전용 native MCP와 빈 도구 목록을 사용했고 프롬프트 제안을 껐다. 원래 빌린 Claude 세션의 작성 중 입력은 보존해 대기시켰다. 자동 전달 검증은 모든 CLI 버전이나 임의의 기존 세션에 대한 무조건적 지원을 뜻하지 않는다.
 
 첨부 권한·멱등·재시작·원본 바이트, HTTP/stdio/helper, Markdown 정제와 초안 경계, 패널 호환·멘션 목록 배치를 검증했다. 실제 브라우저의 파일 선택·클립보드·drop·재시도와 새 좌장의 이미지/텍스트 판독을 확인했다. 인식된 @별칭은 입력창과 대화에서 파란 배경으로 강조한다. 멘션 목록은 패널 밖으로 펼쳐지며, 3개 CSS viewport에서 후보 노출과 재배치를 확인했다. OS 물리 드래그와 원래 V-01~V-13 전체는 별도 미검증이다.
 
 - [자동 전달·재호출·카탈로그·작업공간 실제 검증](docs/validation/participant-delivery.json)
+- [채널 보관·세션 선택 UX 조사와 구현](docs/catalog-archive.html) / [명세 원문](docs/design/0007-catalog-archive.md) / [검증 근거](docs/validation/catalog-archive.json)
 
 - [별도 좌장·인증 복구·메신저 명세](docs/dedicated-chair.html) / [원문](docs/design/0003-dedicated-chair.md) / [실제 검증 근거](docs/validation/dedicated-chair.json)
 - [패널 조절·이름 변경 명세](docs/resizable-panels.html) / [원문](docs/design/0004-resizable-panels.md)

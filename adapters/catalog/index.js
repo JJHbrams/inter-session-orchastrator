@@ -11,6 +11,7 @@ const MAX_CLAUDE_JSONL_FILES = 160;
 const MAX_CLAUDE_JSONL_PER_PROJECT = 8;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SAO_WORKER_PREAMBLE = '[worker 지시 — 최우선] 이 프로세스에는 MCP 도구가 없다.';
+const ROOM_CHAIR_PREAMBLE = 'You are a dedicated discussion chair. Tools are disabled. Coordinate only through the supplied JSON schema.';
 
 const text = value => typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
 const short = value => {
@@ -66,6 +67,9 @@ const claudeInternal = (row, file = '') => {
   if (row?.isSidechain === true) return 'isSidechain';
   if (row?.isSubagent === true) return 'isSubagent';
   if (text(row?.agent_role || row?.agentRole) && text(row?.nickname || row?.agent_nickname || row?.agentNickname)) return 'agent_role+nickname';
+  const firstPrompt=text(row?.firstPrompt || row?.first_prompt || row?.first_user_message);
+  if (firstPrompt.startsWith(SAO_WORKER_PREAMBLE)) return 'sao_worker_preamble';
+  if (firstPrompt.startsWith(ROOM_CHAIR_PREAMBLE)) return 'room_chair_preamble';
   if (/^(agent-|subagent-)/i.test(basename(file))) return 'wrapper_filename';
   return null;
 };
@@ -168,7 +172,7 @@ function jsonlMetadata(content, file, mtime) {
       }
     } catch { /* malformed history entries are deliberately ignored */ }
   }
-  internalReason ||= claudeInternal({ agent_role: agentRole, nickname }, file);
+  internalReason ||= claudeInternal({ agent_role: agentRole, nickname, firstPrompt:firstUser }, file);
   const nativeId = sessionId || (UUID.test(basename(file, '.jsonl')) ? basename(file, '.jsonl') : '');
   if (!nativeId) return null;
   return catalogSession({ provider: 'claude', sessionId: nativeId, cwd, project: project || cwd, title: title || firstUser, summary: firstUser, updatedAt: updatedAt || mtime, source: 'claude-jsonl-metadata', internal: Boolean(internalReason), internalReason });

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {once} from 'node:events';
 import {spawn} from 'node:child_process';
 import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -63,5 +64,5 @@ test('archive and restore APIs expose the child-count guard and restore a room w
     const blocked=await call(`/api/channels/${channel.id}/archive`);assert.equal(blocked.status,409);assert.equal(blocked.data.activeChildCount,1);
     await call(`/api/rooms/${room.id}/archive`);assert.ok((await call(`/api/channels/${channel.id}/archive`)).data.archived_at);
     const restored=await call(`/api/rooms/${room.id}/restore`);assert.equal(restored.data.archived_at,null);const listed=await fetch(base+'/api/channels',{headers:{cookie}});assert.equal((await listed.json()).channels.find(c=>c.id===channel.id).archived_at,null);
-  }finally{child.kill();rmSync(dir,{recursive:true,force:true});}
+  }finally{if(child.exitCode===null){const closed=once(child,'close');child.kill();await closed;}rmSync(dir,{recursive:true,force:true,maxRetries:5,retryDelay:50});}
 });

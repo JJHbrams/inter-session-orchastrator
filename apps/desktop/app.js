@@ -6,14 +6,33 @@ import {marked} from '/vendor/marked.js';
 import DOMPurify from '/vendor/purify.js';
 import {createRenderer,createMentionInput} from '/rich-text.js';
 import {createAttachmentComposer} from '/attachments.js';
-let current, rooms=[], channels=[], pendingSend, selectedRoomId;const draftBodies=new Map();const stateLabel={queued:'요청 대기',claimed:'전달 예약',submitting:'요청 제공 중',accepted:'호스트 접수',running:'생성 중',completed:'응답 회수',unknown:'확인 필요',blocked:'차단',failed:'실패',cancelled:'취소'}; const $=s=>document.querySelector(s);
+let current, rooms=[], channels=[], pendingSend, selectedRoomId,showArchived=false;const draftBodies=new Map();const stateLabel={queued:'요청 대기',claimed:'전달 예약',submitting:'요청 제공 중',accepted:'호스트 접수',running:'생성 중',completed:'응답 회수',unknown:'확인 필요',blocked:'차단',failed:'실패',cancelled:'취소'}; const $=s=>document.querySelector(s);
 const connection=document.createElement('div');connection.id='connection';connection.setAttribute('role','status');connection.hidden=true;$('#error').before(connection);
 const api=createApiClient({onConnection:state=>{connection.hidden=state==='online';connection.textContent=state==='offline'?'연결 끊김 · 입력은 보존돼. 로컬 서버가 돌아오면 자동으로 다시 연결할게.':state==='reconnecting'?'로컬 서버에 다시 연결하는 중…':'';}});
 const req=api.request;
 const renderMarkdown=createRenderer({parse:source=>marked.parse(source,{gfm:true,breaks:true}),sanitize:DOMPurify.sanitize.bind(DOMPurify)});
 const text=(tag,value,cls)=>{const x=document.createElement(tag);x.textContent=value;if(cls)x.className=cls;return x};
+function actionIcon(name){
+ const paths={search:'m21 21-5-5 M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0',invite:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M20 8v6 M17 11h6',workspace:'M3 7h7l2 2h9v11H3Z M3 7V4h7l2 3',chair:'M5 12h14v8H5Z M7 12V4h10v8 M3 16h18',detail:'M4 4h16v16H4Z M14 4v16',more:'M5 12h.01 M12 12h.01 M19 12h.01',archive:'M3 4h18v4H3Z M5 8v12h14V8 M10 12h4',pause:'M8 5v14 M16 5v14',settings:'M4 7h16 M4 17h16 M8 4v6 M16 14v6',reset:'M4 11a8 8 0 1 1 2 7 M4 4v7h7'};
+ const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS('http://www.w3.org/2000/svg','path');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.classList.add('action-icon');path.setAttribute('d',paths[name]||paths.more);svg.append(path);return svg;
+}
+function decorateAction(button,name){if(!button)return;const label=button.textContent;button.replaceChildren(actionIcon(name),text('span',label,'tool-label'));button.setAttribute('aria-label',label);button.title=label;}
+function renderToolbar(){for(const [id,icon] of [['invite','invite'],['createChair','chair'],['workspaceButton','workspace'],['pause','pause'],['archive','archive'],['limits','settings']])decorateAction($('#'+id),icon);}
 function error(value=''){const e=$('#error');e.textContent=value;e.hidden=!value}
 function active(){return current&&!current.archived_at}
+function visibleRooms(){return rooms.filter(room=>showArchived||(!room.archived_at&&!channels.find(channel=>channel.id===room.channel_id)?.archived_at));}
+async function ensureVisibleSelection(){
+ const visible=visibleRooms();if(current&&visible.some(room=>room.id===current.id))return openRoom(current.id,false);
+ if(current)draftBodies.set(current.id,$('#body').value);
+ if(visible.length)return openRoom(visible[0].id);
+ current=null;selectedRoomId=null;timelineSignature=undefined;decisionSignature=undefined;attachmentComposer.setRoom(null);$('#body').value='';$('#title').textContent='토론장을 선택하세요';
+ $('#timeline').replaceChildren(text('div',showArchived?'토론장을 만들어 대화를 시작해보세요.':'표시할 토론장이 없어요. 새로 만들거나 보관 항목을 확인해보세요.','empty'));
+ $('#chairProfile').replaceChildren();$('#participants').replaceChildren();$('#decisions').replaceChildren();$('#summaryStatus').textContent='';$('#memberDetail').textContent='참여 세션을 선택해줘.';$('#workspaceDetail').textContent='토론장을 선택해줘.';
+ renderNav();renderMentionMenu();renderPreview();updateRoomControls();renderChairControl();$('#pause').disabled=true;$('#archive').disabled=true;
+}
+async function changeArchive(kind,item){
+ try{closeNavContextMenu();await req(`/api/${kind==='channel'?'channels':'rooms'}/${item.id}/${item.archived_at?'restore':'archive'}`,{method:'POST',body:'{}'});await refresh(false);await ensureVisibleSelection();error();}catch(e){error(e.message);}
+}
 function renameButton(label,onClick){
  const button=text('button','','rename-link rename-icon');button.type='button';button.title=label;button.setAttribute('aria-label',label);button.onclick=onClick;
  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS('http://www.w3.org/2000/svg','path');
@@ -33,7 +52,12 @@ function bindNavContextMenu(element,kind,item){
   const menu=text('div','','nav-context-menu');menu.setAttribute('role','menu');menu.setAttribute('aria-label',item.name+' '+(kind==='channel'?'채널':'토론장'));
   const rename=text('button','이름 변경');rename.type='button';rename.setAttribute('role','menuitem');
   rename.onclick=()=>{closeNavContextMenu();const target=(kind==='channel'?channels:rooms).find(value=>value.id===item.id);if(target)renameDialog(kind,target);};
-  menu.append(rename);document.body.append(menu);navContextMenu={element:menu,kind,id:item.id};
+  const latest=(kind==='channel'?channels:rooms).find(value=>value.id===item.id)||item;
+  const archive=text('button',latest.archived_at?'보관 해제':kind==='channel'?'채널 보관':'토론장 보관');archive.type='button';archive.setAttribute('role','menuitem');archive.onclick=()=>changeArchive(kind,latest);
+  const remaining=kind==='channel'?rooms.filter(room=>room.channel_id===item.id&&!room.archived_at).length:0;
+  archive.disabled=!latest.archived_at&&remaining>0;menu.append(rename,archive);
+  if(archive.disabled)menu.append(text('p',`하위 토론장 ${remaining}개를 먼저 보관해줘.`,'context-note'));
+  document.body.append(menu);navContextMenu={element:menu,kind,id:item.id};
   const rect=element.getBoundingClientRect(),box=menu.getBoundingClientRect(),keyboard=event.type==='keydown';
   const x=keyboard?rect.left:event.clientX,y=keyboard?rect.bottom:event.clientY;
   menu.style.left=Math.max(8,Math.min(x,window.innerWidth-box.width-8))+'px';menu.style.top=Math.max(8,Math.min(y,window.innerHeight-box.height-8))+'px';rename.focus();
@@ -46,7 +70,7 @@ document.addEventListener('keydown',event=>{
  if(!navContextMenu)return;
  if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeNavContextMenu(true);}
  else if(event.key==='Tab')closeNavContextMenu(true);
- else if(['ArrowDown','ArrowUp','Home','End'].includes(event.key)){event.preventDefault();navContextMenu.element.querySelector('[role="menuitem"]').focus();}
+ else if(['ArrowDown','ArrowUp','Home','End'].includes(event.key)){event.preventDefault();const items=[...navContextMenu.element.querySelectorAll('[role="menuitem"]:not(:disabled)')],index=items.indexOf(document.activeElement),next=event.key==='Home'?0:event.key==='End'?items.length-1:(index+(event.key==='ArrowUp'?-1:1)+items.length)%items.length;items[next]?.focus();}
 });
 window.addEventListener('resize',()=>closeNavContextMenu());
 document.addEventListener('scroll',event=>{if(navContextMenu&&!navContextMenu.element.contains(event.target))closeNavContextMenu();},true);
@@ -54,15 +78,15 @@ function renderNav(){
  const nav=$('#rooms'),focused=document.activeElement;
  const focusId=focused.closest?.('[data-room-id],[data-channel-id]')?.dataset;
  nav.replaceChildren();
- const groups=[...channels.map(c=>[c,rooms.filter(r=>r.channel_id===c.id)]),[{name:'채널 없음'},rooms.filter(r=>!r.channel_id)]];
+ const visible=visibleRooms(),groups=[...channels.filter(c=>showArchived||!c.archived_at).map(c=>[c,visible.filter(r=>r.channel_id===c.id)]),[{name:'채널 없음'},visible.filter(r=>!r.channel_id)]];
  for(const [channel,list] of groups){
   if(!list.length&&!channel.id)continue;
-  const heading=text('div','','channel-label');heading.append(text('span',(channel.id?'# ':'')+channel.name,'nav-label'));
+  const heading=text('div','','channel-label'+(channel.archived_at?' archived':''));heading.append(text('span',(channel.id?'# ':'')+channel.name,'nav-label'));if(channel.archived_at)heading.append(text('small','보관','nav-archive-badge'));
   if(channel.id){heading.dataset.channelId=channel.id;heading.tabIndex=0;bindNavContextMenu(heading,'channel',channel);}
   nav.append(heading);
   for(const room of list){
    const selected=current?.id===room.id,row=text('div','','room-nav-row'+(selected?' active':''));row.dataset.roomId=room.id;
-   const button=text('button',(room.archived_at?'⌁ ':'')+room.name,'room-link'+(selected?' active':''));button.type='button';button.onclick=()=>{closeNavContextMenu();openRoom(room.id);};bindNavContextMenu(button,'room',room);
+   const button=text('button',room.name,'room-link'+(selected?' active':'')+(room.archived_at?' archived':''));if(room.archived_at)button.append(text('small','보관','nav-archive-badge'));button.type='button';button.onclick=()=>{closeNavContextMenu();openRoom(room.id);};bindNavContextMenu(button,'room',room);
    if(selected)button.setAttribute('aria-current','page');
    row.append(button);nav.append(row);
   }
@@ -70,7 +94,7 @@ function renderNav(){
  if(focusId?.roomId)nav.querySelector(`[data-room-id="${CSS.escape(focusId.roomId)}"] .room-link`)?.focus();
  else if(focusId?.channelId)nav.querySelector(`[data-channel-id="${CSS.escape(focusId.channelId)}"]`)?.focus();
  const select=$('#channelChoice'),empty=text('option','채널 없음');empty.value='';select.replaceChildren(empty);
- for(const c of channels){const option=text('option',c.name);option.value=c.id;select.append(option);}
+ for(const c of channels.filter(c=>!c.archived_at)){const option=text('option',c.name);option.value=c.id;select.append(option);}
 }
 async function refresh(keep=true){const [rs,cs]=await Promise.all([req('/api/rooms'),req('/api/channels')]);rooms=rs.rooms;channels=cs.channels;renderNav();if(keep&&current){const found=rooms.find(r=>r.id===current.id);if(found)await openRoom(found.id,false)}}
 function deliveryText(message){
@@ -181,7 +205,7 @@ async function openRoom(id,scroll=true){
   if(previousId&&previousId!==id)draftBodies.set(previousId,$('#body').value);
   current=view;attachmentComposer.setRoom(current.id);
   if(previousId!==current.id)$('#body').value=draftBodies.get(current.id)||'';
-  $('#title').textContent=current.name+(current.archived_at?' · 보관됨':current.paused_at?' · 중지됨':'');$('#pause').textContent=current.paused_at?'재개':'중지';$('#pause').disabled=!active();$('#archive').disabled=!active();renderNav();renderParticipants();renderTimeline();renderDecisions();renderMentionMenu();updateRoomControls();renderChairControl();loadWorkspace(current.id);if(scroll||follow)$('#timeline').scrollTop=$('#timeline').scrollHeight;
+  $('#title').textContent=current.name+(current.archived_at?' · 보관됨':current.paused_at?' · 중지됨':'');$('.eyebrow').textContent=(channels.find(c=>c.id===current.channel_id)?.name||'채널 없음')+' / 토론장';$('#pause').textContent=current.paused_at?'재개':'중지';$('#pause').disabled=!active();$('#archive').textContent=current.archived_at?'보관 해제':'토론장 보관';$('#archive').disabled=false;renderNav();renderParticipants();renderTimeline();renderDecisions();renderMentionMenu();updateRoomControls();renderChairControl();renderToolbar();loadWorkspace(current.id);if(scroll||follow)$('#timeline').scrollTop=$('#timeline').scrollHeight;
  }catch(e){if(e.code!=='NETWORK_UNCERTAIN')error(e.message)}
 }
 
@@ -405,10 +429,11 @@ $('#composer').addEventListener('submit',async event=>{
   catch(e){error(e.message);}
 });
 $('#newRoom').onclick=()=>$('#roomDialog').showModal();$('#newChannel').onclick=()=>$('#channelDialog').showModal();$('#createRoom').onclick=async e=>{e.preventDefault();try{const r=await req('/api/rooms',{method:'POST',body:JSON.stringify({name:$('#roomName').value,channelId:$('#channelChoice').value||null,cwd:$('#roomCwd').value.trim()||undefined})});$('#roomDialog').close();await refresh(false);await openRoom(r.id);showDiscovery()}catch(e){error(e.message)}};$('#createChannel').onclick=async e=>{e.preventDefault();try{await req('/api/channels',{method:'POST',body:JSON.stringify({name:$('#channelName').value})});$('#channelDialog').close();refresh(false)}catch(e){error(e.message)}};
-$('#pause').onclick=async()=>{try{await req(`/api/rooms/${current.id}/${current.paused_at?'resume':'pause'}`,{method:'POST',body:'{}'});openRoom(current.id)}catch(e){error(e.message)}};$('#archive').onclick=async()=>{try{await req(`/api/rooms/${current.id}/archive`,{method:'POST',body:'{}'});await refresh(false);error('토론장을 보관했습니다.')}catch(e){error(e.message)}};$('#discover').onclick=async()=>{try{const d=await req('/api/discovery');$('#memberDetail').textContent=d.error||d.sessions.map(s=>`${s.provider}: ${s.handle}\n${s.blockedReason}`).join('\n\n')||'발견된 세션이 없습니다.'}catch(e){error(e.message)}};
+$('#pause').onclick=async()=>{try{await req(`/api/rooms/${current.id}/${current.paused_at?'resume':'pause'}`,{method:'POST',body:'{}'});openRoom(current.id)}catch(e){error(e.message)}};$('#archive').onclick=()=>{if(current)changeArchive('room',current);};
+$('#showArchived').onclick=async()=>{showArchived=!showArchived;$('#showArchived').setAttribute('aria-checked',String(showArchived));closeNavContextMenu();await refresh(false);await ensureVisibleSelection();};
 $('#kind').onchange=()=>renderPreview();
 let polling=false;
-async function pollRoom(){if(polling)return;polling=true;try{if(current)await openRoom(current.id,false);else{await refresh(false);const first=rooms.find(r=>!r.archived_at)||rooms[0];if(first)await openRoom(first.id);else updateRoomControls();}}catch(e){if(e.code!=='NETWORK_UNCERTAIN')error(e.message);}finally{polling=false;}}
+async function pollRoom(){if(polling)return;polling=true;try{await refresh(false);await ensureVisibleSelection();}catch(e){if(e.code!=='NETWORK_UNCERTAIN')error(e.message);}finally{polling=false;}}
 pollRoom();setInterval(pollRoom,5000);
 
 function memberButton(label,action){const b=text('button',label);b.type='button';b.onclick=async()=>{try{await action()}catch(e){error(e.message)}};return b}
@@ -445,10 +470,48 @@ async function invite(candidate){
  f.onsubmit=async event=>{event.preventDefault();if(!f.reportValidity())return;try{const writable=pullRow.input.checked,binding=exactBinding||selectedBinding;const result=await req('/api/sessions',{method:'POST',body:JSON.stringify({provider:provider.value,host:binding?.host||candidate?.host||'orca/local',nativeId:native.value,cwd:cwd.value,profile:profile.value,displayName:name.value,mode:writable?'live_attach':'read_only',ownership:'borrowed',verified:writable,handle:writable?binding?.handle||null:null,incarnation:writable?binding?.incarnation||null:null,capabilities:{followup:writable,mcpPull:writable,automaticInput:writable&&autoRow.input.checked,rawInspect:writable&&rawRow.input.checked},policyRevision:writable?'participant-confirmed-inherited':null})});await req(`/api/rooms/${current.id}/join`,{method:'POST',body:JSON.stringify({sessionId:result.session.id,readOnly:!writable})});d.close();await openRoom(current.id,false);}catch(e){errorBox.textContent=e.message;}};d.showModal();
 }
 async function showDiscovery(){
- const {d,f}=dialog('세션 카탈로그'),content=text('div','조회 중…','discovery-list'),filters=text('div','','catalog-filters');
- const query=document.createElement('input');query.type='search';query.placeholder='provider, 제목, 요약, ID, 작업 폴더 검색';query.setAttribute('aria-label','세션 카탈로그 검색');
- const provider=document.createElement('select');provider.setAttribute('aria-label','Provider 필터');for(const value of ['','codex','claude']){const option=text('option',value||'모든 provider');option.value=value;provider.append(option);}filters.append(query,provider);f.append(text('p','선택한 세션의 제목·요약·원래 ID·작업 폴더와 현재 연결 상태를 확인한 뒤 초대해.','muted'),filters,content,memberButton('직접 등록',()=>{d.close();invite()}),memberButton('닫기',()=>d.close()));d.showModal();
- let timer,loadVersion=0;const load=async()=>{const version=++loadVersion;content.replaceChildren(text('p','조회 중…','muted'));try{const params=new URLSearchParams();if(query.value.trim())params.set('query',query.value.trim());if(provider.value)params.set('provider',provider.value);const result=await req('/api/sessions/catalog?'+params);if(version!==loadVersion||!d.open)return;content.replaceChildren(text('p',`${result.sessions?.length||0}개 표시 · 검색 결과 최대 80개. 제목·ID·작업 폴더로 좁힐 수 있어요.`,'muted'));for(const warning of result.errors||[])content.append(text('p',typeof warning==='string'?warning:`${warning.provider||''}: ${warning.message||'목록 일부를 읽지 못했어.'}`,'form-error'));for(const candidate of result.sessions||[]){const row=document.createElement('article');row.className='discovery-row';const title=text('strong',candidate.title||candidate.nativeId||'제목 없는 세션');const status=text('span',candidate.live?'등록된 연결':candidate.blockedReason||'연결 상태 미확인','catalog-status '+(candidate.live?'live':'blocked'));row.append(title,status,text('p',`${candidate.provider||'unknown'} · ${candidate.nativeId||'ID 미확인'}`,'detail'),text('p',candidate.summary||'요약 없음','detail catalog-summary'),text('p',candidate.cwd||'작업 폴더 미확인','detail'));const choose=memberButton('선택하고 초대',()=>{d.close();invite(candidate)});row.append(choose);content.append(row);}if(!result.sessions?.length)content.append(text('p','조건에 맞는 세션이 없어. 직접 등록할 수 있어.','muted'));}catch(e){content.replaceChildren(text('p',e.message,'form-error'));}};const schedule=()=>{clearTimeout(timer);timer=setTimeout(load,180);};query.oninput=schedule;provider.onchange=load;await load();
+ const {d,f}=dialog('세션 선택');d.classList.add('session-picker');
+ f.setAttribute('aria-label','초대할 세션 선택');
+ const heading=f.querySelector('h2'),header=text('div','','picker-heading'),close=memberButton('×',()=>d.close());close.className='picker-close';close.setAttribute('aria-label','세션 선택 닫기');header.append(heading,close);
+ const searchWrap=text('div','','picker-search'),query=document.createElement('input');query.type='search';query.placeholder='제목, 프로젝트, 세션 ID로 검색';query.setAttribute('aria-label','세션 카탈로그 검색');query.setAttribute('autocomplete','off');searchWrap.append(actionIcon('search'),query);
+ const filters=text('div','','picker-filters'),tabs=text('div','','provider-tabs');tabs.setAttribute('aria-label','Provider 필터');
+ let provider='',entries=[],selected=-1,version=0,timer;
+ const providerButtons=[];
+ for(const [value,label] of [['','전체'],['codex','Codex'],['claude','Claude']]){const b=memberButton(label,()=>{provider=value;providerButtons.forEach(({value,button})=>button.setAttribute('aria-pressed',String(value===provider)));load();});b.setAttribute('aria-pressed',String(value===provider));providerButtons.push({value,button:b});tabs.append(b);}
+ const internal=checkboxRow(' 작업용 세션 포함');internal.label.classList.add('picker-internal');filters.append(tabs,internal.label);
+ const split=text('div','','picker-split'),list=document.createElement('div'),detail=text('aside','','picker-detail');list.className='picker-list';list.id='sessionPickerResults';list.setAttribute('role','listbox');list.setAttribute('aria-label','초대 가능한 세션');query.setAttribute('aria-controls',list.id);split.append(list,detail);
+ const footer=text('div','','picker-footer'),status=text('span','조회 중…','picker-status');status.setAttribute('role','status');const manual=memberButton('직접 등록',()=>{d.close();invite();}),choose=memberButton('초대 계속',()=>{const candidate=entries[selected];if(candidate){d.close();invite(candidate);}});manual.className='picker-manual';choose.className='accent';choose.disabled=true;footer.append(status,manual,choose);
+ const warning=text('div','','picker-warning');warning.setAttribute('role','status');f.replaceChildren(header,searchWrap,filters,warning,split,footer);d.showModal();query.focus();
+ const projectName=c=>String(c.cwd||c.project||'').replaceAll('\\','/').replace(/\/+$/,'').split('/').pop()||'프로젝트 미확인';
+ const timeLabel=value=>{const stamp=Date.parse(value);if(!Number.isFinite(stamp))return '';const elapsed=Math.max(0,Date.now()-stamp);return elapsed<3600000?'최근':elapsed<86400000?Math.floor(elapsed/3600000)+'시간 전':new Date(stamp).toLocaleDateString('ko-KR',{month:'short',day:'numeric'});};
+ function select(index,focus=false){
+  selected=index;const candidate=entries[index];choose.disabled=!candidate;
+  list.querySelectorAll('[role="option"]').forEach((row,i)=>{row.setAttribute('aria-selected',String(i===index));row.tabIndex=i===index?0:-1;});
+  query.removeAttribute('aria-activedescendant');detail.replaceChildren();
+  if(!candidate){detail.append(text('p','목록에서 세션을 선택하면 원래 대화의 정보를 확인할 수 있어요.','picker-empty'));return;}
+  const row=list.querySelectorAll('[role="option"]')[index];if(row){query.setAttribute('aria-activedescendant',row.id);row.scrollIntoView({block:'nearest'});if(focus)row.focus();}
+  const badge=text('span',candidate.live?'등록된 연결':'대화 이력','picker-connection'+(candidate.live?' registered':''));
+  detail.append(badge,text('h3',candidate.title||'제목 없는 세션'),text('p',candidate.summary||'저장된 요약이 없어요.','picker-description'));
+  const fields=document.createElement('dl');for(const [label,value] of [['Provider',candidate.provider],['세션 ID',candidate.nativeId||candidate.sessionId],['작업 폴더',candidate.cwd||'미확인'],['프로젝트',projectName(candidate)],['최근 기록',candidate.updatedAt?new Date(candidate.updatedAt).toLocaleString('ko-KR'):'미확인']]){fields.append(text('dt',label),text('dd',value||'미확인'));}detail.append(fields);
+  const copy=memberButton('ID 복사',async()=>{try{await navigator.clipboard.writeText(candidate.nativeId||candidate.sessionId);copy.textContent='복사됨';}catch{copy.textContent='ID를 선택해 복사해줘.';}});copy.className='picker-copy';detail.append(copy,text('p','다음 단계에서 실제 연결과 자동 전달 허용 범위를 확인해요.','picker-footnote'));
+ }
+ function navigate(event){if(!entries.length||event.isComposing)return;if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();select((selected+(event.key==='ArrowUp'?-1:1)+entries.length)%entries.length,event.target!==query);}else if(event.key==='Enter'){event.preventDefault();choose.click();}}
+ query.addEventListener('keydown',navigate);list.addEventListener('keydown',navigate);
+ async function load(){
+  const own=++version;entries=[];selected=-1;choose.disabled=true;list.replaceChildren(text('p','세션을 찾고 있어요…','picker-empty'));select(-1);status.textContent='조회 중…';warning.textContent='';
+  try{const params=new URLSearchParams();if(query.value.trim())params.set('query',query.value.trim());if(provider)params.set('provider',provider);if(internal.input.checked)params.set('includeInternal','1');const result=await req('/api/sessions/catalog?'+params);if(own!==version||!d.open)return;
+   entries=result.sessions||[];list.replaceChildren();status.textContent=entries.length+'개 · 최근 기록 순'+(entries.length>=80?' · 최대 80개':'');
+   warning.textContent=(result.errors||[]).map(e=>typeof e==='string'?e:`${e.provider}: ${e.message}`).join(' / ');
+   entries.forEach((candidate,index)=>{const row=text('button','','picker-option');row.type='button';row.id='session-choice-'+index;row.setAttribute('role','option');row.setAttribute('aria-selected','false');row.tabIndex=-1;
+    const icon=document.createElement('img');icon.src='/assets/providers/'+candidate.provider+'.png';icon.alt=candidate.provider;icon.className='picker-provider-icon';
+    const summary=text('span','','picker-option-text');summary.append(text('strong',candidate.title||'제목 없는 세션'),text('span',(candidate.provider==='codex'?'Codex':'Claude')+' · '+projectName(candidate),'picker-option-meta'));
+    row.append(icon,summary,text('small',timeLabel(candidate.updatedAt),'picker-updated'));row.onclick=()=>select(index);row.ondblclick=()=>{select(index);choose.click();};list.append(row);
+   });
+   if(!entries.length)list.append(text('p','일치하는 세션이 없어요. 검색어를 바꾸거나 직접 등록해보세요.','picker-empty'));
+   select(entries.length?0:-1);
+  }catch(e){if(own!==version||!d.open)return;list.replaceChildren(text('p',e.message,'form-error'));status.textContent='조회 실패';}
+ }
+ query.oninput=()=>{clearTimeout(timer);timer=setTimeout(load,180);};internal.input.onchange=load;d.addEventListener('close',()=>{clearTimeout(timer);version++;});await load();
 }
 async function editLimits(){if(!current)return;const {d,f}=dialog('토론 한도');const requests=inputField(f,'사용자 요청당 최대 전달 수','requests',current.request_budget,'number'),rounds=inputField(f,'요청당 최대 자동 대화 라운드','rounds',current.round_budget,'number');for(const i of [requests,rounds]){i.min='1';i.max='100'}f.append(text('p','새 사용자 입력마다 별도 한도를 사용해요. 병렬 질문은 한 라운드로 세며, 한도에 도달하면 추가 자동 질문만 멈춰요.','muted'));const errorBox=text('p','','form-error');f.append(errorBox);actions(f,'적용');f.onsubmit=async e=>{e.preventDefault();try{await req(`/api/rooms/${current.id}/limits`,{method:'POST',body:JSON.stringify({requestBudget:Number(requests.value),roundBudget:Number(rounds.value)})});d.close();await openRoom(current.id,false)}catch(e){errorBox.textContent=e.message}};d.showModal()}
 function updateRoomControls(){for(const id of ['invite','limits','workspaceButton'])$('#'+id).disabled=!active();$('#composer button[type=submit]').disabled=!active()||attachmentComposer?.pending();const steer=$('#kind option[value=steer]');steer.disabled=true;steer.textContent='방향 수정 · 연결 미지원';}
@@ -486,6 +549,13 @@ const expandSummary=memberButton('크게 보기',()=>{
 });
 expandSummary.id='expandSummary';expandSummary.className='summary-expand';
 $('.summary-heading').append(expandSummary);
+
+const moreActions=document.createElement('details');moreActions.className='room-more';
+const moreSummary=text('summary','','toolbar-more');moreSummary.setAttribute('aria-label','토론장 더 보기');moreSummary.title='더 보기';moreSummary.append(actionIcon('more'));
+const morePanel=text('div','','room-more-panel');for(const button of [limitButton,$('#pause'),$('#archive'),$('.layout-reset')]){if(button){morePanel.append(button);button.addEventListener('click',()=>{moreActions.open=false;});}}
+moreActions.append(moreSummary,morePanel);$('.room-actions').append(moreActions);inviteButton.classList.add('toolbar-primary');decorateAction(detailToggle,'detail');detailToggle.classList.add('toolbar-detail');renderToolbar();
+document.addEventListener('pointerdown',event=>{if(moreActions.open&&!moreActions.contains(event.target))moreActions.open=false;});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&moreActions.open){moreActions.open=false;moreSummary.focus();}});
 
 function renameDialog(kind,item){
  const isRoom=kind==='room',name=isRoom?current?.id===item.id?current.name:item.name:channels.find(c=>c.id===item.id)?.name||item.name;
