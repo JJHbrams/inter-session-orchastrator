@@ -18,3 +18,9 @@ test('CLI runner rejects wrong ID and bounds timeout without retrying',async()=>
  await assert.rejects(run.resume({nativeId:'expected',cwd,body:'test'}),/ID/);assert.equal(invocations,1);assert.equal(p.killed,true);
  const silent=createClaudeChairRunner({timeoutMs:25,spawnProcess:()=>{p=child();return p;}});await assert.rejects(silent.resume({nativeId:'expected',cwd,body:'test'}),/제한시간/);assert.equal(p.killed,true);
 });
+test('Claude only adds model and effort when they are explicit',async()=>{
+ const cwd=await mkdtemp(join(tmpdir(),'chair-model-'));let args;
+ const run=createClaudeChairRunner({spawnProcess:(_command,next)=>{args=next;const p=child();queueMicrotask(()=>{p.stdout.write(JSON.stringify({type:'system',session_id:'native'})+'\n');p.stdout.write(JSON.stringify({type:'stream_event',session_id:'native',event:{type:'message_start'}})+'\n');p.stdout.write(JSON.stringify({type:'result',session_id:'native',subtype:'success',structured_output:{speech:'ok',questions:[],proposal:null}})+'\n');p.emit('close',0);});return p;}});
+ await run.resume({nativeId:'native',cwd,body:'x',model:null,effort:null});assert.equal(args.includes('--model'),false);assert.equal(args.includes('--effort'),false);
+ await run.resume({nativeId:'native',cwd,body:'x',model:'claude-test',effort:'high'});assert.equal(args[args.indexOf('--model')+1],'claude-test');assert.equal(args[args.indexOf('--effort')+1],'high');
+});
