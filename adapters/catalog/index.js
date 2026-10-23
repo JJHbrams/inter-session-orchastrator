@@ -10,6 +10,7 @@ const MAX_JSONL_BYTES = 64_000;
 const MAX_CLAUDE_JSONL_FILES = 160;
 const MAX_CLAUDE_JSONL_PER_PROJECT = 8;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const SAO_WORKER_PREAMBLE = '[worker 지시 — 최우선] 이 프로세스에는 MCP 도구가 없다.';
 
 const text = value => typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
 const short = value => {
@@ -33,7 +34,7 @@ const readBounded = async (file, bytes) => {
   } finally { await handle.close(); }
 };
 const canonical = provider => ({ codex: 'codex', claude: 'claude' }[String(provider || '').toLowerCase()] || null);
-const catalogSession = ({ provider, sessionId, cwd = null, project = null, title = '', summary = '', updatedAt = null, source, truncated = false }) => ({
+const catalogSession = ({ provider, sessionId, cwd = null, project = null, title = '', summary = '', updatedAt = null, source, truncated = false, internal = false, internalReason = null }) => ({
   provider,
   sessionId,
   nativeId: sessionId,
@@ -44,11 +45,36 @@ const catalogSession = ({ provider, sessionId, cwd = null, project = null, title
   updatedAt: time(updatedAt),
   source,
   truncated: Boolean(truncated),
+  internal: Boolean(internal),
+  internalReason: internal ? internalReason : null,
   live: false,
   identity: 'historical_metadata',
 });
 
-async function codexSessions(paths, errors, query) {
+const internalSource = value => {
+  try { return Boolean(JSON.parse(value)?.subagent); } catch { return false; }
+};
+const codexInternal = row => {
+  if (text(row.thread_source) === 'subagent') return 'thread_source:subagent';
+  if (text(row.thread_source) === 'guardian_review') return 'thread_source:guardian_review';
+  if (internalSource(row.source)) return 'source:subagent';
+  if (text(row.agent_role) && text(row.agent_nickname)) return 'agent_role+nickname';
+  if (text(row.source) === 'cli' && text(row.first_user_message).startsWith(SAO_WORKER_PREAMBLE)) return 'sao_worker_preamble';
+  return null;
+};
+const claudeInternal = (row, file = '') => {
+  if (row?.isSidechain === true) return 'isSidechain';
+  if (row?.isSubagent === true) return 'isSubagent';
+  if (text(row?.agent_role || row?.agentRole) && text(row?.nickname || row?.agent_nickname || row?.agentNickname)) return 'agent_role+nickname';
+  if (/^(agent-|subagent-)/i.test(basename(file))) return 'wrapper_filename';
+  return null;
+};
+const explicitIds = ({ registeredSessionIds, explicitlyIncludedSessionIds }) => new Set([
+  ...(Array.isArray(registeredSessionIds) ? registeredSessionIds : []),
+  ...(Array.isArray(explicitlyIncludedSessionIds) ? explicitlyIncludedSessionIds : []),
+].map(text).filter(Boolean));
+
+async function codexSessions(paths, errors, query, includedIds, includeInternal = false) {
   const dbPath = pathFrom(paths, 'codexDbPath', join(process.env.USERPROFILE || '', '.codex', 'state_5.sqlite'));
   const indexPath = pathFrom(paths, 'codexIndexPath', join(process.env.USERPROFILE || '', '.codex', 'session_index.jsonl'));
   const index = new Map();
@@ -75,11 +101,16 @@ async function codexSessions(paths, errors, query) {
     const clauses = [], values = [];
     if (query && searchable.length) { clauses.push(`(${searchable.map(name => `LOWER(CAST(${name} AS TEXT)) LIKE LOWER(?)`).join(' OR ')})`); values.push(...searchable.map(() => `%${query}%`)); }
     if (indexedIds.length) { clauses.push(`id IN (${indexedIds.map(() => '?').join(',')})`); values.push(...indexedIds); }
-    const where = clauses.length ? `WHERE ${clauses.join(' OR ')}` : '';
-    const rows = db.prepare(`SELECT id, ${field('cwd')} AS cwd, ${field('title')} AS title, ${field('preview')} AS preview, ${field('first_user_message')} AS first_user_message, ${field('updated_at_ms')} AS updated_at_ms, ${field('updated_at')} AS updated_at FROM threads ${where} ORDER BY COALESCE(${field('updated_at_ms')}, ${field('updated_at')}, 0) DESC LIMIT ?`).all(...values, MAX_LIMIT);
+    const search = clauses.length ? `(${clauses.join(' OR ')})` : '1';
+    const internal = [`COALESCE(${field('thread_source')} IN ('subagent', 'guardian_review'), 0)`, `COALESCE(${field('source')} LIKE '%\"subagent\"%', 0)`, `(${field('agent_role')} IS NOT NULL AND ${field('agent_nickname')} IS NOT NULL)`, `COALESCE((${field('source')} = 'cli' AND ${field('first_user_message')} LIKE ?), 0)`].join(' OR ');
+    const included = [...includedIds];
+    const visibility = includeInternal ? '1' : included.length ? `(NOT (${internal}) OR id IN (${included.map(() => '?').join(',')}))` : `NOT (${internal})`;
+    const visibilityValues = includeInternal ? [] : [`${SAO_WORKER_PREAMBLE}%`, ...included];
+    const rows = db.prepare(`SELECT id, ${field('cwd')} AS cwd, ${field('title')} AS title, ${field('preview')} AS preview, ${field('first_user_message')} AS first_user_message, ${field('updated_at_ms')} AS updated_at_ms, ${field('updated_at')} AS updated_at, ${field('source')} AS source, ${field('thread_source')} AS thread_source, ${field('agent_role')} AS agent_role, ${field('agent_nickname')} AS agent_nickname FROM threads WHERE ${search} AND ${visibility} ORDER BY COALESCE(${field('updated_at_ms')}, ${field('updated_at')}, 0) DESC LIMIT ?`).all(...values, ...visibilityValues, MAX_LIMIT);
     return rows.filter(row => text(row.id)).map(row => {
       const indexed = index.get(row.id) || {};
-      return catalogSession({ provider: 'codex', sessionId: row.id, cwd: row.cwd, title: indexed.thread_name || row.title, summary: row.preview || row.first_user_message, updatedAt: indexed.updated_at || row.updated_at_ms || row.updated_at, source: 'codex-state+index' });
+      const internalReason = codexInternal(row);
+      return catalogSession({ provider: 'codex', sessionId: row.id, cwd: row.cwd, title: indexed.thread_name || row.title, summary: row.preview || row.first_user_message, updatedAt: indexed.updated_at || row.updated_at_ms || row.updated_at, source: 'codex-state+index', internal: Boolean(internalReason), internalReason });
     });
   } catch (cause) {
     error(errors, 'codex', 'state_5.sqlite', cause);
@@ -96,7 +127,8 @@ function claudeIndexRows(value) {
 function claudeFromIndex(row, projectDir) {
   const sessionId = text(row.sessionId || row.session_id || row.id || row.uuid);
   if (!sessionId) return null;
-  return catalogSession({ provider: 'claude', sessionId, cwd: row.cwd || row.projectPath || row.project_path || null, project: row.project || row.projectName || basename(dirname(projectDir)), title: row.title || row.displayName || row.name, summary: row.summary || row.firstPrompt || row.first_prompt, updatedAt: row.updatedAt || row.updated_at || row.modifiedAt || row.timestamp, source: 'claude-sessions-index' });
+  const internalReason = claudeInternal(row);
+  return catalogSession({ provider: 'claude', sessionId, cwd: row.cwd || row.projectPath || row.project_path || null, project: row.project || row.projectName || basename(dirname(projectDir)), title: row.title || row.displayName || row.name, summary: row.summary || row.firstPrompt || row.first_prompt, updatedAt: row.updatedAt || row.updated_at || row.modifiedAt || row.timestamp, source: 'claude-sessions-index', internal: Boolean(internalReason), internalReason });
 }
 async function claudeProjects(root, query = '') {
   let entries;
@@ -117,7 +149,7 @@ async function claudeProjects(root, query = '') {
   return projects.map(project => ({ ...project, jsonl: project.jsonl.sort((a, b) => Number(basename(b.file).toLocaleLowerCase().includes(needle)) - Number(basename(a.file).toLocaleLowerCase().includes(needle)) || b.mtime - a.mtime) }));
 }
 function jsonlMetadata(content, file, mtime) {
-  let firstUser = '', sessionId = '', cwd = '', project = '', title = '', updatedAt = null, sidechain = false;
+  let firstUser = '', sessionId = '', cwd = '', project = '', title = '', updatedAt = null, internalReason = null, agentRole = '', nickname = '';
   for (const line of content.split(/\r?\n/)) {
     if (!line.trim()) continue;
     try {
@@ -127,17 +159,19 @@ function jsonlMetadata(content, file, mtime) {
       project ||= text(parsed.project || parsed.projectPath);
       title ||= text(parsed.title || parsed.summary);
       updatedAt = parsed.timestamp || parsed.updatedAt || updatedAt;
-      sidechain ||= parsed.isSidechain === true || parsed.isSubagent === true;
+      internalReason ||= claudeInternal(parsed);
+      agentRole ||= text(parsed.agent_role || parsed.agentRole);
+      nickname ||= text(parsed.nickname || parsed.agent_nickname || parsed.agentNickname);
       if (!firstUser && (parsed.type === 'user' || parsed.message?.role === 'user')) {
         const body = parsed.message?.content ?? parsed.content ?? parsed.text;
         firstUser = typeof body === 'string' ? body : Array.isArray(body) ? body.find(part => typeof part?.text === 'string')?.text : '';
       }
     } catch { /* malformed history entries are deliberately ignored */ }
   }
-  if (sidechain || /^(agent-|subagent-)/i.test(basename(file))) return null;
+  internalReason ||= claudeInternal({ agent_role: agentRole, nickname }, file);
   const nativeId = sessionId || (UUID.test(basename(file, '.jsonl')) ? basename(file, '.jsonl') : '');
   if (!nativeId) return null;
-  return catalogSession({ provider: 'claude', sessionId: nativeId, cwd, project: project || cwd, title: title || firstUser, summary: firstUser, updatedAt: updatedAt || mtime, source: 'claude-jsonl-metadata' });
+  return catalogSession({ provider: 'claude', sessionId: nativeId, cwd, project: project || cwd, title: title || firstUser, summary: firstUser, updatedAt: updatedAt || mtime, source: 'claude-jsonl-metadata', internal: Boolean(internalReason), internalReason });
 }
 async function claudeSessions(paths, errors, query) {
   const root = pathFrom(paths, 'claudeProjectsPath', join(process.env.USERPROFILE || '', '.claude', 'projects'));
@@ -161,15 +195,17 @@ async function claudeSessions(paths, errors, query) {
   return results;
 }
 
-export async function listSessions({ query = '', provider = '', limit = DEFAULT_LIMIT, paths = {} } = {}) {
+export async function listSessions({ query = '', provider = '', limit = DEFAULT_LIMIT, paths = {}, includeInternal = false, registeredSessionIds = [], explicitlyIncludedSessionIds = [] } = {}) {
   const errors = [];
   const selected = canonical(provider);
+  const includedIds = explicitIds({ registeredSessionIds, explicitlyIncludedSessionIds });
+  if (UUID.test(text(query))) includedIds.add(text(query));
   if (provider && !selected) return { sessions: [], errors: [{ provider: String(provider), source: 'request', message: 'unknown provider' }] };
   const sources = await Promise.all([
-    !selected || selected === 'codex' ? codexSessions(paths, errors, text(query)) : [],
+    !selected || selected === 'codex' ? codexSessions(paths, errors, text(query), includedIds, includeInternal) : [],
     !selected || selected === 'claude' ? claudeSessions(paths, errors, text(query)) : [],
   ]);
   const needle = text(query).toLocaleLowerCase();
-  const sessions = sources.flat().filter(session => !needle || [session.provider, session.sessionId, session.cwd, session.project, session.title, session.summary].some(value => text(value).toLocaleLowerCase().includes(needle))).sort((a, b) => (Date.parse(b.updatedAt || 0) || 0) - (Date.parse(a.updatedAt || 0) || 0)).slice(0, Math.min(MAX_LIMIT, Math.max(1, Number(limit) || DEFAULT_LIMIT)));
+  const sessions = sources.flat().filter(session => (includeInternal || !session.internal || includedIds.has(session.sessionId)) && (!needle || [session.provider, session.sessionId, session.cwd, session.project, session.title, session.summary].some(value => text(value).toLocaleLowerCase().includes(needle)))).sort((a, b) => (Date.parse(b.updatedAt || 0) || 0) - (Date.parse(a.updatedAt || 0) || 0)).slice(0, Math.min(MAX_LIMIT, Math.max(1, Number(limit) || DEFAULT_LIMIT)));
   return { sessions, errors };
 }
