@@ -15,6 +15,7 @@ let body={},route=action;
 if(action==='inbox')route='room_inbox';
 if(action==='post'){route='room_post';body={body:rest.join(' '),attachmentIds:attachmentIds||[]};}
 if(action==='reply'){route='room_reply';body={requestId:rest[0],body:rest.slice(1).join(' '),attachmentIds:attachmentIds||[]};}
+if(action==='react'){route='room_react';body={messageId:rest[0],emoji:rest[1],active:rest[2]==='true'};if(rest[2]!=='true'&&rest[2]!=='false')throw Error('react requires active true or false');}
 if(action==='result'||action==='request'){
  const data=rest[0]?.startsWith('{')?JSON.parse(rest.join(' ')):JSON.parse(await readFile(rest[0],'utf8'));
  route=action==='result'?'room_result':'room_request';

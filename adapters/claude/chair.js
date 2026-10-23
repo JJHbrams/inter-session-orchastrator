@@ -3,7 +3,8 @@ import {mkdir} from 'node:fs/promises';
 const attachments={type:'array',items:{type:'string'},maxItems:5};
 const question={type:'object',additionalProperties:false,required:['targetMembershipIds','body'],properties:{targetMembershipIds:{type:'array',items:{type:'string'},minItems:1,maxItems:20},body:{type:'string',minLength:1,maxLength:8000},attachmentIds:attachments}};
 const proposal={type:'object',additionalProperties:false,required:['body','sourceIds'],properties:{body:{type:'string',minLength:1,maxLength:8000},sourceIds:{type:'array',items:{type:'string'},maxItems:100},attachmentIds:attachments}};
-const schema=JSON.stringify({type:'object',additionalProperties:false,required:['speech','questions','proposal'],properties:{speech:{type:'string',minLength:1,maxLength:8000},attachmentIds:attachments,questions:{type:'array',items:question,maxItems:5},proposal:{anyOf:[{type:'null'},proposal]}}});
+const reaction={type:'object',additionalProperties:false,required:['messageId','emoji','active'],properties:{messageId:{type:'string'},emoji:{enum:['👍','👎','❓','✅','💡','❤️','👀']},active:{type:'boolean'}}};
+const schema=JSON.stringify({type:'object',additionalProperties:false,required:['speech','questions','proposal'],properties:{speech:{type:'string',minLength:1,maxLength:8000},attachmentIds:attachments,questions:{type:'array',items:question,maxItems:5},proposal:{anyOf:[{type:'null'},proposal]},reactions:{type:'array',items:reaction,maxItems:20}}});
 export function chairInput(nativeId,prompt,images=[]){
  if(!Array.isArray(images)||images.length>5)throw Error('좌장 이미지 입력 한도 초과');
  const content=[{type:'text',text:prompt}];let bytes=0;

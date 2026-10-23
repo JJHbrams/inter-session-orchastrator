@@ -102,3 +102,12 @@ test('reactions are room scoped, idempotent, and create no deliveries',()=>{
   assert.throws(()=>s.setReaction(b.id,message.id,'👍',true),/outside/);assert.throws(()=>s.setReaction(a.id,message.id,'🔥',true),/unsupported/);
   s.setReaction(a.id,message.id,'👍',false);assert.equal(s.room(a.id).reactions.length,0);assert.equal(s.room(a.id).deliveries.length,0);
 });
+test('registered reactions have server-owned actors and feedback is bounded to prior authorship',()=>{
+  const s=new Store(),r=s.createRoom('r'),author=registered(s).session,reactor=s.registerSession({provider:'claude',host:'test',nativeId:'reactor',cwd:'C:/reactor',profile:'default',mode:'live_attach',verified:true,capabilities:{followup:true}}).session;
+  const ma=s.join(r.id,author.id,false),mr=s.join(r.id,reactor.id,false);s.provision(r.id,reactor.id,'reactor-token');
+  const mine=s.post({roomId:r.id,senderSessionId:author.id,body:'my message'}).message,other=s.post({roomId:r.id,senderSessionId:reactor.id,body:'other message'}).message;
+  s.react(s.registration('reactor-token'),mine.id,'💡',true);assert.equal(s.room(r.id).reactions[0].actor,`session:${reactor.id}`);assert.equal(s.room(r.id).reactions[0].alias,reactor.alias);
+  assert.throws(()=>s.react({...s.registration('reactor-token'),read_only:1},mine.id,'👍',true),/read-only/);
+  assert.throws(()=>s.react(s.registration('reactor-token'),other.id,'🔥',true),/unsupported/);
+  const feedback=s.reactionFeedback(r.id,author.id);assert.equal(feedback.length,1);assert.equal(feedback[0].messageId,mine.id);assert.equal(feedback[0].label,'아이디어 있음');assert.equal(feedback[0].membershipId,mr.id);assert.equal(feedback[0].reactionActorAlias,reactor.alias);assert.equal(s.reactionFeedback(r.id,reactor.id).length,0);assert.equal(s.inbox({membership_id:ma.id,session_id:author.id,room_id:r.id,read_only:0}).reactionFeedback.length,1);
+});
