@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="source-sha256" content="730a0a8f437967c342e9f8678974cb1165c0f738fb7b8539361d6e063ec15939"><title>세션 페르소나·멘션·이모지 반응</title><style>
+<meta name="source-sha256" content="582ccc5ebd1ce3d97684d7c17a100f6711bafc846d82c4e1b8a4d87137eb407d"><title>세션 페르소나·멘션·이모지 반응</title><style>
     :root{--ink:#202c35;--muted:#64757a;--accent:#006c62;--line:#dce4e4;--paper:#fff;--bg:#f3f6f5}
     *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}
     body{margin:0;color:var(--ink);background:var(--bg);font:15px/1.85 'Segoe UI','Malgun Gothic',sans-serif}
@@ -34,7 +34,7 @@
     @media print{aside,.skip{display:none}.shell{display:block}main{padding:0}.table-scroll{overflow:visible}pre.mermaid{break-inside:avoid}body{background:white}}
     </style></head>
 <body><a class="skip" href="#document">본문으로 이동</a><div class="shell">
-<aside><div class="brand">INTER SESSION<br>ORCHESTRATOR</div><span class="status">VERIFIED · REACTION FEEDBACK</span><nav aria-label="문서 목차"><a href="research/index.html">최신 벤치마킹 조사 →</a>
+<aside><div class="brand">INTER SESSION<br>ORCHESTRATOR</div><span class="status">BUILDING · 실행판 검증</span><nav aria-label="문서 목차"><a href="research/index.html">최신 벤치마킹 조사 →</a>
 <a href="#_2">한눈에 보기</a>
 <a href="#1-intent">1. 의도 (Intent)</a>
 <a href="#2-acceptance">2. 수용 기준 (Acceptance)</a>
@@ -49,8 +49,9 @@
 <a href="#11-slices">11. 착수 순서 (Slices)</a>
 <a href="#12-traceability">12. 추적성 (Traceability)</a>
 <a href="#13">13. 참여자 반응과 다음 입력 피드백</a>
+<a href="#14">14. 좌장 중앙 정렬과 세션 색상</a>
 <a href="#_11">참고</a></nav></aside>
-<main id="document"><header class="meta"><span>UI · AGENT FEEDBACK</span><span>2026.10.22 · WINDOWS / LOCAL</span></header>
+<main id="document"><header class="meta"><span>BENCHMARK → DESIGN</span><span>2026.10.22 · WINDOWS / LOCAL</span></header>
 <article><!-- sr:plan
 {"document_type":"decision","reader_questions":["세션을 어떻게 구별하는가","멘션은 누구에게 전달되는가","실행 중 표시의 근거는 무엇인가","이모지 반응은 무엇을 하는가"],"visual_plan":[{"kind":"decision_matrix","content":"드롭다운과 별칭 멘션 비교","required":true},{"kind":"flowchart","content":"멘션 해석과 고정 수신자 저장","required":true},{"kind":"state_diagram","content":"관측된 응답 상태 표시","required":true},{"kind":"sequence_diagram","content":"입력과 서버 재검증","required":true},{"kind":"er_diagram","content":"세션 persona와 메시지 반응","required":true}],"visual_waiver":[]}
 -->
@@ -569,13 +570,43 @@
 <li><a href="validation/reaction-feedback.json">검증 JSON</a></li>
 <li><a href="screenshots/reaction-roster.jpg">반응자 목록 화면</a> · <a href="screenshots/reactions-main.jpg">실제 앱 순서</a></li>
 </ul>
+<h2 id="14">14. 좌장 중앙 정렬과 세션 색상</h2>
+<p>2026-10-23 사용자 요청에 따라 이모지 버튼의 hover 툴팁은 이름만 표시한다. 상세 의미는 반응자 목록과 agent 피드백 문맥에 유지한다. 반응자 숫자 버튼의 이름 목록은 그대로 제공한다.</p>
+<p>토론장의 참여자 응답은 왼쪽, 사용자 입력은 오른쪽, 좌장 발화·질문·정리 응답은 중앙에 배치한다. 본문과 작성자 프로필은 각 응답 박스 안에서 왼쪽부터 읽힌다. 응답 너비 제한은 유지한다.</p>
+<p>이미 저장된 session avatar 색상을 공통 색원으로 사용해 상단 프로필 카드와 해당 세션의 응답 배경·테두리를 일치시킨다. 어두운 기본색에 색상을 혼합해 본문 대비를 유지하며, 새로고침·다른 토론장에서도 같은 세션의 색원이 유지된다. 생성 중 테두리 효과는 기존 상태 의미를 유지한다.</p>
+<p>실제 4318 브라우저 1280×720에서 좌장 응답 8개의 양쪽 여백 일치, 사용자 오른쪽 및 참여자 왼쪽 정렬, 프로필 3개의 응답 배경색 일치, 기본 툴팁 5개 이름만 표시, 가로 넘침 없음 확인. 기존 메시지를 읽어 검증했으며 새 테스트 메시지나 모델 요청은 보내지 않았다. 관련 레이아웃·마크다운 회귀 테스트 9/9 및 app.js 구문 검사를 통과했다.</p>
+<ul>
+<li><a href="validation/conversation-persona-colors.json">표시 검증 JSON</a></li>
+<li><a href="screenshots/conversation-persona-colors.jpg">프로필과 좌장 응답 화면</a></li>
+</ul>
 <h2 id="_11">참고</h2>
 <ul>
 <li><a href="index.html">session-room-foundation</a> — 원래 세션 신원과 전달 불변식.</li>
 <li><a href="runtime-validation.html">session-room-runtime-validation</a> — 실행판 검증 범위.</li>
 <li><a href="research/index.html">inter-session-index</a> — 프로젝트 진입점.</li>
-</ul></article><footer>원본: docs/design/0002-session-personas.md<br>본문 SHA-256: 730a0a8f437967c342e9f8678974cb1165c0f738fb7b8539361d6e063ec15939</footer></main></div>
-<!-- Mermaid third-party license: Mermaid is distributed under the MIT license. See https://github.com/mermaid-js/mermaid/blob/develop/LICENSE -->
+</ul></article><footer>원본: docs/design/0002-session-personas.md<br>본문 SHA-256: 582ccc5ebd1ce3d97684d7c17a100f6711bafc846d82c4e1b8a4d87137eb407d</footer></main></div>
+<!-- Mermaid third-party license: The MIT License (MIT)
+
+Copyright (c) 2014 - 2022 Knut Sveidqvist
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the &quot;Software&quot;), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+ -->
 <script src="research/assets/mermaid.min.js"></script><script>
 window.designRenderDone=false;
 mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'base',themeVariables:{fontFamily:'Segoe UI, Malgun Gothic, sans-serif',primaryColor:'#e6f2ee',primaryTextColor:'#202c35',lineColor:'#4c7972',primaryBorderColor:'#76a69b'}});

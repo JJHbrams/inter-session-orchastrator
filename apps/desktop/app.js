@@ -29,6 +29,7 @@ function renderTimeline() {
     const author=current.members.find(x=>x.session_id===m.sender_session_id);
     const speaker=m.sender_role||(!m.sender_session_id?'user':'member');
     card.classList.add(speaker==='user'?'message-user':speaker==='chair'?'message-chair':'message-member');
+    if(author&&speaker!=='user')applySessionColor(card,author);
     const head=text('div','','message-head');
     head.append(author?avatar(author):text('span',speaker==='system'?'↻':'나','avatar human'));
     head.append(text('strong',author?memberName(author):speaker==='system'?'조율 서비스':'사용자','message-author'));
@@ -63,6 +64,7 @@ function renderParticipants() {
     const deliveries=current.deliveries.filter(d=>d.membership_id===m.id&&['followup','steer'].includes(d.kind));
     const state=['running','unknown','submitting','accepted','claimed','queued','blocked'].find(state=>deliveries.some(d=>d.state===state));
     const b=text('button','','participant'+(state==='running'?' generating':''));
+    applySessionColor(b,m);
     b.disabled=!!m.left_at;b.dataset.state=state||'idle';
     const identity=text('span','','participant-identity'),name=text('span','','participant-name');name.append(text('strong',memberName(m)),text('span',providerName(m)+(m.role==='chair'?' · 좌장':''),'provider-badge'));identity.append(avatar(m),name);
     b.append(identity);
@@ -111,9 +113,11 @@ async function openRoom(id,scroll=true){
 
 const memberName=m=>m?.alias||m?.display_name||'참여자';
 const providerName=m=>({codex:'Codex',claude:'Claude'}[m.provider]||m.provider);
+const sessionColor=member=>/^#[0-9a-f]{6}$/i.test(member?.avatar||'')?member.avatar:'#6479c9';
+function applySessionColor(node,member){node.classList.add('session-colored');node.style.setProperty('--session-color',sessionColor(member));}
 function avatar(member) {
   const node=text('span',memberName(member).slice(0,1),'avatar');
-  const color=/^#[0-9a-f]{6}$/i.test(member.avatar||'')?member.avatar:'#6479c9';
+  const color=sessionColor(member);
   node.style.setProperty('--avatar',color);node.setAttribute('aria-hidden','true');
   const wrap=text('span','','avatar-with-provider');wrap.append(node);
   if(['codex','claude','antigravity'].includes(member.provider)){const icon=document.createElement('img');icon.className='provider-icon';icon.src='/assets/providers/'+member.provider+'.png';icon.alt=providerName(member)+' 아이콘';icon.title=providerName(member);wrap.append(icon);}
@@ -164,12 +168,12 @@ function openReactionRoster(messageId,emoji){
 }
 function renderReactions(message,card) {
  const wrap=text('div','','reactions');wrap.setAttribute('aria-label','메시지 반응');
- for(const [emoji,name,meaning,legacy] of reactionTypes){
+ for(const [emoji,name,,legacy] of reactionTypes){
   const rows=(current.reactions||[]).filter(r=>r.message_id===message.id&&r.emoji===emoji);if(legacy&&!rows.length)continue;
   const on=rows.some(r=>r.actor==='local-human'),group=text('span','','reaction-group'+(on?' selected':''));
   const button=text('button',emoji,'reaction'+(on?' selected':''));button.type='button';
   button.setAttribute('aria-label',name+' 반응');button.setAttribute('aria-pressed',String(on));
-  button.title=name+(on?' · 내 반응 취소':'')+' — '+meaning+(rows.length?'\n'+rows.map(r=>reactor(r).alias).join(', '):'');
+  button.title=name;
   button.onclick=async()=>{button.disabled=true;try{await req(`/api/rooms/${current.id}/messages/${message.id}/reactions`,{method:'POST',body:JSON.stringify({emoji,active:!on})});await openRoom(current.id,false);}catch(e){error(e.message);button.disabled=false;}};
   group.append(button);
   if(rows.length){const count=text('button',String(rows.length),'reaction-count');count.type='button';count.setAttribute('aria-label',`${name} 반응자 ${rows.length}명 보기`);count.title=rows.map(r=>reactor(r).alias).join(', ');count.onclick=()=>openReactionRoster(message.id,emoji);group.append(count);}

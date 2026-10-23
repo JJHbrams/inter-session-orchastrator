@@ -12,7 +12,8 @@ body{background:#080d12}.app{width:100%;max-width:none;margin:0;height:100dvh;gr
 #connection{padding:8px 18px;background:#403420;color:#ffe0a8;font-size:12px}#connection[hidden]{display:none}
 .timeline{padding:20px clamp(14px,3vw,38px);scrollbar-gutter:stable;scroll-behavior:smooth}
 .message{width:fit-content;max-width:min(82%,720px);min-width:min(230px,100%);margin:0 auto 16px 0;padding:12px 15px;box-shadow:0 2px 8px #0002;border-radius:15px 15px 15px 4px}
-.message-user,.message-chair{margin-left:auto;margin-right:0;border-radius:15px 15px 4px 15px}
+.message-user{margin-left:auto;margin-right:0;border-radius:15px 15px 4px 15px}
+.message-chair{margin-left:auto;margin-right:auto;border-radius:15px}
 .message-user{background:#17383e;border-color:#2b535b}.message-chair{background:#282a45;border-color:#484b70}.message-chair .message-author{color:#dbd6ff}.message-user .message-author{color:#aef0e6}
 .message-user .message-head,.message-chair .message-head{justify-content:flex-start}.message-head{flex-wrap:wrap;gap:7px}.message-meta{overflow-wrap:anywhere;font-size:11px}.speaker-role{font-size:10px;color:#d1c7ff;border:1px solid #625b85;border-radius:4px;padding:0 4px}
 .composer{padding:12px clamp(14px,3vw,38px)}.composer>label:first-child{width:170px}.inspector{min-width:0}.inspector p{overflow-wrap:anywhere}.chair-status{font-size:11px;color:var(--muted)}
@@ -70,3 +71,8 @@ body{background:#080d12}.app{width:100%;max-width:none;margin:0;height:100dvh;gr
 .reaction-dialog{width:min(430px,92vw);padding:22px}.reaction-dialog h2{font-size:18px;margin:0 0 8px}.reaction-meaning{font-size:13px;line-height:1.6;color:var(--muted)}
 .reactor-list{list-style:none;margin:16px 0;padding:0;max-height:45vh;overflow:auto}.reactor-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
 .reactor-identity{display:grid;gap:3px}.reactor-identity strong{font-size:14px}.reaction-roster-close{display:block;margin-left:auto;padding:6px 13px}
+
+/* A session keeps its existing persona hue in both profile and conversation. */
+.participant.session-colored,.message.session-colored{background:color-mix(in srgb,var(--session-color) 24%,#14202b);border-color:color-mix(in srgb,var(--session-color) 50%,#2b3a48)}
+.participant.session-colored.generating{border-color:var(--teal)}
+.message-member{margin-left:0;margin-right:auto}

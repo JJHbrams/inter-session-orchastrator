@@ -1,0 +1,228 @@
+{
+  "messages": [
+    {
+      "color": "rgb(23, 56, 62)",
+      "id": "message-0f2cc978-ae72-4b6c-9057-45b94763cef2",
+      "leftGap": 219,
+      "name": "사용자",
+      "rightGap": 0,
+      "role": "user",
+      "width": 720
+    },
+    {
+      "color": "rgb(23, 56, 62)",
+      "id": "message-f2d3ea7c-379c-4ec3-9053-ddce3c838f92",
+      "leftGap": 219,
+      "name": "사용자",
+      "rightGap": 0,
+      "role": "user",
+      "width": 720
+    },
+    {
+      "color": "color(srgb 0.284549 0.19702 0.242039)",
+      "id": "message-e39bea7c-ed81-4511-9959-64bfe7c3b8bd",
+      "leftGap": 0,
+      "name": "마야",
+      "rightGap": 219,
+      "role": "member",
+      "width": 720
+    },
+    {
+      "color": "color(srgb 0.20549 0.202667 0.338039)",
+      "id": "message-6b694ca9-9e3c-4632-8b62-e3827f05f61d",
+      "leftGap": 0,
+      "name": "수아",
+      "rightGap": 219,
+      "role": "member",
+      "width": 720
+    },
+    {
+      "color": "color(srgb 0.20549 0.202667 0.338039)",
+      "id": "message-6d8be375-f4dd-42f0-bbc5-0ebe3c0abc33",
+      "leftGap": 109.5,
+      "name": "수아",
+      "rightGap": 109.5,
+      "role": "chair",
+      "width": 720
+    },
+    {
+      "color": "color(srgb 0.284549 0.19702 0.242039)",
+      "id": "message-11cb1c3e-acab-47f0-87cb-e0633cad6653",
+      "leftGap": 0,
+      "name": "마야",
+      "rightGap": 219,
+      "role": "member",
+      "width": 720
+    },
+    {
+      "color": "color(srgb 0.20549 0.202667 0.338039)",
+      "id": "message-72d3a255-410f-485f-b463-06ba58755550",
+      "leftGap": 109.5,
+      "name": "수아",
+      "rightGap": 109.5,
+      "role": "chair",
+      "width": 720
+    },
+    {
+      "color": "rgb(23, 56, 62)",
+      "id": "message-409604b5-8fe7-493a-b465-6ffc9261a106",
+      "leftGap": 656.859375,
+      "name": "사용자",
+      "rightGap": 0,
+      "role": "user",
+      "width": 282.140625
+    },
+    {
+      "color": "color(srgb 0.277961 0.235608 0.196863)",
+      "id": "message-9f4b1e67-1ca0-406b-b564-2c6253b2cecc",
+      "leftGap": 109.5,
+      "name": "유리아",
+      "rightGap": 109.5,
+      "role": "chair",
+      "width": 720
+    },
+    {
+      "color": "rgb(23, 56, 62)",
+      "id": "message-da902363-97ca-44e8-9a7f-f6cb3b5efaf3",
+      "leftGap": 219,
+      "name": "사용자",
+      "rightGap": 0,
+      "role": "user",
+      "width": 720
+    },
+    {
+      "color": "color(srgb 0.277961 0.235608 0.196863)",
+      "id": "message-265920d0-c52d-4141-ac51-f99a10232ec0",
+      "leftGap": 109.5,
+      "name": "유리아",
+      "rightGap": 109.5,
+      "role": "chair",
+      "width": 720
+    },
+    {
+      "color": "color(srgb 0.277961 0.235608 0.196863)",
+      "id": "message-289f7d60-4d9b-4f7a-8a33-2e98342c3b2b",
+      "leftGap": 109.5,
+      "name": "유리아",
+      "rightGap": 109.5,
+      "role": "chair",
+      "width": 720
+    },
+    {
+      "color": "color(srgb 0.284549 0.19702 0.242039)",
+      "id": "message-15318188-db06-4a9f-be05-c9ebddcbea87",
+      "leftGap": 0,
+      "name": "마야",
+      "rightGap": 219,
+      "role": "member",
+      "width": 720
+    },
+    {
+      "color": "color(srgb 0.20549 0.202667 0.338039)",
+      "id": "message-edaae1bf-b4b2-4ba5-b70d-38e3c7076724",
+      "leftGap": 0,
+      "name": "수아",
+      "rightGap": 219,
+      "role": "member",
+      "width": 720
+    },
+    {
+      "color": "color(srgb 0.20549 0.202667 0.338039)",
+      "id": "message-d912048e-ab23-484e-9738-4ec3314eb90d",
+      "leftGap": 0,
+      "name": "수아",
+      "rightGap": 219,
+      "role": "member",
+      "width": 720
+    },
+    {
+      "color": "color(srgb 0.284549 0.19702 0.242039)",
+      "id": "message-74eea4d5-8368-4cd6-8c85-852d2e3577c2",
+      "leftGap": 0,
+      "name": "마야",
+      "rightGap": 219,
+      "role": "member",
+      "width": 720
+    },
+    {
+      "color": "rgb(21, 31, 42)",
+      "id": "message-72a2af97-879b-412a-9c66-124c789d99ae",
+      "leftGap": 0,
+      "name": "조율 서비스",
+      "rightGap": 219,
+      "role": "member",
+      "width": 720
+    },
+    {
+      "color": "color(srgb 0.277961 0.235608 0.196863)",
+      "id": "message-2f350e22-cc73-402d-ab3a-54b344516041",
+      "leftGap": 109.5,
+      "name": "유리아",
+      "rightGap": 109.5,
+      "role": "chair",
+      "width": 720
+    },
+    {
+      "color": "color(srgb 0.277961 0.235608 0.196863)",
+      "id": "message-379fa2ef-b515-4ec7-9317-e8a3d3a4eb0f",
+      "leftGap": 109.5,
+      "name": "유리아",
+      "rightGap": 109.5,
+      "role": "chair",
+      "width": 720
+    },
+    {
+      "color": "rgb(23, 56, 62)",
+      "id": "message-639af859-d31f-4124-ba5b-688c196a43c6",
+      "leftGap": 219,
+      "name": "사용자",
+      "rightGap": 0,
+      "role": "user",
+      "width": 720
+    },
+    {
+      "color": "color(srgb 0.277961 0.235608 0.196863)",
+      "id": "message-6acc3913-3b03-48a8-89e7-025122685b64",
+      "leftGap": 109.5,
+      "name": "유리아",
+      "rightGap": 109.5,
+      "role": "chair",
+      "width": 720
+    }
+  ],
+  "overflow": false,
+  "profiles": [
+    {
+      "color": "color(srgb 0.277961 0.235608 0.196863)",
+      "hue": "#e89549",
+      "name": "유리아"
+    },
+    {
+      "color": "color(srgb 0.20549 0.202667 0.338039)",
+      "hue": "#9b72df",
+      "name": "수아"
+    },
+    {
+      "color": "color(srgb 0.284549 0.19702 0.242039)",
+      "hue": "#ef6c79",
+      "name": "마야"
+    }
+  ],
+  "tooltips": [
+    "좋아요",
+    "반대",
+    "모르겠음",
+    "확인(알았음)",
+    "아이디어 있음"
+  ],
+  "viewport": {
+    "height": 720,
+    "width": 1280
+  },
+  "tests": {
+    "command": "node --test tests/layout.test.js tests/rich-text.test.js",
+    "pass": 9,
+    "fail": 0
+  },
+  "productionTestMessages": 0
+}
