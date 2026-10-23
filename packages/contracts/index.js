@@ -34,3 +34,4 @@ export function exactIdentity(value) {
 // Mentions are deliberately conservative: code, escaped @ signs, and email addresses
 // remain ordinary text. The resolver supplies the currently valid alias allowlist.
 export { parseAliases, mentionSpans, resolveMentionTargets } from './mentions.js';
+export { CHAIR_PROVIDERS, EFFORTS, normalizeChairSettings } from './chair-settings.js';
