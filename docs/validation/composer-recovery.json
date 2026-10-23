@@ -1,0 +1,99 @@
+{
+  "observedAt": "2026-10-23T08:21:44.827Z",
+  "scope": "user-confirmed empty-composer recovery for original Claude verification requests",
+  "nativeId": "4703f258-92f2-4ffd-9ccd-37d61b2f4144",
+  "handle": "term_481a8263-9ce6-426c-aa9c-1024801ce0f8",
+  "requests": [
+    {
+      "requestId": "9e0789a6-8bf4-4466-bd06-bada37d8458c",
+      "deliveryId": "0d1dcffa-2302-438b-821c-317e6f647ff8",
+      "state": "completed",
+      "blockedReason": null,
+      "dispatch": {
+        "host_request_id": "9e0789a6-8bf4-4466-bd06-bada37d8458c",
+        "status": "running",
+        "error": null,
+        "created_at": "2026-10-23T08:14:21.768Z"
+      },
+      "reply": {
+        "id": "771b2d42-9a70-4dd0-837b-e3e9624060d7",
+        "body": "@유리아 시나리오 결과 보고드립니다. SCN_CLAUDE_OK\n1) 답장: 수행함 — room_reply(helper reply, request_id 9e0789a6-8bf4-4466-bd06-bada37d8458c)로 이 답변을 제출함.\n2) 👍 리액션: 수행함 — room_react(helper react 74eea4d5-8368-4cd6-8c85-852d2e3577c2 👍 true) 응답 {messageId:74eea4d5…, emoji:👍, active:true}.\n3) @유리아 멘션: 호출은 했지만 반영됐는지 모름 — 별도 멘션 도구는 없어 본문 맨 앞에 @유리아 텍스트로 넣었고, 서버가 이를 멘션으로 인식·알림했는지는 확인하지 못함.",
+        "reply_request_id": "9e0789a6-8bf4-4466-bd06-bada37d8458c",
+        "sender_session_id": "21c770de-a040-4db6-a65a-e65438faec80"
+      }
+    },
+    {
+      "requestId": "1a94c335-801f-4619-a0c8-8c4395a6c372",
+      "deliveryId": "3219eb1f-8235-4b07-8189-eb15e907f364",
+      "state": "completed",
+      "blockedReason": null,
+      "dispatch": {
+        "host_request_id": "1a94c335-801f-4619-a0c8-8c4395a6c372",
+        "status": "running",
+        "error": null,
+        "created_at": "2026-10-23T08:17:26.963Z"
+      },
+      "reply": {
+        "id": "4a6fa7e6-cf9e-48b9-ad5a-005c8242117d",
+        "body": "좌장 쿼리(1743f477)에는 이미 771b2d42로 답했습니다(SCN_CLAUDE_OK, 74eea4d5에 👍 room_react active=true, @유리아는 본문 텍스트로만 넣었고 멘션 인식 여부는 모름). 같은 답장이나 리액션은 다시 제출하지 않고, 이 @to_all 요청에는 처리 결과만 알립니다. 정정: 제가 앞에서 말한 wake=false(edaae1bf)는 당시 room_context의 capabilities 값이었고, 지금 상태는 다시 확인하지 않았습니다. 관측 범위: 이 요청과 앞선 요청은 attempt_state=automatic이었고, 세션에 들어온 입력을 보고 처리했습니다. 이 입력이 사람이 붙여 넣은 것인지 호스트가 자동으로 넣은 것인지는 세션 안에서 구분할 수 없습니다. 아직 queued인 08b72dc8(@수아 야)는 이번에 처리하지 않았습니다.",
+        "reply_request_id": "1a94c335-801f-4619-a0c8-8c4395a6c372",
+        "sender_session_id": "21c770de-a040-4db6-a65a-e65438faec80"
+      }
+    },
+    {
+      "requestId": "08b72dc8-e3df-445c-b8e7-2437a7c0d127",
+      "deliveryId": "a9870676-37a1-4c11-9ab9-1c92dad263d6",
+      "state": "completed",
+      "blockedReason": null,
+      "dispatch": {
+        "host_request_id": "08b72dc8-e3df-445c-b8e7-2437a7c0d127",
+        "status": "running",
+        "error": null,
+        "created_at": "2026-10-23T08:20:35.192Z"
+      },
+      "reply": {
+        "id": "869f30f4-301a-4d52-a577-892ea64c3be0",
+        "body": "네, 수아 여기 있습니다. 이 호출(05:20)은 늦게 전달돼 지금 처리합니다. 그 사이 좌장 시나리오 질문에는 771b2d42로, @to_all 요청에는 4a6fa7e6로 이미 답했으니 같은 내용을 다시 보내지는 않겠습니다. 이번 요청으로 제 대기열에 남아 있던 요청은 모두 처리했습니다.",
+        "reply_request_id": "08b72dc8-e3df-445c-b8e7-2437a7c0d127",
+        "sender_session_id": "21c770de-a040-4db6-a65a-e65438faec80"
+      }
+    }
+  ],
+  "preservation": {
+    "messages": {
+      "originals": 38,
+      "changed": 0
+    },
+    "sessions": {
+      "originals": 5,
+      "changed": 0
+    },
+    "chairs": {
+      "originals": 2,
+      "changed": 0
+    },
+    "decisions": {
+      "originals": 2,
+      "changed": 0
+    },
+    "sources": {
+      "originals": 10,
+      "changed": 0
+    }
+  },
+  "originalRequestIdsPreserved": true,
+  "confirmedCompleted": 3,
+  "verification": {
+    "fullSuite": "124/124 passed",
+    "focusedDispatcher": "15/15 passed",
+    "independentAcceptance": "AC-1 through AC-4 PASS",
+    "appVisualCheck": "confirmation dialog and authenticated replies verified",
+    "screenshots": [
+      "screenshots/composer-confirmation.png",
+      "screenshots/composer-recovered.png"
+    ],
+    "reportStaticCheck": "Wiki/source match; SHA256 match; Mermaid parsed; resources present",
+    "reportVisualCheck": "Not performed: browser file URL policy",
+    "wikiLint": "54 pre-existing unrelated findings unchanged"
+  }
+}

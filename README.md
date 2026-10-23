@@ -87,6 +87,7 @@ npm test
 - [자동 전달·재호출·카탈로그·작업공간 실제 검증](docs/validation/participant-delivery.json)
 - [채널 보관·세션 선택 UX 조사와 구현](docs/catalog-archive.html) / [명세 원문](docs/design/0007-catalog-archive.md) / [검증 근거](docs/validation/catalog-archive.json)
 - [좌장 provider·모델 설정과 자동 대화 한도](docs/chair-provider-settings.html) / [명세 원문](docs/design/0008-chair-provider-settings.md) / [검증 근거](docs/validation/chair-provider-settings.json)
+- [입력란 확인 후 초안 감지 차단 복구](docs/composer-recovery.html) / [명세 원문](docs/design/0009-composer-recovery.md) / [검증 근거](docs/validation/composer-recovery.json)
 
 - [별도 좌장·인증 복구·메신저 명세](docs/dedicated-chair.html) / [원문](docs/design/0003-dedicated-chair.md) / [실제 검증 근거](docs/validation/dedicated-chair.json)
 - [패널 조절·이름 변경 명세](docs/resizable-panels.html) / [원문](docs/design/0004-resizable-panels.md)
