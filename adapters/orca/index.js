@@ -2,11 +2,12 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const exec = promisify(execFile);
-const options = { windowsHide: true, shell: false, maxBuffer: 2_000_000, timeout: 15_000 };
+const localEnv = { ...process.env }; delete localEnv.ORCA_ENVIRONMENT; delete localEnv.ORCA_PAIRING_CODE; delete localEnv.ORCA_REMOTE_PAIRING;
+const options = { windowsHide: true, shell: false, maxBuffer: 2_000_000, timeout: 15_000, env: localEnv };
 async function executable() { if (process.env.ORCA_CLI_COMMAND) return process.env.ORCA_CLI_COMMAND; const finder = process.platform === 'win32' ? 'where.exe' : 'which'; const { stdout } = await exec(finder, [process.platform === 'win32' ? 'orca.exe' : 'orca'], options); const found = stdout.trim().split(/\r?\n/)[0]; if (!found) throw new Error('orca executable not found on PATH'); return found; }
 async function nativeRun(bin, args, runOptions) { try { return await exec(bin, args, runOptions); } catch (error) { return { status: error.code === 'ETIMEDOUT' ? 124 : 1, stdout: error.stdout || '', stderr: error.stderr || error.message }; } }
 function parsed(result) { try { const text = String(result?.stdout || '').trim(); return text ? JSON.parse(text) : null; } catch { return null; } }
-async function command(run, args, bin = null) { const result = await run(bin || await executable(), args, options), body = parsed(result); if (result?.status && result.status !== 0) { const error = new Error(body?.error?.message || body?.message || result.stderr || 'orca command failed'); error.code = body?.error?.code || body?.code || 'ORCA_COMMAND_FAILED'; error.receipt = body; throw error; } if (!body || body.ok === false) throw new Error(body?.error?.message || 'Orca returned an invalid response'); return body; }
+async function command(run, args, bin = null) { const result = await run(bin || await executable(), args, options), body = parsed(result); if (result?.error || (result?.status !== undefined && result.status !== 0)) { const error = new Error(body?.error?.message || body?.message || result?.stderr || result?.error?.message || 'orca command failed'); error.code = body?.error?.code || body?.code || 'ORCA_COMMAND_FAILED'; error.receipt = body; throw error; } if (!body || body.ok === false) throw new Error(body?.error?.message || 'Orca returned an invalid response'); return body; }
 const terminal = response => response?.result?.terminal;
 const agent = value => /^(codex|claude)(?:\b|[-_])/i.exec(value || '')?.[1]?.toLowerCase() || null;
 function sameTerminal(value, binding, session) { return !!value && value.handle === binding.handle && value.incarnationId === binding.incarnation && agent(value.agentIdentity) === session.provider && value.connected === true && value.writable === true && value.orphaned !== true; }
