@@ -1,7 +1,92 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-const exec=promisify(execFile), options={windowsHide:true,shell:false,maxBuffer:2_000_000,timeout:8000};
-async function exe(){if(process.env.ORCA_CLI_COMMAND)return process.env.ORCA_CLI_COMMAND;const cmd=process.platform==='win32'?'where.exe':'which';const {stdout}=await exec(cmd,['orca.cmd'],options);const found=stdout.trim().split(/\r?\n/)[0];if(!found)throw Error('orca.cmd not found on PATH');return found.replace(/orca\.cmd$/i,'orca.exe');}
-async function run(args){const bin=await exe(),{stdout}=await exec(bin,args,options);const value=JSON.parse(stdout);if(value?.ok===false)throw Error(value.error?.message||'Orca reported failure');return value;}
-export async function discover(){try{const parsed=await run(['terminal','list','--limit','80','--json']);return {runtimeId:parsed?._meta?.runtimeId||null,sessions:(parsed?.result?.terminals||[]).filter(t=>/^(claude|codex)(\b|[-_])/i.test(t.agentIdentity||'')&&t.handle&&t.incarnationId).map(t=>({provider:/^claude/i.test(t.agentIdentity)?'claude':'codex',host:'orca',nativeId:null,cwd:t.worktreePath||null,profile:t.agentIdentity,handle:t.handle,incarnation:t.incarnationId,capabilities:{rawInspect:true,followup:false,steer:false},status:'discovered',blockedReason:'Orca discovery has no native conversation ID, policy, draft, or reply evidence'}))};}catch(error){return {runtimeId:null,sessions:[],error:'Orca discovery unavailable: '+error.message};}}
-export async function readOutput(binding){if(!binding?.handle||!binding?.incarnation)throw Error('exact active Orca binding is required');const shown=await run(['terminal','show','--terminal',binding.handle,'--json']);const terminal=shown?.result?.terminal;if(!terminal||terminal.handle!==binding.handle||terminal.incarnationId!==binding.incarnation)throw Error('Orca binding changed; raw output not read');const read=await run(['terminal','read','--terminal',binding.handle,'--screen','--limit','80','--json']);const r=read?.result?.terminal||read?.result||{};return {source:r.source||'unknown',lines:Array.isArray(r.tail)?r.tail:String(r.tail||'').split(/\r?\n/).filter(Boolean),draftKnown:Object.hasOwn(r,'draft'),warning:'Raw terminal output is not a correlated response.'};}
+import { spawnSync } from 'node:child_process';
+
+const ORCA = 'C:/Users/jhjang/AppData/Local/Programs/orca/resources/bin/orca.exe';
+
+function json(result) {
+  const text = String(result?.stdout || '').trim();
+  if (!text) return null;
+  try { return JSON.parse(text); } catch { return null; }
+}
+
+function command(run, args) {
+  const result = run(ORCA, args, { timeout: 15_000, encoding: 'utf8' });
+  const body = json(result);
+  if (result?.status && result.status !== 0) {
+    const error = new Error(body?.error?.message || body?.message || result.stderr || 'orca command failed');
+    error.code = body?.error?.code || body?.code || 'ORCA_COMMAND_FAILED';
+    error.receipt = body;
+    throw error;
+  }
+  return body ?? result?.stdout ?? '';
+}
+
+function valueAt(object, names) {
+  if (!object || typeof object !== 'object') return undefined;
+  for (const name of names) if (object[name] !== undefined) return object[name];
+  for (const value of Object.values(object)) {
+    const found = valueAt(value, names);
+    if (found !== undefined) return found;
+  }
+  return undefined;
+}
+
+function screenText(reading) {
+  if (typeof reading === 'string') return reading;
+  return reading?.screen || reading?.text || reading?.terminal?.screen || '';
+}
+
+function emptyComposer(provider, screen) {
+  const trimmed = String(screen || '').trim();
+  if (!trimmed) return false;
+  const codex = ['› Ask Codex to do anything', '› Ask a follow-up question', '›'];
+  const claude = ['❯'];
+  return (provider === 'codex' ? codex : provider === 'claude' ? claude : []).some(prompt => trimmed === prompt);
+}
+
+function validReceipt(receipt, binding, session) {
+  const provider = valueAt(receipt, ['provider']);
+  const incarnation = valueAt(receipt, ['processIncarnation', 'process_incarnation', 'incarnation']);
+  const stage = valueAt(receipt, ['stage', 'status']);
+  return provider === session.provider && incarnation === binding.incarnation && ['input_accepted', 'turn_started'].includes(stage);
+}
+
+export function createOrcaParticipantAdapter({ run = spawnSync } = {}) {
+  const show = binding => command(run, ['terminal', 'show', binding.handle, '--json']);
+  const read = binding => command(run, ['terminal', 'read', binding.handle, '--screen', '--wait', '--for', 'tui-idle', '--timeout-ms', '1', '--json']);
+
+  return {
+    async preflight(binding, session) {
+      if (!binding?.handle || !binding?.incarnation || !['codex', 'claude'].includes(session?.provider)) {
+        return { ok: false, reason: 'unverified native terminal identity' };
+      }
+      const shown = show(binding);
+      const incarnation = valueAt(shown, ['processIncarnation', 'process_incarnation', 'incarnation']);
+      const provider = valueAt(shown, ['provider']);
+      if (provider !== session.provider || incarnation !== binding.incarnation) return { ok: false, reason: 'terminal identity changed', shown };
+      const before = read(binding);
+      const draft = valueAt(before, ['draft']);
+      if (draft !== undefined && String(draft).length) return { ok: false, reason: 'composer has a draft', before };
+      if (!emptyComposer(session.provider, screenText(before))) return { ok: false, reason: 'composer is not exactly empty and idle', before };
+      return { ok: true, shown, before };
+    },
+
+    async send(binding, session, prompt, hostRequestId, { observeOnly = false } = {}) {
+      if (observeOnly) return this.observe(binding, session, hostRequestId);
+      const first = await this.preflight(binding, session);
+      if (!first.ok) return first;
+      // Recheck immediately before submit.  Orca exposes no atomic draft CAS, so a
+      // human may still type after this check; callers must report that residual race.
+      const final = await this.preflight(binding, session);
+      if (!final.ok) return final;
+      const receipt = command(run, ['terminal', 'send', binding.handle, '--text', prompt, '--enter', '--wait-submit', '1', '--retry-request', hostRequestId, '--json']);
+      if (!validReceipt(receipt, binding, session)) return { ok: false, reason: 'uncorrelated or incomplete host receipt', receipt };
+      return { ok: true, receipt, stage: valueAt(receipt, ['stage', 'status']) };
+    },
+
+    async observe(binding, session, hostRequestId) {
+      const receipt = command(run, ['terminal', 'send', binding.handle, '--retry-request', hostRequestId, '--json']);
+      if (!validReceipt(receipt, binding, session)) return { ok: false, reason: 'host receipt remains unknown', receipt };
+      return { ok: true, receipt, stage: valueAt(receipt, ['stage', 'status']) };
+    }
+  };
+}
