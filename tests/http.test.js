@@ -44,7 +44,10 @@ test('real loopback HTTP and MCP enforce identity, room scope and protocol error
     const otherRoom=(await call('/api/rooms',{name:'other'})).data;
     const mentioned=await call(`/api/rooms/${room.id}/messages`,{body:`@${reg.session.alias} mention wire`,kind:'followup',routingMode:'mentions',requestKey:'wire-mention'});
     assert.equal(mentioned.status,201);assert.deepEqual(mentioned.data.deliveries.map(d=>d.membership_id),[member.id]);
+    const allMentioned=await call(`/api/rooms/${room.id}/messages`,{body:'@to_all 전체 검토',kind:'followup',routingMode:'auto',requestKey:'wire-all'});
+    assert.equal(allMentioned.status,201);assert.deepEqual(allMentioned.data.deliveries.map(d=>d.membership_id),[member.id]);
     await call(`/api/rooms/${room.id}/role`,{sessionId:reg.session.id,role:'chair'});
+    assert.equal((await call(`/api/rooms/${room.id}/messages`,{body:'@to_all 좌장은 제외',kind:'followup',routingMode:'auto'})).status,400);
     const chaired=await call(`/api/rooms/${room.id}/messages`,{body:'@context is not a recipient',kind:'followup',routingMode:'chair',requestKey:'wire-chair'});
     assert.equal(chaired.status,201);assert.deepEqual(chaired.data.deliveries.map(d=>d.membership_id),[member.id]);
     assert.equal((await call(`/api/rooms/${room.id}/messages`,{body:'@missing',kind:'followup',routingMode:'mentions'})).status,400);

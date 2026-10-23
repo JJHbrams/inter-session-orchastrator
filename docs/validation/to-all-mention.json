@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-23",
+  "tests": {
+    "command": "npm test",
+    "pass": 71,
+    "fail": 0
+  },
+  "browser": {
+    "candidate": "@\n@to_all\n좌장 제외 · 참여자 모두",
+    "deliveryLabels": [
+      "지수 · 요청 대기",
+      "민수 · 요청 대기"
+    ],
+    "draft": "@to_all",
+    "error": "",
+    "inputMarks": [
+      {
+        "bg": "rgb(36, 83, 160)",
+        "text": "@to_all"
+      }
+    ],
+    "messageMarks": [
+      {
+        "bg": "rgb(36, 83, 160)",
+        "text": "@to_all"
+      }
+    ],
+    "recipients": "전체 멘션 · 보낼 대상\n지\n지수\n민\n민수"
+  },
+  "scope": "Isolated SQLite fixture; two cooperative peer identities; fake chair; no provider invocation.",
+  "productionTestMessages": 0
+}

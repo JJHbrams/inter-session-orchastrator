@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { id, hashPayload, identityKey, MODES, REACTION_EMOJIS, REACTION_MEANINGS, requireText, exactIdentity, parseAliases, mentionSpans } from '../../packages/contracts/index.js';
+import { id, hashPayload, identityKey, MODES, REACTION_EMOJIS, REACTION_MEANINGS, requireText, exactIdentity, parseAliases, mentionSpans, resolveMentionTargets } from '../../packages/contracts/index.js';
 import { decodeBase64, safeFilename, imageMimeFor, attachmentDigest, textSnippet, MAX_ATTACHMENTS_PER_MESSAGE, MAX_STAGED_ATTACHMENTS_PER_ROOM } from '../../packages/contracts/attachments.js';
 
 const now = () => new Date().toISOString();
@@ -124,9 +124,7 @@ export class Store {
       const aliases=parseAliases(body);
       const activeMembers=this.db.prepare(`SELECT m.*,s.alias FROM memberships m JOIN sessions s ON s.id=m.session_id WHERE m.room_id=? AND m.left_at IS NULL`).all(roomId);
       if(aliases.length){
-        const resolved=[];
-        for(const alias of aliases){const matches=activeMembers.filter(m=>m.alias===alias);if(matches.length!==1)throw Error(`unknown, ambiguous, or departed alias: @${alias}`);if(matches[0].read_only)throw Error(`read-only alias cannot receive execution: @${alias}`);resolved.push(matches[0].id);}
-        targets=[...new Set(resolved)].sort();
+        targets=resolveMentionTargets(aliases,activeMembers,this.chair(roomId)?.session_id).map(m=>m.id).sort();
     }else targets=activeMembers.filter(m=>!m.read_only&&m.session_id!==this.chair(roomId)?.session_id).map(m=>m.id).sort();
     }
     if(routingMode==='chair'&&['followup','steer'].includes(kind)){
@@ -141,9 +139,7 @@ export class Store {
       const requireReadyDedicatedChair=()=>{const chair=this.chair(roomId),chairs=activeMembers.filter(m=>m.role==='chair');if(!chair||chair.status!=='ready'||!chair.session_id||chairs.length!==1||chairs[0].session_id!==chair.session_id||chairs[0].read_only)throw Error('a ready writable dedicated chair is required');if(this.db.prepare("SELECT 1 FROM deliveries WHERE membership_id=? AND state='unknown' LIMIT 1").get(chairs[0].id))throw Error('chair has an unknown pending delivery');return chairs[0];};
       const aliases=parseAliases(body);
       if(aliases.length){
-        const resolved=[];
-        for(const alias of aliases){const matches=activeMembers.filter(m=>m.alias===alias);if(matches.length!==1)throw Error(`unknown, ambiguous, or departed alias: @${alias}`);if(matches[0].read_only)throw Error(`read-only alias cannot receive execution: @${alias}`);resolved.push(matches[0].id);}
-        targets=[...new Set(resolved)].sort();
+        targets=resolveMentionTargets(aliases,activeMembers,this.chair(roomId)?.session_id).map(m=>m.id).sort();
         if(activeMembers.some(m=>m.role==='chair'&&targets.includes(m.id)))requireReadyDedicatedChair();
       }else{
         targets=[requireReadyDedicatedChair().id];

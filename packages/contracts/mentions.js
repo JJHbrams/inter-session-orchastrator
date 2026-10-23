@@ -1,4 +1,27 @@
 // Shared by the browser preview and authoritative room routing. No Node APIs.
+export const ALL_MENTION = 'to_all';
+
+export function resolveMentionTargets(aliases, members, chairSessionId) {
+  const active = members.filter(member => !member.left_at), chosen = new Map();
+  for (const alias of aliases) {
+    if (alias === ALL_MENTION) {
+      for (const member of active) {
+        if (!member.read_only && member.role !== 'chair' && (!chairSessionId || member.session_id !== chairSessionId)) chosen.set(member.id, member);
+      }
+      continue;
+    }
+    const matches = active.filter(member => member.alias === alias);
+    if (matches.length !== 1 || matches[0].read_only) {
+      const error = new Error(matches.length === 1 ? `read-only alias cannot receive execution: @${alias}` : `unknown, ambiguous, or departed alias: @${alias}`);
+      error.code = matches.length === 1 ? 'MENTION_READ_ONLY' : 'MENTION_UNKNOWN';
+      error.alias = alias;
+      throw error;
+    }
+    chosen.set(matches[0].id, matches[0]);
+  }
+  return [...chosen.values()];
+}
+
 export function mentionSpans(body, includeEmpty = false) {
   if (typeof body !== 'string') return [];
   const result = [];

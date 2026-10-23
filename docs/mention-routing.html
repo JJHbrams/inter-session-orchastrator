@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="source-sha256" content="58cab1dbda064006e354eacc746a65af14b2295657409d66992cad376fc47d52"><title>통합 멘션과 좌장 기본 라우팅</title><style>
+<meta name="source-sha256" content="2ecb4ab431977f0be4dddc7f719fa5f8c21d5dbd8707bdbfeaad7b1aefbc13fc"><title>통합 멘션과 좌장 기본 라우팅</title><style>
     :root{--ink:#202c35;--muted:#64757a;--accent:#006c62;--line:#dce4e4;--paper:#fff;--bg:#f3f6f5}
     *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}
     body{margin:0;color:var(--ink);background:var(--bg);font:15px/1.85 'Segoe UI','Malgun Gothic',sans-serif}
@@ -34,7 +34,7 @@
     @media print{aside,.skip{display:none}.shell{display:block}main{padding:0}.table-scroll{overflow:visible}pre.mermaid{break-inside:avoid}body{background:white}}
     </style></head>
 <body><a class="skip" href="#document">본문으로 이동</a><div class="shell">
-<aside><div class="brand">INTER SESSION<br>ORCHESTRATOR</div><span class="status">VERIFIED · BLUE MENTIONS</span><nav aria-label="문서 목차"><a href="research/index.html">최신 벤치마킹 조사 →</a>
+<aside><div class="brand">INTER SESSION<br>ORCHESTRATOR</div><span class="status">BUILDING · 실행판 검증</span><nav aria-label="문서 목차"><a href="research/index.html">최신 벤치마킹 조사 →</a>
 <a href="#_2">한눈에 보기</a>
 <a href="#1-intent">1. 의도 (Intent)</a>
 <a href="#2-acceptance">2. 수용 기준 (Acceptance)</a>
@@ -47,8 +47,9 @@
 <a href="#11-implementation">11. 착수 순서 (Implementation)</a>
 <a href="#12">12. 검증 결과</a>
 <a href="#_8">참고</a>
-<a href="#13">13. 파란 멘션 강조 후속</a></nav></aside>
-<main id="document"><header class="meta"><span>UI · MENTIONS</span><span>2026.10.22 · WINDOWS / LOCAL</span></header>
+<a href="#13">13. 파란 멘션 강조 후속</a>
+<a href="#14">14. 전체 참여자 멘션</a></nav></aside>
+<main id="document"><header class="meta"><span>BENCHMARK → DESIGN</span><span>2026.10.22 · WINDOWS / LOCAL</span></header>
 <article><h1 id="_1">통합 멘션과 좌장 기본 라우팅</h1>
 <!-- sr:plan
 {"document_type":"decision","reader_questions":["누가 입력을 받는가","좌장은 어떻게 위임하는가","기존 전달 기록은 유지되는가"],"visual_plan":[{"kind":"comparison_table","content":"입력별 수신자","required":true},{"kind":"flowchart","content":"직접 멘션과 좌장 경유","required":true},{"kind":"state_diagram","content":"입력과 전달 상태","required":true}],"visual_waiver":[]}
@@ -186,6 +187,11 @@
 <td>@민수 검토해줘</td>
 <td>민수</td>
 <td>직접 답변</td>
+</tr>
+<tr>
+<td>@to_all 검토해줘</td>
+<td>좌장을 제외한 현재 쓰기 가능한 참여자 모두</td>
+<td>같은 대상은 한 번만 전달</td>
 </tr>
 <tr>
 <td>@좌장별칭 정리해줘</td>
@@ -399,8 +405,72 @@
 </tbody>
 </table></div>
 <p>실제 IME 조합이나 OS 클립보드를 이번 후속에서 별도로 자동화하지 않았다. textarea를 유지하는 구현과 기존 첨부·초안 회귀 테스트로 해당 경로를 보존했다. 검증 fixture는 별도 DB의 게시 세 건만 사용하며 모델 요청은0건이다.</p>
-<p><a href="screenshots/blue-mentions.jpg">강조 검증 화면</a>. 최초 라우팅 검증58개와 별도로 현재 전체 테스트는62개다.</p></article><footer>원본: docs/design/0006-mention-routing.md<br>본문 SHA-256: 58cab1dbda064006e354eacc746a65af14b2295657409d66992cad376fc47d52</footer></main></div>
-<!-- Mermaid third-party license: Mermaid is distributed under the MIT license. See https://github.com/mermaid-js/mermaid/blob/develop/LICENSE -->
+<p><a href="screenshots/blue-mentions.jpg">강조 검증 화면</a>. 최초 라우팅 검증58개와 별도로 현재 전체 테스트는62개다.</p>
+<h2 id="14">14. 전체 참여자 멘션</h2>
+<p>2026-10-23 <code>@to_all</code> 예약 멘션을 추가했다. 자동완성에서 ‘좌장 제외 · 참여자 모두’로 표시하고, 입력과 대화 본문의 유효한 멘션은 기존 파란 배경으로 강조한다. 입력창 아래에는 실제 수신자 이름을 펼쳐 보여준다.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>입력·상황</th>
+<th>동작</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>@to_all</td>
+<td>현재 토론장의 활성·쓰기 가능한 참여자 전체. role이 chair인 세션과 전용 좌장 session ID는 제외</td>
+</tr>
+<tr>
+<td>@to_all @민수</td>
+<td>민수가 전체에 포함돼도 전달은 한 번</td>
+</tr>
+<tr>
+<td>@to_all @좌장별칭</td>
+<td>명시한 좌장을 추가한 합집합. 좌장 준비 상태 검증 유지</td>
+</tr>
+<tr>
+<td>읽기 전용·이탈·다른 토론장의 참여자</td>
+<td>전체 멘션에서 제외</td>
+</tr>
+<tr>
+<td>대상 없음 또는 잘못된 개별 멘션 혼합</td>
+<td>전송 차단. 좌장이나 일부 대상에게 대체 전송하지 않음</td>
+</tr>
+<tr>
+<td>게시·알림, 코드·이메일·이스케이프 안의 @to_all</td>
+<td>새 실행을 생성하지 않음</td>
+</tr>
+<tr>
+<td>같은 requestKey 재시도</td>
+<td>최초 전달 ID·수신자·원문/hash 유지. 새 입력만 현재 참여자 목록으로 계산</td>
+</tr>
+</tbody>
+</table></div>
+<p>브라우저 미리보기와 서버가 공유 resolver를 사용하며 실제 membership ID로 저장한다. 기존 무멘션 좌장 경유와 개별 멘션 라우팅은 유지한다. 협력 참여자는 기존 MCP inbox 조회로 요청을 받는다.</p>
+<p>전체 회귀 71/71 통과. 격리 4320 토론장에서 @to_ → Enter 자동완성, 입력·사용자/참여자 게시 강조, 민수·지수만 수신자 미리보기 및 queued 전달 2건을 확인했다. 좌장·읽기 전용·이탈자는 전달 0건, chair_runs 0건이다. 실제 4318에는 테스트 입력을 보내지 않았다.</p>
+<p><a href="validation/to-all-mention.json">검증 JSON</a> · <a href="screenshots/to-all-mention.jpg">검증 화면</a></p></article><footer>원본: docs/design/0006-mention-routing.md<br>본문 SHA-256: 2ecb4ab431977f0be4dddc7f719fa5f8c21d5dbd8707bdbfeaad7b1aefbc13fc</footer></main></div>
+<!-- Mermaid third-party license: The MIT License (MIT)
+
+Copyright (c) 2014 - 2022 Knut Sveidqvist
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the &quot;Software&quot;), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+ -->
 <script src="research/assets/mermaid.min.js"></script><script>
 window.designRenderDone=false;
 mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'base',themeVariables:{fontFamily:'Segoe UI, Malgun Gothic, sans-serif',primaryColor:'#e6f2ee',primaryTextColor:'#202c35',lineColor:'#4c7972',primaryBorderColor:'#76a69b'}});

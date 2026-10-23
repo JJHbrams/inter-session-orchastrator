@@ -1,4 +1,4 @@
-import {parseAliases, mentionAt, mentionSpans} from '/mentions.js';
+import {parseAliases, mentionAt, mentionSpans, ALL_MENTION, resolveMentionTargets} from '/mentions.js';
 import {createApiClient} from '/api-client.js';
 import {initLayout,mentionMenuGeometry} from '/layout.js';
 import {marked} from '/vendor/marked.js';
@@ -36,7 +36,7 @@ function renderTimeline() {
     if(author)head.append(text('span',providerName(author),'provider-badge'));
     if(speaker==='chair')head.append(text('span','좌장','speaker-role'));
     const body=text('div','','rich-body');
-    body.append(renderMarkdown(m.body,{roomId:current.id,mentions:current.members.map(member=>member.alias)}));
+    body.append(renderMarkdown(m.body,{roomId:current.id,mentions:[ALL_MENTION,...current.members.map(member=>member.alias)]}));
     card.append(head,body);
     renderAttachments(m.attachments,card);
     const meta=text('div',`${m.kind} · ${new Date(m.created_at).toLocaleString('ko-KR')}`,'message-meta');
@@ -85,7 +85,7 @@ function renderDecisions(){
   const decisions=[...current.decisions].sort((a,b)=>b.created_at.localeCompare(a.created_at)||b.id.localeCompare(a.id));
   const render=d=>{
     const item=text('article','','decision');item.id='decision-'+d.id;
-    const body=text('div','','decision-body rich-body');body.tabIndex=0;body.setAttribute('aria-label','토론 정리 내용');body.append(renderMarkdown(d.body,{roomId:current.id,mentions:current.members.map(member=>member.alias)}));item.append(body);
+    const body=text('div','','decision-body rich-body');body.tabIndex=0;body.setAttribute('aria-label','토론 정리 내용');body.append(renderMarkdown(d.body,{roomId:current.id,mentions:[ALL_MENTION,...current.members.map(member=>member.alias)]}));item.append(body);
     renderAttachments(d.attachments,item);
     const footer=text('div','','decision-footer'),owner=current.members.find(m=>m.session_id===d.owner);
     footer.append(text('small',(d.status==='confirmed'?'사용자 확정':'미확정 제안')+(owner?' · '+memberName(owner):'')));
@@ -183,7 +183,7 @@ function renderReactions(message,card) {
 }
 let mentionIndex=0,mentionClosed=false;
 const mentionInput=createMentionInput({textarea:$('#body'),getSpans:value=>{
- const aliases=new Set((current?.members||[]).filter(m=>!m.left_at).map(m=>m.alias));
+ const aliases=new Set([ALL_MENTION,...(current?.members||[]).filter(m=>!m.left_at).map(m=>m.alias)]);
  return mentionSpans(value).filter(span=>aliases.has(span.alias));
 }});
 const mentionMenu=$('#mentionMenu');
@@ -204,7 +204,7 @@ new ResizeObserver(positionMentionMenu).observe($('#composer'));
 function currentMention() {const body=$('#body');return mentionAt(body.value,body.selectionStart);}
 function mentionCandidates() {
   const span=currentMention();if(!span||!current)return [];
-  return current.members.filter(m=>!m.left_at&&m.alias?.toLowerCase().startsWith(span.alias.toLowerCase()));
+  return [{alias:ALL_MENTION,group:true},...current.members.filter(m=>!m.left_at&&m.alias!==ALL_MENTION)].filter(m=>m.alias?.toLowerCase().startsWith(span.alias.toLowerCase()));
 }
 function chooseMention(member) {
   const body=$('#body'),span=currentMention();if(!span)return;
@@ -221,26 +221,22 @@ function resolvedPreview() {
   if(!aliases.length){
     const ready=readyChair();return ready.problem?{members:[],problem:ready.problem}:{members:[ready.member],problem:'',chair:true};
   }
-  const chosen=[];
-  for(const alias of aliases) {
-    const matches=members.filter(m=>m.alias===alias);
-    if(matches.length!==1)return {members:[],problem:`@${alias} · 현재 토론에서 찾을 수 없는 이름이야.`};
-    if(matches[0].read_only)return {members:[],problem:`@${alias} · 읽기 전용이라 질문을 보낼 수 없어.`};
-    chosen.push(matches[0]);
-  }
+  let chosen;
+  try{chosen=resolveMentionTargets(aliases,members,current.chair?.session_id);}
+  catch(e){return {members:[],problem:e.code==='MENTION_READ_ONLY'?`@${e.alias} · 읽기 전용이라 질문을 보낼 수 없어.`:`@${e.alias} · 현재 토론에서 찾을 수 없는 이름이야.`};}
   if(chosen.some(m=>m.role==='chair')){const ready=readyChair();if(ready.problem)return {members:[],problem:ready.problem};}
-  return {members:chosen,problem:''};
+  return {members:chosen,problem:chosen.length?'':'질문할 수 있는 참여자가 없어.',all:aliases.includes(ALL_MENTION)};
 }
 function renderPreview() {
   const box=$('#recipientPreview');if(!box)return;box.replaceChildren();
   const kind=$('#kind').value;
   const execution=['followup','steer'].includes(kind);
   $('#composer button[type=submit]').textContent='보내기';
-  $('#composeNote').textContent=!execution?'공동 대화에 기록해요.':'@이름으로 지정 · 멘션이 없으면 좌장이 내용을 보고 필요한 참여자에게 전달해요.';
+  $('#composeNote').textContent=!execution?'공동 대화에 기록해요.':'@이름으로 지정 · @to_all은 좌장 제외 모두 · 멘션이 없으면 좌장이 조율해요.';
   if(['post','notify'].includes(kind)){box.append(text('span','게시와 알림은 실행 요청을 만들지 않아요.'));return;}
   const preview=resolvedPreview();box.className='recipient-preview'+(preview.problem?' invalid':'');
   if(preview.problem){box.append(text('span',preview.problem));return;}
-  box.append(text('span',preview.chair?'좌장이 내용을 보고 필요한 참여자에게 전달해요':'보낼 대상','recipient-caption'));
+  box.append(text('span',preview.chair?'좌장이 내용을 보고 필요한 참여자에게 전달해요':preview.all?'전체 멘션 · 보낼 대상':'보낼 대상','recipient-caption'));
   for(const m of preview.members){const chip=text('span','','recipient-chip');chip.append(avatar(m),text('span',memberName(m)));box.append(chip);}
   if(!preview.members.length)box.append(text('span','질문할 수 있는 참여자가 없어요.'));
 }
@@ -255,7 +251,7 @@ function renderMentionMenu() {
   candidates.forEach((member,index)=>{
     const option=text('button','','mention-option'+(index===mentionIndex?' selected':''));option.type='button';
     option.id='mention-option-'+index;option.setAttribute('role','option');option.setAttribute('aria-selected',String(index===mentionIndex));
-    option.append(avatar(member),text('strong',memberName(member)),text('small',providerName(member)+(member.role==='chair'?' · 좌장':member.read_only?' · 읽기 전용':'')));
+    option.append(member.group?text('span','@','avatar'):avatar(member),text('strong',member.group?'@'+ALL_MENTION:memberName(member)),text('small',member.group?'좌장 제외 · 참여자 모두':providerName(member)+(member.role==='chair'?' · 좌장':member.read_only?' · 읽기 전용':'')));
     option.onmousedown=e=>e.preventDefault();option.onclick=()=>chooseMention(member);menu.append(option);
     if(!menu.hidden&&index===mentionIndex)$('#body').setAttribute('aria-activedescendant',option.id);
   });
