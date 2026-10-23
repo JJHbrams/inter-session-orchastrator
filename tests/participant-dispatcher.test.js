@@ -49,6 +49,37 @@ test('a blocked preflight sends nothing, remains queued, and succeeds on a later
  finally{store.db.close();rmSync(dir,{recursive:true,force:true});}
 });
 
+test('confirmed empty composer retries the original request once and binds the exact snapshot',async()=>{
+ const {store,room,delivery}=setup(),calls=[];let fingerprint='one';
+ const adapter={async preflight(_binding,_session,{confirmedComposer}={}){if(confirmedComposer?.fingerprint===fingerprint)return {ok:true};return {ok:false,reasonCode:'draft_exists',reason:'draft',confirmedComposer:{fingerprint,phrasePreview:'suggestion'}};},async send(_binding,_session,_prompt,requestId,options){calls.push({requestId,options});return {ok:true,stage:'turn_started',receipt:{}};}};
+ const {dir,value}=dispatcher(store,adapter);
+ try{
+   const challenge=await value.retry(room.id,delivery.id);assert.equal(challenge.composerConfirmation.phrasePreview,'suggestion');assert.equal(calls.length,0);
+   const sent=await value.retry(room.id,delivery.id,{composerConfirmation:challenge.composerConfirmation.nonce});assert.equal(sent.state,'running');assert.equal(calls.length,1);assert.equal(calls[0].requestId,delivery.request_id);assert.equal(calls[0].options.confirmedComposer.fingerprint,'one');
+ }finally{store.db.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('composer confirmation expires, cannot be reused or moved, and automatic ticks never consume it',async()=>{
+ const {store,room,delivery}=setup(),calls=[];
+ const adapter={async preflight(_binding,_session,{confirmedComposer}={}){return confirmedComposer?.fingerprint==='one'?{ok:true}:{ok:false,reasonCode:'draft_exists',reason:'draft',confirmedComposer:{fingerprint:'one',phrasePreview:'draft'}};},async send(){calls.push('send');return {ok:true,stage:'turn_started',receipt:{}};}};
+ const {dir,value}=dispatcher(store,adapter);
+ try{
+   const first=await value.retry(room.id,delivery.id);assert.equal((await value.tick())[0].state,'skipped');assert.equal(calls.length,0);
+   await assert.rejects(()=>value.retry(room.id,'wrong',{composerConfirmation:first.composerConfirmation.nonce}),/delivery not found/);assert.equal(calls.length,0);
+   const second=await value.retry(room.id,delivery.id);value.composerConfirmations.get(second.composerConfirmation.nonce).expiresAt=Date.now()-1;
+   await assert.rejects(()=>value.retry(room.id,delivery.id,{composerConfirmation:second.composerConfirmation.nonce}),/만료/);assert.equal(calls.length,0);
+   const third=await value.retry(room.id,delivery.id);await value.retry(room.id,delivery.id,{composerConfirmation:third.composerConfirmation.nonce});await assert.rejects(()=>value.retry(room.id,delivery.id,{composerConfirmation:third.composerConfirmation.nonce}),/만료/);assert.equal(calls.length,1);
+ }finally{store.db.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('changed draft snapshot blocks confirmed composer before it can send',async()=>{
+ const {store,room,delivery}=setup(),calls=[];let fingerprint='first';
+ const adapter={async preflight(_binding,_session,{confirmedComposer}={}){return confirmedComposer?.fingerprint===fingerprint?{ok:true}:{ok:false,reasonCode:'draft_exists',reason:'draft',confirmedComposer:{fingerprint,phrasePreview:'draft'}};},async send(){calls.push('send');return {ok:true,stage:'turn_started',receipt:{}};}};
+ const {dir,value}=dispatcher(store,adapter);
+ try{const first=await value.retry(room.id,delivery.id);fingerprint='changed';const result=await value.retry(room.id,delivery.id,{composerConfirmation:first.composerConfirmation.nonce});assert.equal(result.state,'skipped');assert.equal(calls.length,0);}
+ finally{store.db.close();rmSync(dir,{recursive:true,force:true});}
+});
+
 test('restart recovery observes the persisted request and accepts a later authenticated reply', async () => {
   const { store, room, delivery } = setup(), first = fakeAdapter(), one = dispatcher(store, first);
   try {

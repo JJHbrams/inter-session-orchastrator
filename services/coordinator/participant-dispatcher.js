@@ -12,7 +12,7 @@ export class ParticipantDispatcher {
   constructor(store, { adapter, privateDir = '.local/participant-dispatch', baseUrl = 'http://127.0.0.1:4317' } = {}) {
     if (!adapter) throw new Error('participant adapter is required');
     this.store = store; this.adapter = adapter; this.privateDir = resolve(privateDir); this.baseUrl = baseUrl;
-    this.inflight = new Set(); this.ticking = null;
+    this.inflight = new Set(); this.ticking = null; this.composerConfirmations = new Map();
     this.store.db.exec(`CREATE TABLE IF NOT EXISTS participant_dispatches(
       delivery_id TEXT PRIMARY KEY,attempt_id TEXT NOT NULL,host_request_id TEXT NOT NULL,prompt TEXT NOT NULL,
       config_path TEXT NOT NULL,status TEXT NOT NULL,receipt_json TEXT,error TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL
@@ -68,13 +68,13 @@ export class ParticipantDispatcher {
     return record;
   }
 
-  async dispatch(row) {
+  async dispatch(row, { confirmedComposer = null } = {}) {
     if (this.inflight.has(row.id)) return { deliveryId: row.id, state: 'inflight', message: 'delivery is already being evaluated' };
     this.inflight.add(row.id);
     try {
     const prior = this.store.db.prepare('SELECT * FROM participant_dispatches WHERE delivery_id=?').get(row.id);
     if (prior) return this.observe(row, prior);
-    const readiness = await this.adapter.preflight(row, row);
+    const readiness = await this.adapter.preflight(row, row, { confirmedComposer });
     if (!readiness.ok){this.store.db.prepare("UPDATE deliveries SET blocked_reason=? WHERE id=? AND state='queued'").run(readiness.reason,row.id);return { deliveryId: row.id, state: 'skipped', message: readiness.reason };}
     let configPath;
     try { configPath = this.config(row); } catch (error) { return { deliveryId: row.id, state: 'skipped', message: error.message }; }
@@ -86,13 +86,13 @@ export class ParticipantDispatcher {
     const hostRequestId = row.request_id;
     const prompt = this.prompt(row, configPath, hostRequestId);
     const record = this.persist(row, attempt, hostRequestId, prompt, configPath);
-    return this.send(row, record);
+    return this.send(row, record, { confirmedComposer });
     } finally { this.inflight.delete(row.id); }
   }
 
-  async send(row, record) {
+  async send(row, record, { confirmedComposer = null } = {}) {
     try {
-      const result = await this.adapter.send(row, row, record.prompt, record.host_request_id);
+      const result = await this.adapter.send(row, row, record.prompt, record.host_request_id, { confirmedComposer });
       if (!result.ok){if(!result.receipt){this.store.tx(()=>{this.store.db.prepare("UPDATE attempts SET state='not_sent' WHERE id=?").run(record.attempt_id);this.store.db.prepare("UPDATE deliveries SET state='queued',blocked_reason=? WHERE id=? AND state='submitting'").run(result.reason,row.id);this.store.db.prepare('UPDATE writers SET unresolved_delivery_id=NULL WHERE unresolved_delivery_id=?').run(row.id);this.store.db.prepare('DELETE FROM participant_dispatches WHERE delivery_id=?').run(row.id);});return {deliveryId:row.id,state:'queued',message:result.reason};}return this.record(row,record,'unknown',result.reason,result.receipt);}
       const kind = result.stage === 'turn_started' ? 'turn_started' : 'host_receipt';
       this.store.evidence(record.attempt_id, kind, 'orca', record.host_request_id);
@@ -118,16 +118,36 @@ export class ParticipantDispatcher {
   }
 
   async tick() { if (this.ticking) return this.ticking; this.ticking = (async () => { const results = []; for (const row of this.eligible()){try{results.push(await this.dispatch(row));}catch(error){this.store.db.prepare("UPDATE deliveries SET blocked_reason=? WHERE id=? AND state='queued'").run(error.message,row.id);results.push({deliveryId:row.id,state:'skipped',message:error.message});}} return results; })(); try { return await this.ticking; } finally { this.ticking = null; } }
-  async retry(roomId, deliveryId) {
+  confirmation(row, snapshot) {
+    const nowMs = Date.now();
+    for (const [nonce, value] of this.composerConfirmations) if (value.expiresAt <= nowMs) this.composerConfirmations.delete(nonce);
+    while (this.composerConfirmations.size >= 64) this.composerConfirmations.delete(this.composerConfirmations.keys().next().value);
+    const nonce = randomBytes(24).toString('base64url'), expiresAt = nowMs + 60_000;
+    this.composerConfirmations.set(nonce, { deliveryId: row.id, sessionId: row.session_id, provider: row.provider, handle: row.handle, incarnation: row.incarnation, snapshot, expiresAt });
+    return { nonce, phrasePreview: snapshot.phrasePreview, expiresAt: new Date(expiresAt).toISOString() };
+  }
+  consumeConfirmation(nonce, row) {
+    const value = this.composerConfirmations.get(nonce); this.composerConfirmations.delete(nonce);
+    if (!value || value.expiresAt <= Date.now()) throw Error('입력란 확인이 만료되었거나 이미 사용되었어. 다시 확인해줘.');
+    if (value.deliveryId !== row.id || value.sessionId !== row.session_id || value.provider !== row.provider || value.handle !== row.handle || value.incarnation !== row.incarnation) throw Error('입력란 확인 대상이 바뀌었어. 다시 확인해줘.');
+    return value.snapshot;
+  }
+  async retry(roomId, deliveryId, { composerConfirmation = null } = {}) {
     const roomCwd = this.store.db.prepare('PRAGMA table_info(rooms)').all().some(column => column.name === 'cwd') ? ',r.cwd AS room_cwd' : '';
     const row = this.store.db.prepare(`SELECT d.*,m.room_id,m.body,mb.session_id,s.provider,s.cwd,b.handle,b.incarnation,b.capabilities,b.mode,b.verified_at${roomCwd}
       FROM deliveries d JOIN messages m ON m.id=d.message_id JOIN memberships mb ON mb.id=d.membership_id JOIN sessions s ON s.id=mb.session_id JOIN bindings b ON b.id=d.binding_id JOIN rooms r ON r.id=m.room_id WHERE d.id=? AND m.room_id=?`).get(deliveryId, roomId);
     if (!row) throw new Error('delivery not found in room');
     const record = this.store.db.prepare('SELECT * FROM participant_dispatches WHERE delivery_id=?').get(deliveryId);
+    const confirmedComposer = composerConfirmation ? this.consumeConfirmation(composerConfirmation, row) : null;
+    if (composerConfirmation && (row.state !== 'queued' || record)) throw Error('입력란 확인은 아직 전송하지 않은 대기 요청에만 사용할 수 있어.');
     if (!record) {
       if (row.state !== 'queued') return { deliveryId, state: row.state, message: 'no durable host request to retry' };
       const eligible = this.eligible().find(candidate => candidate.id === deliveryId);
-      return eligible ? this.dispatch(eligible) : { deliveryId, state: 'queued', message: 'delivery is not currently eligible for automatic input' };
+      if (!eligible) return { deliveryId, state: 'queued', message: 'delivery is not currently eligible for automatic input' };
+      if (composerConfirmation) return this.dispatch(eligible, { confirmedComposer });
+      const readiness = await this.adapter.preflight(eligible, eligible);
+      if (readiness.reasonCode === 'draft_exists' && readiness.confirmedComposer) return { deliveryId, state: 'queued', message: readiness.reason, composerConfirmation: this.confirmation(eligible, readiness.confirmedComposer) };
+      return readiness.ok ? this.dispatch(eligible) : { deliveryId, state: 'queued', message: readiness.reason };
     }
     if (row.state === 'completed') return { deliveryId, state: 'completed', message: 'authenticated reply already received; no duplicate send' };
     this.store.dispatchEligibility(deliveryId);if(!JSON.parse(row.capabilities||'{}').automaticInput)throw Error('자동 전달 연결이 꺼져 있어.');
