@@ -1,6 +1,6 @@
 {
   "date": "2026-10-22",
-  "status": "design-draft",
+  "status": "building",
   "spec_check": "pass",
   "report_lint": {
     "blocking": 0,
@@ -8,26 +8,100 @@
   },
   "wiki_report_body_equal": true,
   "wiki_comparison_excludes": "tool-managed empty Progress timestamp section",
-  "html_source_sha256": "05957e7c574a9abcb4a13a30341bb58397a93bc0dd1cfaae84d8f5b2ec008cc2",
+  "html_source_sha256": "5db2643e5be9da61eff9ec24303934db3923ba52c9ef6993405a09ea1892871a",
   "browser_qa": {
     "diagrams": 5,
     "diagram_errors": 0,
     "page_horizontal_overflow": false,
     "diagram_horizontal_overflow": false,
-    "visual_review": "revised overview and state diagram inspected"
+    "visual_review": "revised overview and state diagram inspected",
+    "scope": "previous design review; runtime UI verified separately at two viewports",
+    "latest_report_visual_review": "unverified: browser rejected local file protocol; no alternative browser route attempted"
   },
   "wiki_global_lint": {
     "existing_issues": 52,
     "scope": "outside this project in displayed findings; not repaired"
   },
-  "product_runtime": "not implemented; no session messages sent",
-  "stage": "benchmark findings incorporated into draft spec; implementation not started",
+  "product_runtime": "Node/SQLite/browser UI and scoped HTTP/stdio MCP implemented; only authorized new canaries messaged",
+  "stage": "browser pilot verified; existing-session host adapter remains incomplete",
   "acceptance_criteria": 10,
-  "implementation_slices_completed": 0,
+  "implementation_slices_completed": 1,
   "implementation_slices_total": 7,
   "runtime_scenarios": {
     "planned": 13,
-    "executed": 0
+    "full_original_scenarios_completed": 0,
+    "pilot_correlated_replies": 3,
+    "pilot_unconfirmed_proposals": 1
   },
-  "benchmark_design_traceability": 8
+  "benchmark_design_traceability": 8,
+  "runtime_evidence": "docs/validation/runtime.json",
+  "runtime_report": {
+    "markdown": "docs/runtime-validation.md",
+    "html": "docs/runtime-validation.html",
+    "body_sha256": "ef4f34516b865c3249a894c4c206bb636103f92b8ca85053edf0690ccd805676",
+    "wiki_body_equal": true,
+    "lint": {
+      "blocking": 0,
+      "warnings": 0
+    }
+  },
+  "full_acceptance": {
+    "AC-9": "PASS within browser pilot",
+    "others": "UNVERIFIED"
+  },
+  "session_personas": {
+    "status": "done",
+    "spec": "docs/design/0002-session-personas.md",
+    "html": "docs/session-personas.html",
+    "evidence": "docs/validation/personas.json",
+    "body_sha256": "53ec2f453b5586a200fc17c62f32d5fb6c55183457bbb4496af8925549026b88",
+    "wiki_body_equal": true,
+    "spec_check": "pass",
+    "report_lint": {
+      "blocking": 0,
+      "warnings": 0
+    },
+    "test_count": 23
+  },
+  "chair_routing": {
+    "status": "done",
+    "acceptance": "AC-7",
+    "evidence": "docs/validation/chair-routing.json",
+    "screenshot": "docs/screenshots/chair-recipient.jpg",
+    "tests": 23,
+    "targeted_tests": 4,
+    "wiki_body_equal": true,
+    "html_source_sha256": "53ec2f453b5586a200fc17c62f32d5fb6c55183457bbb4496af8925549026b88",
+    "scope": "single-chair request routing; automatic wake and autonomous mediation remain unimplemented"
+  },
+  "dedicated_chair": {
+    "status": "done",
+    "spec": "docs/design/0003-dedicated-chair.md",
+    "html": "docs/dedicated-chair.html",
+    "evidence": "docs/validation/dedicated-chair.json",
+    "tests": 38,
+    "scope": "separate chair and requested fixes; full project still building",
+    "body_sha256": "b39e644d880ab6026b0374a50a271dc60dafac7b34ab874d53819083c3720471",
+    "wiki_body_equal": true
+  },
+  "chair_panel": {
+    "status": "done",
+    "evidence": "docs/validation/chair-panel.json",
+    "appWidth": "full viewport",
+    "bubbleMax": 720,
+    "chairSummaryRow": true,
+    "participantsSeparateRow": true,
+    "localProviderIcons": true,
+    "tests": 38
+  },
+  "resizable_panels": {
+    "status": "done",
+    "spec": "docs/design/0004-resizable-panels.md",
+    "html": "docs/resizable-panels.html",
+    "evidence": "docs/validation/resizable-panels.json",
+    "tests": 42,
+    "wiki_body_equal": true,
+    "source_sha256": "39610c91fefc669d62b1636c782ad4f5a7178b7e567614ae9f5e1621c6f82afb",
+    "scope": "transparent icons, persisted panel dimensions, stable display-name edits; full project remains building"
+  }
 }

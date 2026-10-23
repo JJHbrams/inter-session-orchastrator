@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def render(bundle: Path, source: Path | None = None, output: Path | None = None,
-           review_label: str = "DRAFT · 구현 전", kind: str = "BENCHMARK → DESIGN",
+           review_label: str = "BUILDING · 실행판 검증", kind: str = "BENCHMARK → DESIGN",
            shared_bundle: str | None = None) -> None:
     source = source or ROOT / "docs/design/0001-session-rooms.md"
     raw = source.read_text(encoding="utf-8")
@@ -24,6 +24,8 @@ def render(bundle: Path, source: Path | None = None, output: Path | None = None,
     digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
     title_match = re.search(r"^# (.+)$", body, re.M)
     title = title_match.group(1) if title_match else source.stem
+    updated_match = re.search(r'^updated:\s*([0-9-]+)', raw, re.M)
+    updated_label = updated_match.group(1).replace('-', '.') if updated_match else '2026.10.22'
     content = markdown.markdown(body, extensions=["tables", "fenced_code", "toc"])
     content = re.sub(
         r'<pre><code class="language-mermaid">(.*?)</code></pre>',
@@ -32,18 +34,26 @@ def render(bundle: Path, source: Path | None = None, output: Path | None = None,
         flags=re.S,
     )
     content = re.sub(r"<table>(.*?)</table>", r'<div class="table-scroll"><table>\1</table></div>', content, flags=re.S)
+    if source.parent == ROOT / 'docs/design':
+        content = re.sub(r'(href|src)="\.\./(validation|screenshots)/', r'\1="\2/', content)
     if source.parent == ROOT / "docs/research":
         mapping = json.loads((ROOT / 'docs/research/document-map.json').read_text(encoding='utf-8'))
         known = {row['slug'] for row in mapping}
         local_links = {slug: slug + '.html' for slug in known}
         local_links.update({'inter-session-index': 'index.html', 'session-room-foundation': '../index.html'})
         content = re.sub(r'\[\[([\w-]+)\]\]', lambda m: f'<a href="{local_links[m[1]]}">{m[1]}</a>' if m[1] in local_links else m[0], content)
-    elif source == ROOT / "docs/design/0001-session-rooms.md":
+    elif source.parent in {ROOT / "docs/design", ROOT / "docs"}:
         mapping_path = ROOT / 'docs/research/document-map.json'
         if mapping_path.exists():
             mapping = json.loads(mapping_path.read_text(encoding='utf-8'))
             local_links = {row['slug']: 'research/' + row['slug'] + '.html' for row in mapping}
             local_links.update({'inter-session-index': 'research/index.html', 'session-room-foundation': 'index.html'})
+            local_links['session-room-runtime-validation'] = 'runtime-validation.html'
+            local_links['session-personas'] = 'session-personas.html'
+            local_links['dedicated-chair'] = 'dedicated-chair.html'
+            local_links['resizable-panels'] = 'resizable-panels.html'
+            local_links['rich-attachments'] = 'rich-attachments.html'
+            local_links['mention-routing'] = 'mention-routing.html'
             content = re.sub(r'\[\[([\w-]+)\]\]', lambda m: f'<a href="{local_links[m[1]]}">{m[1]}</a>' if m[1] in local_links else m[0], content)
     headings = re.findall(r'<h2 id="([^"]+)">(.*?)</h2>', content)
     nav = "\n".join(f'<a href="#{html.escape(anchor)}">{label}</a>' for anchor, label in headings)
@@ -94,7 +104,7 @@ def render(bundle: Path, source: Path | None = None, output: Path | None = None,
 <meta name="source-sha256" content="{digest}"><title>{html.escape(title)}</title><style>{css}</style></head>
 <body><a class="skip" href="#document">본문으로 이동</a><div class="shell">
 <aside><div class="brand">INTER SESSION<br>ORCHESTRATOR</div><span class="status">{html.escape(review_label)}</span><nav aria-label="문서 목차">{nav}</nav></aside>
-<main id="document"><header class="meta"><span>{html.escape(kind)}</span><span>2026.10.22 · WINDOWS / LOCAL</span></header>
+<main id="document"><header class="meta"><span>{html.escape(kind)}</span><span>{updated_label} · WINDOWS / LOCAL</span></header>
 <article>{content}</article><footer>원본: {html.escape(source_label)}<br>본문 SHA-256: {digest}</footer></main></div>
 <!-- Mermaid third-party license: {html.escape(license_text).replace('--', '—')} -->
 {script_tag}<script>

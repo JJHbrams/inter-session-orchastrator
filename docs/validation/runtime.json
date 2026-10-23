@@ -1,0 +1,209 @@
+{
+  "date": "2026-10-22",
+  "stage": "building",
+  "exportedAt": "2026-10-22T03:35:25.440Z",
+  "baseline": "b3bb253",
+  "versions": {
+    "node": "24.14.1",
+    "sqlite": "3.51.2",
+    "orca": "1.4.229",
+    "codex": "0.163.0",
+    "claude": "2.1.307"
+  },
+  "automatedTests": {
+    "command": "npm test",
+    "passed": 16,
+    "failed": 0,
+    "scope": "14 storage, 1 actual HTTP/MCP integration, 1 stdio initialization; observed after runtime fixes"
+  },
+  "pilot": {
+    "modelTransport": "room-scoped HTTP helper",
+    "wake": "operator explicitly invoked only the two authorized new canaries",
+    "ownership": "borrowed Orca processes",
+    "mcp": "separate real stdio initialize/tools/context; no native model-client MCP configuration",
+    "room": {
+      "id": "4928678e-04b5-4d48-8cfe-ecd6ed894103",
+      "name": "연결 검증 · Codex × Claude",
+      "request_budget": 6,
+      "round_budget": 2,
+      "archived_at": null,
+      "paused_at": null
+    },
+    "members": [
+      {
+        "id": "21c770de-a040-4db6-a65a-e65438faec80",
+        "provider": "claude",
+        "host": "orca/local",
+        "native_id": "4703f258-92f2-4ffd-9ccd-37d61b2f4144",
+        "cwd": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator",
+        "profile": "orca-user-default",
+        "role": "chair",
+        "read_only": 0
+      },
+      {
+        "id": "92c002eb-bdc5-452b-88fc-66aecce9f84e",
+        "provider": "codex",
+        "host": "orca/local",
+        "native_id": "01a1617d-0e24-7363-8b95-f9ef38f98440",
+        "cwd": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator",
+        "profile": "orca-user-default",
+        "role": "member",
+        "read_only": 0
+      }
+    ],
+    "messages": [
+      {
+        "id": "0f2cc978-ae72-4b6c-9057-45b94763cef2",
+        "sender_session_id": null,
+        "kind": "followup",
+        "reply_to": null,
+        "reply_request_id": null,
+        "request_key": "canary-01a1617d-0e24-7363-8b95-f9ef38f98440",
+        "created_at": "2026-10-22T02:48:50.572Z"
+      },
+      {
+        "id": "f2d3ea7c-379c-4ec3-9053-ddce3c838f92",
+        "sender_session_id": null,
+        "kind": "followup",
+        "reply_to": null,
+        "reply_request_id": null,
+        "request_key": "canary-4703f258-92f2-4ffd-9ccd-37d61b2f4144",
+        "created_at": "2026-10-22T02:48:50.583Z"
+      },
+      {
+        "id": "e39bea7c-ed81-4511-9959-64bfe7c3b8bd",
+        "sender_session_id": "92c002eb-bdc5-452b-88fc-66aecce9f84e",
+        "kind": "post",
+        "reply_to": "0f2cc978-ae72-4b6c-9057-45b94763cef2",
+        "reply_request_id": null,
+        "request_key": null,
+        "created_at": "2026-10-22T02:49:41.724Z"
+      },
+      {
+        "id": "6b694ca9-9e3c-4632-8b62-e3827f05f61d",
+        "sender_session_id": "21c770de-a040-4db6-a65a-e65438faec80",
+        "kind": "post",
+        "reply_to": "f2d3ea7c-379c-4ec3-9053-ddce3c838f92",
+        "reply_request_id": null,
+        "request_key": null,
+        "created_at": "2026-10-22T02:49:51.622Z"
+      },
+      {
+        "id": "6d8be375-f4dd-42f0-bbc5-0ebe3c0abc33",
+        "sender_session_id": "21c770de-a040-4db6-a65a-e65438faec80",
+        "kind": "followup",
+        "reply_to": null,
+        "reply_request_id": null,
+        "request_key": null,
+        "created_at": "2026-10-22T03:13:12.739Z"
+      },
+      {
+        "id": "11cb1c3e-acab-47f0-87cb-e0633cad6653",
+        "sender_session_id": "92c002eb-bdc5-452b-88fc-66aecce9f84e",
+        "kind": "post",
+        "reply_to": "6d8be375-f4dd-42f0-bbc5-0ebe3c0abc33",
+        "reply_request_id": "5804c64a-4c19-44f3-9fd3-7ae7e4e22e73",
+        "request_key": null,
+        "created_at": "2026-10-22T03:15:16.290Z"
+      }
+    ],
+    "deliveries": [
+      {
+        "request_id": "03155be9-2eff-49d0-8870-828deecc0859",
+        "message_id": "0f2cc978-ae72-4b6c-9057-45b94763cef2",
+        "membership_id": "3cd39d4e-dfdd-46c4-8eae-561ba03101d9",
+        "state": "completed",
+        "outcome": null
+      },
+      {
+        "request_id": "b02dab92-251a-40c9-baba-dfc0070fe8d9",
+        "message_id": "f2d3ea7c-379c-4ec3-9053-ddce3c838f92",
+        "membership_id": "70a4e7f0-a796-4e5f-b73f-f52a141d9abc",
+        "state": "completed",
+        "outcome": null
+      },
+      {
+        "request_id": "5804c64a-4c19-44f3-9fd3-7ae7e4e22e73",
+        "message_id": "6d8be375-f4dd-42f0-bbc5-0ebe3c0abc33",
+        "membership_id": "3cd39d4e-dfdd-46c4-8eae-561ba03101d9",
+        "state": "completed",
+        "outcome": "unknown"
+      }
+    ],
+    "decisions": [
+      {
+        "id": "d11efa96-526b-4f86-8f56-52ee5a701b6c",
+        "status": "proposed",
+        "sources": [
+          "11cb1c3e-acab-47f0-87cb-e0633cad6653",
+          "6b694ca9-9e3c-4632-8b62-e3827f05f61d",
+          "6d8be375-f4dd-42f0-bbc5-0ebe3c0abc33",
+          "e39bea7c-ed81-4511-9959-64bfe7c3b8bd"
+        ]
+      }
+    ],
+    "correlatedReplies": [
+      {
+        "requestId": "03155be9-2eff-49d0-8870-828deecc0859",
+        "messageId": "0f2cc978-ae72-4b6c-9057-45b94763cef2",
+        "replyIds": [
+          "e39bea7c-ed81-4511-9959-64bfe7c3b8bd"
+        ]
+      },
+      {
+        "requestId": "b02dab92-251a-40c9-baba-dfc0070fe8d9",
+        "messageId": "f2d3ea7c-379c-4ec3-9053-ddce3c838f92",
+        "replyIds": [
+          "6b694ca9-9e3c-4632-8b62-e3827f05f61d"
+        ]
+      },
+      {
+        "requestId": "5804c64a-4c19-44f3-9fd3-7ae7e4e22e73",
+        "messageId": "6d8be375-f4dd-42f0-bbc5-0ebe3c0abc33",
+        "replyIds": [
+          "11cb1c3e-acab-47f0-87cb-e0633cad6653"
+        ]
+      }
+    ]
+  },
+  "ui": {
+    "viewports": [
+      {
+        "width": 1280,
+        "height": 800,
+        "pageHorizontalOverflow": false,
+        "sendBottom": 787
+      },
+      {
+        "width": 1440,
+        "height": 900,
+        "pageHorizontalOverflow": false,
+        "sendBottom": 887
+      }
+    ],
+    "rawOutput": {
+      "session": "codex canary",
+      "lines": 44,
+      "scopedPermission": true
+    }
+  },
+  "fullAcceptance": {
+    "AC9": "PASS within browser pilot",
+    "others": "UNVERIFIED",
+    "V01throughV13": "full original scenarios incomplete"
+  },
+  "sha256": {
+    "services/coordinator/store.js": "65d084cad66b42ad65dd8565dc88ce9e7106c575ce605b1bc1a780bfc579de72",
+    "services/coordinator/server.js": "d775a537ef078240bc018064c1d4ae8f419415ab0a07aa8f857f778d27c26c5f",
+    "adapters/orca/index.js": "348ae15796c37fc8b0af859a4d9edc7a422927bb3c0e585d0fe955ea3590f964",
+    "packages/mcp/server.js": "1a7a51a54ad4e6e21867de8b532af3c064a1a389f7c517b7fb74c75a574ce573",
+    "packages/mcp/participant.js": "d0ad01acd144b8b3f7d6a4a34ad1bdf50bdf64044ccfe12192f6553f4b33195a",
+    "apps/desktop/app.js": "e083819ac788718dfee7a279beae5a313cc0a2bf094420a120e1139db7f69042",
+    "apps/desktop/style.css": "9e91d795314fa75835cf9ae2eaeb32536ee6b921ae8a88223e492b5c6a4964c9",
+    "tests/store.test.js": "ee112f45ca1c9fe8cbbdebf3467833625d68ccacaae779606b4ac1d16b5a748c",
+    "tests/http.test.js": "34fb46dbe2749f3680538acbab704a5e66136aebc57bfe38934f9bfbc9b06af2",
+    "tests/mcp.test.js": "8590afd1cdb6c394c2bff2fba8849917ddb497c7c1322d4274f7c18ecc87f360",
+    "docs/screenshots/rooms-1280x800.png": "43ece4f62e46f7d5e92e33cfa3947d29c46e0f40d212182808c00f485229702d",
+    "docs/screenshots/rooms-1440x900.png": "152c7649b1034cf6c18449187a616fffdf931d2dbf5a83c6a5dcafcd7a9058db"
+  }
+}

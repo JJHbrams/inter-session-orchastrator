@@ -4,3 +4,5 @@ __pycache__/
 .local/
 node_modules/
 *.log
+
+.session-rooms/

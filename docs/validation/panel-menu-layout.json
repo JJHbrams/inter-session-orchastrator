@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-22",
+  "scope": "unclipped mention portal, three subtle resize handles, responsive upper panels",
+  "tests": {"command": "npm test", "pass": 61, "fail": 0},
+  "browser": {
+    "actual_origin": "http://127.0.0.1:4318/",
+    "menu_parent": "BODY",
+    "visible_candidates": 3,
+    "all_option_centers_hit_test": true,
+    "keyboard_selection": "ArrowDown + Enter -> @유리아 ",
+    "pointer_selection": "click option -> @마야 ",
+    "escape_closes": true,
+    "summary_dialog_closes_menu": true,
+    "summary_dialog_opens": true,
+    "retained_handles": ["sidebar", "composer", "inspector"],
+    "removed_handles": ["chair", "upper", "participants"],
+    "main_retained_sizes": {"sidebar": 238, "composer": 233, "inspector": 340},
+    "proxy_keyboard": {"sidebar": "218 -> 228", "inspector": "340 -> 330", "composer_end": 248, "timeline_at_composer_end": 100.44},
+    "layout_settings_isolation": "GET-only proxy on 4320 uses separate origin localStorage; main settings untouched",
+    "iframe_resize_with_menu_open": "1280x720 -> 760x900 -> 1600x1000; all three option centers hit at each size",
+    "viewport_measurements": [
+      {"kind": "actual app", "width": 1517, "height": 1398, "summary_height": 234.90, "summary_scroll_height": 287, "timeline_height": 735.50, "composer_height": 232.99, "horizontal_overflow": false},
+      {"kind": "iframe CSS viewport", "width": 1280, "height": 720, "summary_height": 176.59, "summary_scroll_height": 286, "timeline_height": 148.44, "composer_height": 200, "horizontal_overflow": false},
+      {"kind": "iframe CSS viewport", "width": 760, "height": 900, "summary_height": 219, "summary_scroll_height": 354, "timeline_height": 179.83, "composer_height": 200, "horizontal_overflow": false},
+      {"kind": "iframe CSS viewport", "width": 1600, "height": 1000, "summary_height": 235, "summary_scroll_height": 264, "timeline_height": 370.03, "composer_height": 200, "horizontal_overflow": false}
+    ],
+    "provider_background": "rgb(255, 255, 255)",
+    "message_max_width": 720,
+    "draft_restored": true,
+    "limitations": ["Iframe keyboard focus is unavailable in this automation tool; keyboard selection verified in actual app, narrow menu visibility and hit-testing verified in iframe.", "Physical splitter drag was not exercised in this follow-up; retained keyboard controls and existing pointer handlers were checked."]
+  },
+  "independent_acceptance": {"AC1": "PASS", "AC2": "PASS", "AC3": "PASS", "overall": "PASS", "basis": "fresh planner read-only code and evidence consistency review; root performed browser observations"},
+  "data_preservation": {
+    "tables": 11,
+    "before_and_after_sha256": "9a5d07bb14c6aeed2bd3fa732f542a3ddf6582a9690e27ecaf15fe0a37f0bb5f",
+    "model_requests_sent": 0
+  },
+  "screenshots": ["screenshots/panel-menu-before.jpg", "screenshots/panel-menu-main.jpg", "screenshots/panel-menu-normal.jpg", "screenshots/panel-menu-narrow.jpg", "screenshots/panel-menu-wide.jpg"]
+}

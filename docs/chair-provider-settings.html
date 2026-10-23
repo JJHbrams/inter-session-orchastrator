@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="source-sha256" content="eb6c8303902298c8bc57c83ed580643b00af01e579dd533253e0a166c2795376"><title>좌장 provider·모델 설정과 자동 대화 한도</title><style>
+    :root{--ink:#202c35;--muted:#64757a;--accent:#006c62;--line:#dce4e4;--paper:#fff;--bg:#f3f6f5}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}
+    body{margin:0;color:var(--ink);background:var(--bg);font:15px/1.85 'Segoe UI','Malgun Gothic',sans-serif}
+    a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+    .shell{display:grid;grid-template-columns:222px minmax(0,1fr);max-width:1640px;margin:auto}
+    aside{position:sticky;top:0;height:100vh;padding:38px 20px;overflow:auto;border-right:1px solid var(--line)}
+    .brand{font-size:12px;letter-spacing:.1em;font-weight:800;color:var(--accent);line-height:1.6;margin-bottom:18px}
+    .status{display:inline-block;background:#f9e9c6;color:#795308;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:700}
+    nav{margin-top:25px}nav a{display:block;font-size:12px;color:var(--muted);padding:7px 0;line-height:1.5}
+    nav a:hover{color:var(--accent)}main{min-width:0;padding:40px 52px 80px;background:var(--paper)}
+    .meta{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid var(--accent);padding-bottom:17px;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.08em}
+    h1{font-size:34px;line-height:1.45;letter-spacing:-1.1px;margin:30px 0 22px;font-weight:750;max-width:900px}
+    h2{font-size:23px;line-height:1.5;margin:54px 0 20px;padding-top:20px;border-top:1px solid var(--line);letter-spacing:-.5px}
+    h3{font-size:17px;margin:28px 0 12px;color:var(--accent)}p{margin:12px 0;max-width:1060px}
+    blockquote{margin:20px 0;padding:15px 20px;border-left:4px solid var(--accent);background:#edf6f3;color:#345e58}
+    blockquote p{margin:0}ul,ol{padding-left:23px}li{margin:5px 0}
+    .table-scroll{overflow:auto;max-width:100%;margin:18px 0 26px;border:1px solid var(--line);border-radius:8px}
+    table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.75}
+    th{background:#edf3f2;color:#24463f;font-weight:700;text-align:left;white-space:nowrap}
+    td,th{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top;min-width:105px}
+    tr:last-child td{border-bottom:0}td:first-child{font-weight:600}tr:nth-child(even){background:#fafcfc}
+    code{font:12px/1.6 Consolas,'Malgun Gothic',monospace;background:#edf2f2;padding:2px 4px;border-radius:3px;overflow-wrap:anywhere}
+    pre{padding:20px;overflow:auto;border-radius:8px;background:#152c2c;color:#e7f2ef;font:12px/1.9 Consolas,'Malgun Gothic',monospace}
+    pre code{padding:0;background:none;color:inherit;font:inherit;overflow-wrap:normal}
+    pre.mermaid{background:#f7faf9;color:var(--ink);border:1px solid var(--line);text-align:center;padding:24px 12px}
+    .mermaid svg{max-width:100%!important;height:auto!important;display:block;margin:auto}
+    footer{margin-top:50px;border-top:1px solid var(--line);padding-top:18px;color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+    .skip{position:absolute;left:-9999px}.skip:focus{left:16px;top:10px;background:white;padding:8px;z-index:10}
+    @media(max-width:1000px){.shell{grid-template-columns:180px minmax(0,1fr)}main{padding:28px}aside{padding:28px 15px}h1{font-size:28px}}
+    @media(max-width:700px){.shell{display:block}aside{position:static;height:auto;padding:20px;border:0;border-bottom:1px solid var(--line)}nav{display:none}main{padding:22px 18px}h1{font-size:25px}td,th{min-width:135px}h2{font-size:21px}}
+    @media print{aside,.skip{display:none}.shell{display:block}main{padding:0}.table-scroll{overflow:visible}pre.mermaid{break-inside:avoid}body{background:white}}
+    </style></head>
+<body><a class="skip" href="#document">본문으로 이동</a><div class="shell">
+<aside><div class="brand">INTER SESSION<br>ORCHESTRATOR</div><span class="status">VERIFIED · 로컬 실행판</span><nav aria-label="문서 목차"><a href="research/index.html">최신 벤치마킹 조사 →</a>
+<a href="#_1">한눈에 보기</a>
+<a href="#1-intent">1. 의도 (Intent)</a>
+<a href="#2-acceptance">2. 수용 기준 (Acceptance)</a>
+<a href="#3-facts">3. 확정 사실 (Facts)</a>
+<a href="#4-use-cases">4. 유스케이스 (Use Cases)</a>
+<a href="#5-flow">5. 구조와 처리 흐름 (Flow)</a>
+<a href="#6-state">6. 상태 전이 (State)</a>
+<a href="#7-timing">7. 타이밍 (Timing)</a>
+<a href="#8-er">8. 데이터 (ER)</a>
+<a href="#9-change-surface">9. 변경 지점 (Change Surface)</a>
+<a href="#10-risks">10. 잠재 문제 (Risks)</a>
+<a href="#11-slices">11. 착수 순서 (Slices)</a>
+<a href="#12-traceability">12. 추적성 (Traceability)</a>
+<a href="#_11">참고</a></nav></aside>
+<main id="document"><header class="meta"><span>PROVIDER SETTINGS · DIALOGUE LIMITS</span><span>2026.10.23 · WINDOWS / LOCAL</span></header>
+<article><!-- sr:plan
+{"document_type":"decision","reader_questions":["생성 때 무엇을 선택하는가","토론 중 변경은 언제 적용되는가","한도는 무엇을 제한하는가","무엇을 실행 검증했는가"],"visual_plan":[{"kind":"comparison_table","content":"provider와 실행 설정 구분","required":true},{"kind":"flowchart","content":"선택부터 다음 실행까지","required":true},{"kind":"state_diagram","content":"생성 및 설정 변경 상태","required":true},{"kind":"sequence_diagram","content":"실행 설정 스냅샷","required":true},{"kind":"er_diagram","content":"좌장 설정과 실행 기록","required":true}],"visual_waiver":[]}
+-->
+
+<h1 id="provider">좌장 provider·모델 설정과 자동 대화 한도</h1>
+<h2 id="_1">한눈에 보기</h2>
+<ul>
+<li>목적: 좌장의 provider를 선택하고 토론 중 모델·effort를 조절하며, 자동 대화가 어디서 멈추는지 이해한다.</li>
+<li>현재 상태: 로컬 4318 반영 완료. 전체 120개 회귀 테스트와 두 provider 실제 생성·재개를 검증했다.</li>
+<li>핵심 결론: provider와 native 대화 신원은 생성 후 고정하고, 모델·effort는 다음 실행부터 적용한다.</li>
+<li>원인 또는 판단 근거: 변경 전 runner·저장은 Claude 고정이었으며 생성 UI에는 설정이 없었다. 한도는 숫자 두 개만 노출했다.</li>
+<li>결정: 생성/변경 설정 UI, provider별 실행기, 실행별 설정 기록, 대화 왕복 기준의 프리셋과 고급 안전 한도를 추가한다.</li>
+<li>다음 행동: 기존 borrowed Claude 참여자의 초안/추천문구 감지 문제를 별도로 복구한다. 새 전용 좌장 두 provider는 검증 완료다.</li>
+<li>최종 갱신: 2026-10-23, Asia/Seoul.</li>
+</ul>
+<h2 id="1-intent">1. 의도 (Intent)</h2>
+<p>생성 시 Claude/Codex를 선택한다. 생성 뒤 provider는 바꾸지 않고 모델과effort를 바꾼다. 변경 중 실행은 기존 설정으로 끝내며 다음 실행이 새 설정을 사용한다. 기존 좌장·native ID·대화·제안·자료·미확인 실행의 보호를 유지한다. 초대한 외부 참여자의 CLI 설정을 임의로 바꾸거나 provider를 교체하지 않는다.</p>
+<h2 id="2-acceptance">2. 수용 기준 (Acceptance)</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>결과</th>
+<th>검증</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AC-1</td>
+<td>생성 UI에서 provider·모델·effort를 고르고 실제 별도 좌장을 만든다.</td>
+<td>두 provider의 생성·native ID·최초 응답 대조</td>
+</tr>
+<tr>
+<td>AC-2</td>
+<td>같은 provider·native ID를 유지한 모델·effort 변경은 다음 실행부터 적용되며 현재 실행은 보존한다.</td>
+<td>실행 스냅샷·경계 fixture 및 실제 동일 ID 재개</td>
+</tr>
+<tr>
+<td>AC-3</td>
+<td>기존 Claude 좌장은 migration 후 같은 대화를 유지하고 잘못된 provider/effort 입력은 거부한다.</td>
+<td>기존 DB fixture·HTTP 검증·재시작</td>
+</tr>
+<tr>
+<td>AC-4</td>
+<td>자동 대화 한도는 사용자 입력 한 번에 적용되며, 왕복 횟수 프리셋과 고급 전달 상한을 구분한다.</td>
+<td>UI 저장/재열기·병렬 질문·새 입력 한도 회귀</td>
+</tr>
+<tr>
+<td>AC-5</td>
+<td>UI에서 현재 설정과 다음 적용 시점을 확인하며 실패·미확인을 성공으로 표시하지 않는다.</td>
+<td>실제 브라우저와 provider 오류/기존 unknown 회귀</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="3-facts">3. 확정 사실 (Facts)</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>항목</th>
+<th>직접 확인</th>
+<th>영향</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>기존 좌장</td>
+<td>chairs.native_id NOT NULL, readyChair의 provider='claude', initialize/resume CLI는 도구/MCP 없는 Claude 실행</td>
+<td>additive 설정 migration 및 provider별 runner 분리</td>
+</tr>
+<tr>
+<td>Claude</td>
+<td>설치 CLI는 --model·--effort·--resume를 지원한다. 기존 --tools 빈 값·safe-mode·strict MCP를 유지한다.</td>
+<td>실행별 인자만 바꾸고 전역 설정을 쓰지 않는다.</td>
+</tr>
+<tr>
+<td>Codex</td>
+<td>설치 exec/resume는 --model·model_reasoning_effort·--output-schema·--json·--ignore-user-config를 지원한다. 새 thread ID는 provider가 발급한다.</td>
+<td>초기화에서 실제 ID를 확인하고 ready 전 한 번만 바인딩한다.</td>
+</tr>
+<tr>
+<td>한도</td>
+<td>reply_to 계보별 자동 질문 깊이와 전달 수를 별도로 계산한다. 병렬 질문은 한 라운드다.</td>
+<td>기존 저장 의미를 바꾸지 않고 설명·선택 방식을 개선한다.</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="_2">선택지</h3>
+<p>고정 Claude를 유지하는 방법과 provider별 실행기를 추가하는 방법을 비교했다.</p>
+<h3 id="_3">비교</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>설정</th>
+<th>생성 후 변경</th>
+<th>저장·적용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Provider</td>
+<td>불가</td>
+<td>좌장 신원과 고정</td>
+</tr>
+<tr>
+<td>모델·effort</td>
+<td>가능</td>
+<td>좌장 기본값 + 실제 실행별 스냅샷</td>
+</tr>
+<tr>
+<td>자동 대화 왕복</td>
+<td>가능</td>
+<td>사용자 요청별 라운드 상한</td>
+</tr>
+<tr>
+<td>전달 수 안전 상한</td>
+<td>가능</td>
+<td>병렬 대상 수와 취합을 포함하는 고급 설정</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="_4">평가기준</h3>
+<p>동일 대화의 연속성, 실제 runner 인자, 진행 중 실행 보존, 사용자에게 보이는 적용 시점과 한도 의미로 판단한다.</p>
+<h3 id="_5">결정</h3>
+<p>모델 목록은 가능한 로컬 provider 메타데이터를 사용하고 기본값/직접 모델 입력을 구분한다. 설정하지 않은 기존 모델은 provider 기본값으로 보존한다. 모델이 지원하지 않는 effort를 UI에서 정상 적용처럼 표시하지 않는다.</p>
+<h2 id="4-use-cases">4. 유스케이스 (Use Cases)</h2>
+<pre class="mermaid">flowchart LR
+ U[사용자] --&gt; C[좌장 생성: provider와 모델 선택]
+ U --&gt; S[좌장 설정: 모델과 effort 변경]
+ U --&gt; L[자동 대화: 왕복 횟수 선택]
+ C --&gt; R[별도 native 대화]
+ S --&gt; N[다음 실행부터 적용]
+</pre>
+<h2 id="5-flow">5. 구조와 처리 흐름 (Flow)</h2>
+<pre class="mermaid">flowchart TD
+ A[생성 설정 검증] --&gt; B{provider}
+ B --&gt;|Claude| C[고정 UUID로 새 대화]
+ B --&gt;|Codex| D[새 대화 ID 수신 및 저장]
+ C --&gt; E[좌장 ready]
+ D --&gt; E
+ E --&gt; F[실행 직전 설정 스냅샷]
+ F --&gt; G[동일 native ID resume]
+</pre>
+<h2 id="6-state">6. 상태 전이 (State)</h2>
+<pre class="mermaid">stateDiagram-v2
+ Absent --&gt; Initializing: 생성 요청
+ Initializing --&gt; Ready: 실제 신원 확인
+ Initializing --&gt; Failed: 실패 또는 불명
+ Ready --&gt; Running: 설정 스냅샷
+ Running --&gt; Running: 다음 설정 저장
+ Running --&gt; Ready: 현재 응답 저장
+ Ready --&gt; Ready: 다음 실행 설정 변경
+</pre>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>상태</th>
+<th>저장/UI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Initializing</td>
+<td>provider 고정, 초기화 결과 확인 전 대화 발신 안 함</td>
+</tr>
+<tr>
+<td>Ready</td>
+<td>현재 provider·모델·effort와 변경 동작 제공</td>
+</tr>
+<tr>
+<td>Running</td>
+<td>실행 당시 설정 유지, 변경값은 다음 실행용으로 저장</td>
+</tr>
+<tr>
+<td>Unknown</td>
+<td>미확인 실행 보호, 설정 변경이 재전송/신원 교체를 만들지 않음</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="7-timing">7. 타이밍 (Timing)</h2>
+<pre class="mermaid">sequenceDiagram
+ participant U as 사용자
+ participant S as 서버
+ participant P as Provider
+ S-&gt;&gt;P: 실행 A: 설정 revision 1
+ U-&gt;&gt;S: 모델 변경: revision 2 저장
+ P--&gt;&gt;S: 실행 A 응답
+ S-&gt;&gt;P: 실행 B: revision 2 및 같은 native ID
+</pre>
+<h2 id="8-er">8. 데이터 (ER)</h2>
+<pre class="mermaid">erDiagram
+ ROOM ||--o| CHAIR : owns
+ CHAIR ||--o{ CHAIR_RUN : snapshots
+ CHAIR {
+  string provider
+  string native_id
+  string model
+  string effort
+  int revision
+ }
+ CHAIR_RUN {
+  string provider
+  string model
+  string effort
+  int revision
+ }
+</pre>
+<h2 id="9-change-surface">9. 변경 지점 (Change Surface)</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>경로</th>
+<th>변경</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>services/coordinator/store.js</code>, <code>chair.js</code>, <code>server.js</code></td>
+<td>설정·migration·실행 스냅샷·API</td>
+</tr>
+<tr>
+<td><code>adapters/claude/chair.js</code></td>
+<td>모델·effort 인자 전달</td>
+</tr>
+<tr>
+<td><code>adapters/codex/chair.js</code> (신규)</td>
+<td>별도 Codex 좌장 생성·정확한 ID 재개</td>
+</tr>
+<tr>
+<td><code>adapters/chair/index.js</code> (신규)</td>
+<td>provider 실행기 선택</td>
+</tr>
+<tr>
+<td><code>packages/contracts/chair-settings.js</code> (신규)</td>
+<td>설정·카탈로그 계약</td>
+</tr>
+<tr>
+<td><code>apps/desktop/app.js</code>, <code>style.css</code></td>
+<td>생성/변경 UI·자동 대화 프리셋</td>
+</tr>
+<tr>
+<td><code>tests/</code></td>
+<td>두 provider·기존 설정·진행 중 변경·한도 검증</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="10-risks">10. 잠재 문제 (Risks)</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>위험</th>
+<th>대응</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>provider가 바뀌어 대화가 새로 생성됨</td>
+<td>서버에서 변경 거부, native ID resume 검증</td>
+</tr>
+<tr>
+<td>실행 중 설정을 바꿔 현재 요청과 기록이 불일치</td>
+<td>실행 직전 스냅샷을 고정하고 실제 인자와 기록 대조</td>
+</tr>
+<tr>
+<td>Codex 임시 UUID를 실제 native ID로 오인</td>
+<td>ready 전 실제 발급 ID 확인, 초기화 불명은 자동 재생성 금지</td>
+</tr>
+<tr>
+<td>모델 목록·지원 effort 변화</td>
+<td>로컬 메타데이터와 명시적 기본값/오류 처리</td>
+</tr>
+<tr>
+<td>한도 UI 단순화가 집계 의미를 변경</td>
+<td>기존 request별 깊이/전달 집계를 유지</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="_6">재검토 조건</h3>
+<p>provider의 도구 제한·구조화 출력·resume 형식이 바뀌면 해당 runner를 검증 전 사용 가능으로 표시하지 않는다.</p>
+<h2 id="11-slices">11. 착수 순서 (Slices)</h2>
+<ul>
+<li>[x] provider별 runner와 모델·effort 계약 — AC-1, AC-3.</li>
+<li>[x] 저장·API·실행 스냅샷 및 migration — AC-1, AC-2, AC-3.</li>
+<li>[x] 생성/설정과 자동 대화 한도 UI — AC-1, AC-4, AC-5.</li>
+<li>[x] 실제 두 provider·동일 ID·브라우저 검증 — AC-1, AC-2, AC-3, AC-4, AC-5.</li>
+</ul>
+<h2 id="12-traceability">12. 추적성 (Traceability)</h2>
+<h3 id="_7">결과</h3>
+<p>실행판: http://127.0.0.1:4318/. 기준 커밋 d8f026a에서 provider별 runner·저장 migration·설정 API·UI를 통합했다. 독립 acceptance audit는 AC-1~5 모두 PASS다. 원자료는 <a href="validation/chair-provider-settings.json">검증 JSON</a>에 있다.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>검증</th>
+<th>실제 관찰</th>
+<th>판정</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Claude 생성·재개</td>
+<td>격리 API에서 Sonnet/low 생성 → 실행 중 Opus/medium 저장 → 같은 native ID 다음 응답. native transcript 모델은 claude-sonnet-5-5 → claude-opus-5-5.</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>Codex 생성·재개</td>
+<td>브라우저에서 gpt-6.1-sol/low 생성 → 실행 중 gpt-6-luna/medium 저장 → 같은 native ID 다음 응답. native transcript model·effort도 일치.</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>설정 경계</td>
+<td>Claude 설정 변경 06:47:19.832 UTC는 첫 실행 06:47:19.203~06:47:23.917 안에 발생. Codex도 첫 실행 claim 뒤 06:46:57.652 UTC에 변경. 실행1은 revision1, 실행2는 revision2 유지.</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>응답 연속성</td>
+<td>두 provider 모두 모델 변경 후 앞서 전달한 검증 코드를 재현했다. 코드만으로 영구 기억을 보장한다는 의미는 아니다.</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>실제 migration</td>
+<td>기존 2좌장·38메시지·2결정·10원문 근거와 5방·1채널·5세션의 모든 기존 컬럼이 일치. 새 provider=claude, model/effort=null, revision1.</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>신원 변경 방지</td>
+<td>실제 4318의 기존 Claude 좌장에 provider 변경 요청 → HTTP409, 기존 설정 그대로. 인증·CSRF·잘못된 effort도 HTTP 테스트로 확인.</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>한도 UI</td>
+<td>사용자 지정 4차례/30전달 저장·재열기, 1차례 프리셋 저장·재열기. 병렬/독립 사용자 입력 한도 기존 회귀 유지.</td>
+<td>PASS</td>
+</tr>
+<tr>
+<td>UI·회귀</td>
+<td>1280×800·1440×900 화면에서 설정 대화상자 가로 넘침 없음. npm test 120/120.</td>
+<td>PASS</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="_8">사용 방법</h3>
+<ol>
+<li><strong>좌장 만들기</strong>에서 Claude/Codex와 모델·effort를 선택한다.</li>
+<li>생성 후 <strong>좌장 설정</strong> 또는 좌장 카드 아래 <strong>모델 · effort 설정</strong>에서 변경한다. Provider는 비활성화되고 같은 대화 ID를 유지한다.</li>
+<li><strong>더 보기 → 자동 대화 설정</strong>에서 1회·3회·6회 또는 직접 횟수를 정한다. 전달 수 안전 상한은 고급 설정에 있다.</li>
+</ol>
+<p>CLI 기본 모델은 기본 effort를 함께 사용한다. 직접 모델 ID 입력은 provider가 허용할 때 제공하며, 지원 effort가 확인된 목록 모델에서만 추론 깊이를 선택한다. Codex는 로컬 모델 메타데이터의 숨김 모델을 일반 선택 목록에서 제외한다. Claude effort는 요청 인자·실행 스냅샷을 검증했으며, native transcript에서 최종 적용 effort를 별도로 관측했다고 주장하지 않는다.</p>
+<h3 id="_9">실패 처리와 남은 범위</h3>
+<p>Codex의 구조화 응답은 선택 항목을 null로 반환할 수 있다. 기존 조율기 검증이 이를 거부해 첫 결과 적용이 unknown이 됐고, nullable 선택 필드를 정상 처리하도록 수정했다. 보관된 output_json을 <strong>재실행 없이</strong> 적용한 뒤 동일 native ID로 다음 응답을 검증했다. 잘못된 대상·반응·첨부는 기존대로 거부한다.</p>
+<p>이전에 초대한 Claude ‘수아’ 참여자는 초안/추천문구 감지로 기존 요청이 차단된 상태다. 사용자 승인으로 취소 신호를 한 번 전달했지만 감지 문구가 남아 있어 복구 완료로 처리하지 않았다. 이번 새 전용 Claude 좌장 검증과 구분한다. 기존 사용자 토론장에 테스트 질문은 보내지 않았다.</p>
+<h3 id="_10">화면</h3>
+<p><img src="screenshots/chair-settings-1440.png" alt="좌장 provider 고정 및 모델 effort 설정" style="max-width:100%;height:auto;"></p>
+<p><img src="screenshots/dialogue-settings-1440.png" alt="사용자 입력 한 번 기준 자동 대화 횟수 설정" style="max-width:100%;height:auto;"></p>
+<h2 id="_11">참고</h2>
+<ul>
+<li><a href="dedicated-chair.html">dedicated-chair</a>, <a href="index.html">session-room-foundation</a>, <a href="research/index.html">inter-session-index</a></li>
+<li><a href="https://learn.chatgpt.com/docs/non-interactive-mode">Codex non-interactive mode</a></li>
+<li><a href="https://code.claude.com/docs/en/model-config">Claude model configuration</a></li>
+</ul></article><footer>원본: docs/design/0008-chair-provider-settings.md<br>본문 SHA-256: eb6c8303902298c8bc57c83ed580643b00af01e579dd533253e0a166c2795376</footer></main></div>
+<!-- Mermaid third-party license: The MIT License (MIT)
+
+Copyright (c) 2014 - 2022 Knut Sveidqvist
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the &quot;Software&quot;), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+ -->
+<script src="research/assets/mermaid.min.js"></script><script>
+window.designRenderDone=false;
+mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'base',themeVariables:{fontFamily:'Segoe UI, Malgun Gothic, sans-serif',primaryColor:'#e6f2ee',primaryTextColor:'#202c35',lineColor:'#4c7972',primaryBorderColor:'#76a69b'}});
+mermaid.run({querySelector:'.mermaid'}).then(()=>{window.designRenderDone=true}).catch(e=>{window.designRenderError=String(e);console.error(e)});
+</script></body></html>

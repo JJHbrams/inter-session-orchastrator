@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-22",
+  "baseline": "da35ab0",
+  "acceptance": "AC-7 PASS within recipient routing",
+  "tests": {
+    "full": 23,
+    "failed": 0,
+    "targeted": 4
+  },
+  "ui": {
+    "noChairBlocks": true,
+    "missingChairDraftPreserved": true,
+    "chairAliasPreview": true,
+    "bodyMentionsContextOnly": true,
+    "savedSingleChair": [
+      {
+        "request_id": "962d0597-f46d-4aa8-8bf4-c1d3179a4d53",
+        "membership_id": "732509d4-bda6-42ea-a259-e424a7717620",
+        "alias": "수아",
+        "role": "chair"
+      }
+    ],
+    "width": 1280,
+    "height": 720,
+    "horizontalOverflow": false,
+    "sendBottom": 710,
+    "mainAppPreview": "수아",
+    "submitLabel": "좌장에게 보내기"
+  },
+  "fixtureMessage": {
+    "id": "79d8eeb6-e358-47d9-bed8-a8e085df8aa1",
+    "body": "@리아 의견을 취합해서 정리해줘. [격리 UI 검증]",
+    "kind": "followup"
+  },
+  "limits": "No automatic chair wake or autonomous mediation claimed; no new real provider prompt sent.",
+  "sha256": {
+    "services/coordinator/store.js": "0779429c2f660c6bd0f71a6fabaeaaf1fce479a317487f3c861cf140474d2b21",
+    "apps/desktop/app.js": "c3de17b5a87f4d7b41460a3b4e4896803789db47d32ccc6cdf5fd6488f986893",
+    "apps/desktop/style.css": "230aa82a4ea063e0028724584a41914f6e67ce8ad6887fdcf6cd79dfcb0a45c1",
+    "tests/personas.test.js": "4e94d07c5e5d63631990195f9b405ed51bc695abebdafafb7451809af11fc57e",
+    "tests/http.test.js": "770e7fc624609eeaa6fc30cc277ddc3f854fee64d04192bffcff4851a8e589e3",
+    "docs/screenshots/chair-recipient.jpg": "c42ede77c55c003e2aaa1952c1952e7f63087f7286467c06deb142928d5ce287"
+  }
+}

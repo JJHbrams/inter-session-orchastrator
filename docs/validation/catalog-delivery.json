@@ -1,0 +1,57 @@
+{
+  "observedAt": "2026-10-23T05:58:21.034Z",
+  "url": "http://127.0.0.1:4318/",
+  "originalMessagesPreserved": 38,
+  "catalog": {
+    "query": "",
+    "count": 80,
+    "distinctCwds": 17,
+    "scope": "all-workspaces",
+    "projectSearchRows": 4,
+    "clearSearchRows": 80
+  },
+  "claude": {
+    "nativeSessionId": "4703f258-92f2-4ffd-9ccd-37d61b2f4144",
+    "exactBindingConnected": true,
+    "originalQueuedRequests": [
+      {
+        "id": "0d1dcffa-2302-438b-821c-317e6f647ff8",
+        "request_id": "9e0789a6-8bf4-4466-bd06-bada37d8458c",
+        "state": "queued",
+        "blocked_reason": "입력창에 작성 중인 초안이 있어 전달하지 않았어요. 원래 세션에서 초안을 전송하거나 지운 뒤 다시 확인해요."
+      },
+      {
+        "id": "3219eb1f-8235-4b07-8189-eb15e907f364",
+        "request_id": "1a94c335-801f-4619-a0c8-8c4395a6c372",
+        "state": "queued",
+        "blocked_reason": "입력창에 작성 중인 초안이 있어 전달하지 않았어요. 원래 세션에서 초안을 전송하거나 지운 뒤 다시 확인해요."
+      },
+      {
+        "id": "a9870676-37a1-4c11-9ab9-1c92dad263d6",
+        "request_id": "08b72dc8-e3df-445c-b8e7-2437a7c0d127",
+        "state": "queued",
+        "blocked_reason": "입력창에 작성 중인 초안이 있어 전달하지 않았어요. 원래 세션에서 초안을 전송하거나 지운 뒤 다시 확인해요."
+      }
+    ],
+    "diagnosis": "Orca reports composer text in draft and excludes it from tail. Its detector can classify arbitrary dim prompt suggestions as drafts; current cell style is not exposed by the CLI.",
+    "draftBackup": ".local/claude-draft-before-clear.json (private, not committed)",
+    "draftClearRequestedByUser": true,
+    "draftClearThroughCliVerified": false,
+    "actualReplyRecovery": "UNVERIFIED: approved editing keys did not remove reported text. Input-cancel signal was blocked by automatic approval review; awaiting its explicit approval."
+  },
+  "ui": {
+    "participantBlocked": true,
+    "timelineBlockedBadges": 3,
+    "inspectorReason": true,
+    "activeDeliveryPriorityPreserved": true
+  },
+  "tests": {
+    "full": 109,
+    "failed": 0
+  },
+  "limits": [
+    "Known empty Claude bypass-permissions footer accepted; permission settings unchanged.",
+    "Input must remain blocked while a draft or unverified idle/identity exists.",
+    "The catalog is a bounded recent native history list, not an exhaustive archive."
+  ]
+}

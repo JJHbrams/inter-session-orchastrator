@@ -1,0 +1,215 @@
+{
+  "date": "2026-10-23",
+  "independentAcceptance": {
+    "RF-1": "PASS",
+    "RF-2": "PASS",
+    "RF-3": "PASS",
+    "RF-4": "PASS",
+    "scope": "One real native Claude chair; two simulated peer identities; actual HTTP, stdio and participant helper clients."
+  },
+  "tests": {
+    "command": "npm test",
+    "pass": 67,
+    "fail": 0
+  },
+  "defaultReactions": [
+    [
+      "👍",
+      "좋아요"
+    ],
+    [
+      "👎",
+      "반대"
+    ],
+    [
+      "❓",
+      "모르겠음"
+    ],
+    [
+      "✅",
+      "확인(알았음)"
+    ],
+    [
+      "💡",
+      "아이디어 있음"
+    ]
+  ],
+  "semantics": {
+    "acknowledgement": "received or understood, not agreement, approval or work completion",
+    "idea": "Ask the named reactor for a concrete idea if not already explained",
+    "disagree": "Ask for a missing reason",
+    "unclear": "Clarify the confusing part and explain"
+  },
+  "browser": {
+    "actualApp": "http://127.0.0.1:4318/",
+    "fixture": "http://127.0.0.1:4320/",
+    "defaultOrder": [
+      "👍",
+      "👎",
+      "❓",
+      "✅",
+      "💡"
+    ],
+    "rosterNames": [
+      "민수",
+      "지수",
+      "사용자"
+    ],
+    "rosterProviders": [
+      "Codex",
+      "Claude",
+      "human"
+    ],
+    "ownIdeaToggle": {
+      "before": 2,
+      "afterAdd": 3,
+      "afterRemove": 2,
+      "agentReactionsRetained": true
+    },
+    "keyboardRosterOpen": true,
+    "draftPreserved": true,
+    "attachmentDraftCountAtReload": 0,
+    "authenticationRecovered": true,
+    "splitterCount": 3
+  },
+  "protocol": {
+    "helperInbox": {
+      "body": "민수님, 제 직전 응답(7b036d72)에 💡 '아이디어 있음' 반응을 남겨 주셨는데요. 어떤 아이디어인지 구체적으로 설명해 주시겠어요? 어느 부분(2+2=5 판정, 발신자 ID 지적 등)에 대한 것인지와 제안하시는 내용을 함께 알려 주세요.",
+      "feedback": [
+        {
+          "messageId": "9d017d56-e4f0-43e7-9c25-868c8d112de2",
+          "bodyExcerpt": "검증용 주장: 2+2=5라고 생각해.",
+          "reactionActorAlias": "유리아",
+          "reactionActorProvider": "claude",
+          "reactionActorAvatar": "#9b72df",
+          "reactionActorSessionId": "9ba3f016-49d3-46fc-8b24-3e0c18535efc",
+          "membershipId": "bddb7319-e437-428f-b52e-99f3f5439827",
+          "leftAt": null,
+          "emoji": "👎",
+          "label": "반대",
+          "hint": "Clarify the reason for disagreement if it is not already given.",
+          "createdAt": "2026-10-23T00:23:54.027Z"
+        }
+      ]
+    },
+    "helperToggleRemoved": true,
+    "stdioToolNames": [
+      "room_context",
+      "room_post",
+      "room_request",
+      "room_reply",
+      "room_inbox",
+      "room_result",
+      "room_react",
+      "room_upload_attachment",
+      "room_read_attachment"
+    ],
+    "stdioReaction": {
+      "messageId": "7b036d72-23f4-4f40-b5ea-5a931af0fc52",
+      "emoji": "💡",
+      "active": true
+    },
+    "agentReactors": [
+      {
+        "message_id": "7b036d72-23f4-4f40-b5ea-5a931af0fc52",
+        "actor": "session:321410fc-6768-477c-bd01-2b0fe0830ab2",
+        "emoji": "💡",
+        "created_at": "2026-10-23T00:23:54.032Z",
+        "session_id": "321410fc-6768-477c-bd01-2b0fe0830ab2",
+        "left_at": null,
+        "alias": "민수",
+        "avatar": "#9b72df",
+        "provider": "codex",
+        "actor_type": "agent"
+      },
+      {
+        "message_id": "7b036d72-23f4-4f40-b5ea-5a931af0fc52",
+        "actor": "session:6464bd19-e022-41c5-bcb2-b281bf804b0f",
+        "emoji": "💡",
+        "created_at": "2026-10-23T00:25:52.219Z",
+        "session_id": "6464bd19-e022-41c5-bcb2-b281bf804b0f",
+        "left_at": null,
+        "alias": "지수",
+        "avatar": "#9b72df",
+        "provider": "claude",
+        "actor_type": "agent"
+      }
+    ],
+    "scope": "One real dedicated Claude chair; two simulated cooperative participant identities. No provider wake or model response is claimed for those participants."
+  },
+  "actualChair": {
+    "scope": "One real dedicated Claude chair; two simulated cooperative participant identities. No provider wake or model response is claimed for those participants.",
+    "nativeId": "ee0835ef-df52-4646-a34b-022e0c69f7e6",
+    "initializationTurns": 1,
+    "requestTurns": 3,
+    "reaction": {
+      "message_id": "9d017d56-e4f0-43e7-9c25-868c8d112de2",
+      "actor": "session:9ba3f016-49d3-46fc-8b24-3e0c18535efc",
+      "emoji": "👎",
+      "created_at": "2026-10-23T00:23:54.027Z",
+      "session_id": "9ba3f016-49d3-46fc-8b24-3e0c18535efc",
+      "left_at": null,
+      "alias": "유리아",
+      "avatar": "#9b72df",
+      "provider": "claude",
+      "actor_type": "agent"
+    },
+    "feedbackSpeech": "직전 응답(7b036d72)에는 반응이 두 개 달렸습니다. 사용자분은 ✅ '확인'을 남기셨는데, 이는 내용을 받았거나 이해했다는 뜻일 뿐 동의나 작업 완료로 보지 않겠습니다. 민수는 💡 '아이디어 있음'을 남겼지만 아직 구체적인 설명이 없어서, 민수에게만 어떤 아이디어인지 물었습니다. 지수는 반응하지 않았기 때문에 이번 질문 대상에서 제외했습니다. 그리고 앞서 드린 말씀 하나를 바로잡겠습니다. 민수의 세션 ID가 321410fc…로 확인되어 2+2=5 메시지의 발신자와 같습니다. 그 발신자 필드는 membershipId가 아니라 세션 ID였으므로, 제가 지적했던 ID 불일치는 실제 문제가 아니었습니다. 지금은 민수의 답변을 기다리고 있습니다.",
+    "reverseQuestions": [
+      {
+        "targetMembershipIds": [
+          "42900d87-c2d6-412e-b2a8-0d3147954bbc"
+        ],
+        "body": "민수님, 제 직전 응답(7b036d72)에 💡 '아이디어 있음' 반응을 남겨 주셨는데요. 어떤 아이디어인지 구체적으로 설명해 주시겠어요? 어느 부분(2+2=5 판정, 발신자 ID 지적 등)에 대한 것인지와 제안하시는 내용을 함께 알려 주세요."
+      }
+    ],
+    "onlyIdeaReactorWasTargeted": true,
+    "identityRegression": {
+      "observed": "Before the mapping fix the model compared session IDs with membership IDs. The context now supplies both IDs and sender alias.",
+      "participant": {
+        "membershipId": "42900d87-c2d6-412e-b2a8-0d3147954bbc",
+        "sessionId": "321410fc-6768-477c-bd01-2b0fe0830ab2",
+        "alias": "민수",
+        "displayName": "아이디어 담당 민수",
+        "provider": "codex",
+        "role": "member",
+        "readOnly": false
+      },
+      "message": {
+        "id": "9d017d56-e4f0-43e7-9c25-868c8d112de2",
+        "sender": "321410fc-6768-477c-bd01-2b0fe0830ab2",
+        "senderSessionId": "321410fc-6768-477c-bd01-2b0fe0830ab2",
+        "senderMembershipId": "42900d87-c2d6-412e-b2a8-0d3147954bbc",
+        "senderAlias": "민수",
+        "body": "검증용 주장: 2+2=5라고 생각해.",
+        "replyTo": null,
+        "kind": "post",
+        "attachments": []
+      },
+      "output": {
+        "speech": "2+2=5 메시지(9d017d56)의 senderSessionId(321410fc…), senderMembershipId(42900d87…), senderAlias(민수)가 participants에 있는 민수의 sessionId, membershipId, 별칭과 모두 일치하므로 작성자는 민수 본인이 맞으며, 요청하신 대로 새 질문이나 반응은 만들지 않았습니다.",
+        "questions": [],
+        "proposal": null,
+        "reactions": []
+      },
+      "sameNativeId": true
+    }
+  },
+  "preservation": {
+    "originalTables": 11,
+    "identical": true,
+    "sha256": "9a5d07bb14c6aeed2bd3fa732f542a3ddf6582a9690e27ecaf15fe0a37f0bb5f",
+    "productionTestMessages": 0
+  },
+  "checks": {
+    "legacyHeartEyesAndDepartedReactor": "tests/reaction-feedback.test.js",
+    "feedbackCancellationAndAuthoredMessageFiltering": "tests/reaction-feedback.test.js",
+    "chairAtomicInvalidOutput": "tests/chair.test.js",
+    "realHttpMcpAndHelper": "tests/http.test.js and protocol evidence",
+    "toolSemanticGuidance": "tests/mcp.test.js"
+  },
+  "screenshots": [
+    "screenshots/reaction-roster.jpg",
+    "screenshots/reactions-main.jpg"
+  ]
+}

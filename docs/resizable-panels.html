@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="source-sha256" content="c0bf44a19822e3f42d725d8d20759eb6c5405bfcc0d680a82cba78d04c97968e"><title>조절 가능한 패널과 이름 변경</title><style>
+    :root{--ink:#202c35;--muted:#64757a;--accent:#006c62;--line:#dce4e4;--paper:#fff;--bg:#f3f6f5}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}
+    body{margin:0;color:var(--ink);background:var(--bg);font:15px/1.85 'Segoe UI','Malgun Gothic',sans-serif}
+    a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+    .shell{display:grid;grid-template-columns:222px minmax(0,1fr);max-width:1640px;margin:auto}
+    aside{position:sticky;top:0;height:100vh;padding:38px 20px;overflow:auto;border-right:1px solid var(--line)}
+    .brand{font-size:12px;letter-spacing:.1em;font-weight:800;color:var(--accent);line-height:1.6;margin-bottom:18px}
+    .status{display:inline-block;background:#f9e9c6;color:#795308;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:700}
+    nav{margin-top:25px}nav a{display:block;font-size:12px;color:var(--muted);padding:7px 0;line-height:1.5}
+    nav a:hover{color:var(--accent)}main{min-width:0;padding:40px 52px 80px;background:var(--paper)}
+    .meta{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid var(--accent);padding-bottom:17px;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.08em}
+    h1{font-size:34px;line-height:1.45;letter-spacing:-1.1px;margin:30px 0 22px;font-weight:750;max-width:900px}
+    h2{font-size:23px;line-height:1.5;margin:54px 0 20px;padding-top:20px;border-top:1px solid var(--line);letter-spacing:-.5px}
+    h3{font-size:17px;margin:28px 0 12px;color:var(--accent)}p{margin:12px 0;max-width:1060px}
+    blockquote{margin:20px 0;padding:15px 20px;border-left:4px solid var(--accent);background:#edf6f3;color:#345e58}
+    blockquote p{margin:0}ul,ol{padding-left:23px}li{margin:5px 0}
+    .table-scroll{overflow:auto;max-width:100%;margin:18px 0 26px;border:1px solid var(--line);border-radius:8px}
+    table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.75}
+    th{background:#edf3f2;color:#24463f;font-weight:700;text-align:left;white-space:nowrap}
+    td,th{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top;min-width:105px}
+    tr:last-child td{border-bottom:0}td:first-child{font-weight:600}tr:nth-child(even){background:#fafcfc}
+    code{font:12px/1.6 Consolas,'Malgun Gothic',monospace;background:#edf2f2;padding:2px 4px;border-radius:3px;overflow-wrap:anywhere}
+    pre{padding:20px;overflow:auto;border-radius:8px;background:#152c2c;color:#e7f2ef;font:12px/1.9 Consolas,'Malgun Gothic',monospace}
+    pre code{padding:0;background:none;color:inherit;font:inherit;overflow-wrap:normal}
+    pre.mermaid{background:#f7faf9;color:var(--ink);border:1px solid var(--line);text-align:center;padding:24px 12px}
+    .mermaid svg{max-width:100%!important;height:auto!important;display:block;margin:auto}
+    footer{margin-top:50px;border-top:1px solid var(--line);padding-top:18px;color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+    .skip{position:absolute;left:-9999px}.skip:focus{left:16px;top:10px;background:white;padding:8px;z-index:10}
+    @media(max-width:1000px){.shell{grid-template-columns:180px minmax(0,1fr)}main{padding:28px}aside{padding:28px 15px}h1{font-size:28px}}
+    @media(max-width:700px){.shell{display:block}aside{position:static;height:auto;padding:20px;border:0;border-bottom:1px solid var(--line)}nav{display:none}main{padding:22px 18px}h1{font-size:25px}td,th{min-width:135px}h2{font-size:21px}}
+    @media print{aside,.skip{display:none}.shell{display:block}main{padding:0}.table-scroll{overflow:visible}pre.mermaid{break-inside:avoid}body{background:white}}
+    </style></head>
+<body><a class="skip" href="#document">본문으로 이동</a><div class="shell">
+<aside><div class="brand">INTER SESSION<br>ORCHESTRATOR</div><span class="status">VERIFIED · LAYOUT FOLLOW-UP</span><nav aria-label="문서 목차"><a href="research/index.html">최신 벤치마킹 조사 →</a>
+<a href="#_2">한눈에 보기</a>
+<a href="#1-intent">1. 의도 (Intent)</a>
+<a href="#2-acceptance">2. 수용 기준 (Acceptance)</a>
+<a href="#3-facts">3. 확정 사실 (Facts)</a>
+<a href="#4-use-cases">4. 유스케이스 (Use Cases)</a>
+<a href="#5-flowchart">5. 파이프라인 (Flowchart)</a>
+<a href="#6-state">6. 액션과 상태 전이 (State)</a>
+<a href="#9-change-points">9. 변경 지점 (Change Points)</a>
+<a href="#10-risks">10. 잠재 문제 (Risks)</a>
+<a href="#11-implementation">11. 착수 순서 (Implementation)</a>
+<a href="#_8">최초 구현 검증 결과</a>
+<a href="#_9">관련</a>
+<a href="#12">12. 멘션 목록과 구획 후속 수정</a></nav></aside>
+<main id="document"><header class="meta"><span>UI · LAYOUT</span><span>2026.10.22 · WINDOWS / LOCAL</span></header>
+<article><h1 id="_1">조절 가능한 패널과 이름 변경</h1>
+<!-- sr:plan
+{"document_type":"decision","reader_questions":["무엇을 조절하는가","이름을 바꿔도 기록이 유지되는가","어떻게 검증했는가"],"visual_plan":[{"kind":"comparison_table","content":"수용 기준과 검증","required":true},{"kind":"flowchart","content":"크기 저장과 이름 변경","required":true},{"kind":"state_diagram","content":"조절과 편집 상태","required":true}],"visual_waiver":[]}
+-->
+
+<blockquote>
+<p>좌장 정리를 읽을 공간을 확보하고, 화면 구획과 채널·토론장 표시 이름을 사용자가 조절한다.</p>
+</blockquote>
+<h2 id="_2">한눈에 보기</h2>
+<ul>
+<li>목적: 작은 좌장 정리 영역과 고정 분할 때문에 생기는 읽기 불편을 해결한다.</li>
+<li>현재 상태: 최초 AC-1~AC-5 및 멘션 잘림·조절선 정리 후속 PL-1~PL-3의 구현·실행 검증을 완료했다. 전체 테스트 61개 통과. 아래 최초 검증 기록과 §12의 현재 변경을 구분한다. 프로젝트 전체는 building이다.</li>
+<li>핵심 결론: 화면 배치는 브라우저 설정으로, 이름은 기존 ID의 영속 메타데이터로 관리한다.</li>
+<li>결정: 흰 배경 provider 배지, 사이드바·작성창·세션 상세 크기 저장, 상단 자동 배치, ID를 유지하는 이름 변경을 사용한다. 멘션 목록은 패널 overflow 밖에 배치한다.</li>
+<li>판단 근거: 기존 CSS의 정리 본문 최대 높이 38px와 제공된 PNG의 투명 alpha를 직접 확인했다. (직접 확인, 2026-10-22)</li>
+<li>다음 행동: 기존 세션 자동 wake 어댑터와 원래 host 입력/응답 대조를 이어 검증한다.</li>
+<li>최종 갱신: 2026-10-22, Asia/Seoul.</li>
+</ul>
+<h2 id="1-intent">1. 의도 (Intent)</h2>
+<p>좌장 프로필 옆 정리를 편하게 읽고, 화면과 작업 단위의 표시 이름을 사용자가 관리한다. 사용자가 요청한 아이콘 개선·크기 조절·이름 변경을 이번 범위로 확정했다.</p>
+<p>불변식: 앱은 창 전체 폭을 사용한다. 개별 메시지 버블만 최대 720px다. 좌장과 사용자 발화는 오른쪽, 참여자는 왼쪽이다. 기존 native ID·room/channel ID·메시지·결정·수신자·권한을 유지한다. 조절이나 이름 변경은 모델 입력을 보내지 않는다.</p>
+<p>비목표: 채널 삭제·권한 관리·참여자 별칭 변경·다른 PC와 레이아웃 동기화는 포함하지 않는다.</p>
+<h2 id="2-acceptance">2. 수용 기준 (Acceptance)</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>사용자에게 보이는 결과</th>
+<th>검증 방법</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AC-1</td>
+<td>provider 표시는 검은 배경 타일 없이 투명 또는 흰색 원본을 사용한다.</td>
+<td>원본 alpha/해시, HTTP 이미지, 프로필·메시지·멘션·수신자 화면 확인</td>
+</tr>
+<tr>
+<td>AC-2</td>
+<td>구획 경계에서 폭·높이를 드래그 또는 방향키로 조절하고 새로고침 후 유지하며 초기화할 수 있다.</td>
+<td>실제 포인터·키보드·재접속, 잘못된 저장값·창 크기 제한 단위 테스트</td>
+</tr>
+<tr>
+<td>AC-3</td>
+<td>좌장 프로필 옆 정리가 여러 줄로 읽히고 참여자는 다음 행에 유지된다. 채팅과 입력창도 남는다.</td>
+<td>1280×720과 좁은/넓은 CSS viewport의 경계·넘침·스크린샷 확인</td>
+</tr>
+<tr>
+<td>AC-4</td>
+<td>채널과 토론장 이름을 바꾸고 재접속해도 유지한다. 취소·유효하지 않은 이름은 기존 이름을 보존한다.</td>
+<td>실제 별도 fixture UI, Unicode/공백/초과/없는 ID·재오픈과 참조 보존 테스트</td>
+</tr>
+<tr>
+<td>AC-5</td>
+<td>인증 복구·전달·기존 대화 기록 동작을 보존한다.</td>
+<td>기존 전체 테스트와 열린 브라우저에서 서버 재시작 확인</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="3-facts">3. 확정 사실 (Facts)</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>관측</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>좌장 정리 본문에 max-height 38px가 적용됐다.</td>
+<td>apps/desktop/style.css의 마지막 규칙, 직접 확인</td>
+</tr>
+<tr>
+<td>제공된 세 provider PNG에 투명 alpha 0~255가 있다.</td>
+<td>원본 codex-icon-white-256, claude-icon-256, antigravity-icon-256의 RGBA·모서리 alpha=0, 직접 확인</td>
+</tr>
+<tr>
+<td>기존 아이콘 CSS도 어두운 배경과 테두리를 추가했다.</td>
+<td>.provider-icon background/border, 직접 확인</td>
+</tr>
+<tr>
+<td>이름 생성의 한도는 channel 80, room 120자다.</td>
+<td>Store.createChannel/createRoom, 직접 확인</td>
+</tr>
+<tr>
+<td>인증과 CSRF는 서버 재시작 때 갱신된다.</td>
+<td>server.js/API client와 기존 인증 복구 검증, <a href="dedicated-chair.html">dedicated-chair</a></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="_3">선택지와 평가기준</h3>
+<p>좌장 정리를 다시 우측 inspector로 옮길지, 현재 좌장 옆 배치를 조절 가능하게 할지 비교했다. 읽기 공간, 사용자가 정한 상단 구성 유지, 창 폭 활용이 기준이다.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>방식</th>
+<th>읽기 공간</th>
+<th>상단 구성</th>
+<th>창 폭 활용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>고정 작은 상단</td>
+<td>두 줄로 제한</td>
+<td>유지</td>
+<td>고정</td>
+</tr>
+<tr>
+<td>별도 우측 inspector</td>
+<td>넓어짐</td>
+<td>정리 위치 변경</td>
+<td>대화 폭 차감</td>
+</tr>
+<tr>
+<td>조절 가능한 상단</td>
+<td>사용자가 확보</td>
+<td>유지</td>
+<td>전체 창 사용</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="_4">비교</h3>
+<p>고정 배치보다 사용자 조절이 읽기 공간과 창 비율에 대응한다. 우측 inspector 이전보다 요청된 좌장 옆 위치를 유지한다.</p>
+<h3 id="_5">결정</h3>
+<p>최초 구현은 상단도 조절 가능하게 했다. §12의 후속 피드백으로 상단은 자동 배치하고 사이드바·작성창·세션 상세만 조절 가능하게 정정한다. 긴 정리는 계속 펼쳐 읽을 수 있다.</p>
+<h3 id="_6">결과</h3>
+<p>패널 크기는 이 브라우저에서 기억하며, 이름 변경은 SQLite의 기존 ID를 유지하는 표시 메타데이터만 갱신한다. 실제 드래그·새로고침·서버 재시작을 확인했고 원래 토론장의 11개 테이블 데이터가 일치했다.</p>
+<h3 id="_7">재검토 조건</h3>
+<p>짧은 창에서 최소 채팅 공간을 확보하지 못하거나 참여자 수 증가로 조절 영역이 겹치면 기본 높이와 접기 동작을 재검토한다. 여러 기기 동기화가 필요해지면 로컬 저장 정책을 다시 정한다.</p>
+<h2 id="4-use-cases">4. 유스케이스 (Use Cases)</h2>
+<pre class="mermaid">flowchart LR
+  U[사용자] --&gt; S[경계 드래그 또는 방향키]
+  U --&gt; R[채널 또는 토론장 이름 편집]
+  U --&gt; C[좌장 정리 읽기]
+  S --&gt; P[브라우저에 크기 기억]
+  R --&gt; V[검증 후 표시 이름 저장]
+</pre>
+<h2 id="5-flowchart">5. 파이프라인 (Flowchart)</h2>
+<pre class="mermaid">flowchart TD
+  A[화면 열기] --&gt; B{저장된 크기 유효?}
+  B --&gt;|예| C[현재 창에 맞게 제한]
+  B --&gt;|아니오| D[기본값]
+  C --&gt; E[패널 배치]
+  D --&gt; E
+  E --&gt; F[드래그 또는 키보드 조절]
+  F --&gt; C
+  F --&gt; G[유효한 크기만 로컬 저장]
+  H[이름 편집] --&gt; I{trim 후 길이와 ID 검증}
+  I --&gt;|성공| J[같은 ID의 name만 저장]
+  I --&gt;|실패| K[대화상자 오류와 기존 이름 유지]
+</pre>
+<h2 id="6-state">6. 액션과 상태 전이 (State)</h2>
+<pre class="mermaid">stateDiagram-v2
+  [*] --&gt; 기본배치
+  기본배치 --&gt; 조절중: 경계 누름
+  조절중 --&gt; 저장배치: 포인터 놓음 또는 방향키
+  저장배치 --&gt; 기본배치: 초기화
+  저장배치 --&gt; 저장배치: 창 변화 후 제한
+  [*] --&gt; 이름표시
+  이름표시 --&gt; 이름편집: 편집 열기
+  이름편집 --&gt; 이름표시: 취소
+  이름편집 --&gt; 저장요청: 저장
+  저장요청 --&gt; 이름표시: 성공
+  저장요청 --&gt; 이름편집: 검증 또는 연결 실패
+</pre>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>상태</th>
+<th>저장과 UI 반응</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>조절</td>
+<td>유효 범위와 separator 현재 값을 갱신하고 최소 채팅 공간을 유지한다.</td>
+</tr>
+<tr>
+<td>저장 실패</td>
+<td>localStorage 사용 불가여도 현재 화면 조절은 동작한다.</td>
+</tr>
+<tr>
+<td>이름 저장 중</td>
+<td>중복 제출을 막고 취소 전의 기존 이름을 표시한다.</td>
+</tr>
+<tr>
+<td>이름 오류</td>
+<td>오류를 보여주며 입력과 기존 영속 이름을 유지한다.</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="9-change-points">9. 변경 지점 (Change Points)</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>경로</th>
+<th>변경</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apps/desktop/index.html</code></td>
+<td>조절 경계와 접근 가능한 편집 컨트롤</td>
+</tr>
+<tr>
+<td><code>apps/desktop/app.js</code></td>
+<td>이름 편집·화면 갱신</td>
+</tr>
+<tr>
+<td><code>apps/desktop/style.css</code></td>
+<td>기본 공간·말줄임 제거·조절 배치</td>
+</tr>
+<tr>
+<td><code>apps/desktop/layout.js</code> (신규)</td>
+<td>제한·저장·키보드와 포인터 조절</td>
+</tr>
+<tr>
+<td><code>apps/desktop/assets/providers</code></td>
+<td>제공된 투명 원본</td>
+</tr>
+<tr>
+<td><code>services/coordinator/store.js</code></td>
+<td>ID 유지 이름 변경과 이벤트</td>
+</tr>
+<tr>
+<td><code>services/coordinator/server.js</code></td>
+<td>인증된 rename 경로·정적 module allowlist</td>
+</tr>
+<tr>
+<td><code>tests</code></td>
+<td>이름·레이아웃·HTTP 회귀</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="10-risks">10. 잠재 문제 (Risks)</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>위험</th>
+<th>처리</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>짧은 창에서 상단이 채팅을 가림</td>
+<td>창 크기별 최대 높이, 최소 채팅·입력 공간</td>
+</tr>
+<tr>
+<td>저장된 크기가 다른 창에서 과도함</td>
+<td>불러오기와 resize 시 제한</td>
+</tr>
+<tr>
+<td>polling이 편집/스크롤 초기화</td>
+<td>경계와 대화상자를 영속 DOM에 두고 정리 재생성을 signature로 제한</td>
+</tr>
+<tr>
+<td>같은 표시 이름</td>
+<td>생성과 동일하게 허용한다. 식별과 연결은 ID로 한다.</td>
+</tr>
+<tr>
+<td>서버 응답이 끊김</td>
+<td>기존 인증 복구·오류 표시 사용, 모델 실행 없음</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="11-implementation">11. 착수 순서 (Implementation)</h2>
+<ul>
+<li>[x] AC-1: 투명 원본을 복사하고 배지의 배경 제거 후 화면 확인.</li>
+<li>[x] AC-2 AC-3: 제한·저장 모델과 실제 경계, 넓어진 정리 UI를 구현·검증.</li>
+<li>[x] AC-4: 같은 ID를 유지하는 저장 경로와 편집 UI, 취소·실패·재접속 확인.</li>
+<li>[x] AC-5: 회귀 테스트·실제 서버 재시작·기록 보존 확인.</li>
+</ul>
+<h2 id="_8">최초 구현 검증 결과</h2>
+<p>직접 측정, 2026-10-22 최초 구현 당시의 기록이다. 여섯 조절선과 투명 배지는 이후 §12 및 <a href="rich-attachments.html">rich-attachments</a> 정책으로 대체됐다. 모든 화면 변경은 로컬 브라우저에서 확인했다. 이 검증으로 모델 요청은 보내지 않았다.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>경로</th>
+<th>결과와 근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>포인터 조절</td>
+<td>sidebar 218→288, chair 180→230, upper 190→280, participants 90→110, composer 200→260, inspector 340→400px. 여섯 값 모두 재접속 후 일치</td>
+</tr>
+<tr>
+<td>키보드·초기화</td>
+<td>방향키·Home·End, 좁은 화면 방향키, 초기화 기본값 복원 확인</td>
+</tr>
+<tr>
+<td>최대 높이</td>
+<td>1280×720에서 upper/composer/participants End 후에도 timeline 약102px, 보내기 버튼과 입력창 유지</td>
+</tr>
+<tr>
+<td>정리</td>
+<td>본문 38px cap 제거, 14px/1.65, 한 영역 스크롤. 크게 보기에서 1300자 fixture 정리 확인</td>
+</tr>
+<tr>
+<td>이름</td>
+<td>별도 fixture 채널·토론장 Unicode 이름 변경, 공백 거부·취소·재접속·서버 재시작 확인</td>
+</tr>
+<tr>
+<td>기록 보존</td>
+<td>현재 토론장의 rooms/channels/sessions/memberships/bindings/messages/deliveries/decisions/sources/chairs/chair_runs 동일. fixture는 rooms/channels의 name만 변경</td>
+</tr>
+<tr>
+<td>인증</td>
+<td>새 UI를 연 상태에서 4318 서버 재시작 뒤 자동 복구, 미전송 초안 보존, 오류 없음</td>
+</tr>
+<tr>
+<td>회귀</td>
+<td>npm test 42/42. Store 재오픈·참조 보존, HTTP rename의 인증/CSRF/Origin 거부 포함</td>
+</tr>
+</tbody>
+</table></div>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>화면</th>
+<th style="text-align: right;">정리 높이(px)</th>
+<th style="text-align: right;">대화 높이(px)</th>
+<th style="text-align: right;">입력창 높이(px)</th>
+<th>가로 넘침</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>실제 앱 약1518×1399, 상단280으로 조절</td>
+<td style="text-align: right;">255</td>
+<td style="text-align: right;">735</td>
+<td style="text-align: right;">200</td>
+<td>없음</td>
+</tr>
+<tr>
+<td>1280×720 iframe</td>
+<td style="text-align: right;">165</td>
+<td style="text-align: right;">146</td>
+<td style="text-align: right;">200</td>
+<td>없음</td>
+</tr>
+<tr>
+<td>760×900 iframe</td>
+<td style="text-align: right;">169</td>
+<td style="text-align: right;">214</td>
+<td style="text-align: right;">200</td>
+<td>없음</td>
+</tr>
+<tr>
+<td>1600×1000 iframe</td>
+<td style="text-align: right;">165</td>
+<td style="text-align: right;">426</td>
+<td style="text-align: right;">200</td>
+<td>없음</td>
+</tr>
+</tbody>
+</table></div>
+<p>iframe 검증은 같은 production 앱/API를 GET 전용 localhost 프록시로 렌더링한 CSS viewport다. 실제 창 크기를 바꿨다고 보고하지 않는다. 높이620px 미만에서는 앱 최소 높이620px와 페이지 세로 스크롤을 사용한다. 해당 초소형 높이는 이번 화면 증거 범위에 포함하지 않았다.</p>
+<p>아이콘은 제공된 codex-icon-white-256.png, claude-icon-256.png, antigravity-icon-256.png와 바이트가 일치하며 alpha 범위는 모두0~255다. CSS 배경과 테두리도 제거했다.</p>
+<ul>
+<li><a href="validation/resizable-panels.json">검증 JSON</a></li>
+<li><a href="screenshots/resizable-panels-main.jpg">현재 앱 화면</a></li>
+<li><a href="screenshots/resizable-panels-normal.jpg">1280 화면</a> · <a href="screenshots/resizable-panels-narrow.jpg">760 화면</a> · <a href="screenshots/resizable-panels-wide.jpg">1600 화면</a></li>
+</ul>
+<p>독립 읽기 전용 수용 검토: AC-1~AC-5 PASS. 투명 alpha·CSS·실행 근거·기록 보존을 대조했다.</p>
+<h2 id="_9">관련</h2>
+<p><a href="dedicated-chair.html">dedicated-chair</a> · <a href="index.html">session-room-foundation</a> · <a href="research/index.html">inter-session-index</a></p>
+<h2 id="12">12. 멘션 목록과 구획 후속 수정</h2>
+<p>2026-10-22 사용자 피드백으로 다음 변경을 적용했다. 기존 여섯 경계 조절 기록은 최초 구현의 검증이며, 아래 정책이 현재 배치를 대체한다. 아이콘은 후속 rich-attachments 결정에 따라 흰 배경 배지를 유지한다.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>기준</th>
+<th>현재 동작과 검증</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PL-1</td>
+<td>목록을 body의 fixed portal로 옮기고 최대230px·viewport 경계를 적용한다. 실제 앱의 세 후보 모두 hit-test 통과, 클릭은 @마야, 방향키+Enter는 @유리아를 선택했다. Escape·대화상자는 목록을 닫고, 화면 크기 변화에도 다시 배치한다.</td>
+</tr>
+<tr>
+<td>PL-2</td>
+<td>사이드바·작성창·세션 상세 세 조절바만 남긴다. 좌장 프로필–정리, 좌장–참여자–대화 사이 조절바와 고정 크기 트랙을 제거했다. 예전 세 값은 무시하고 남긴 설정238/233/340px는 보존했다. 12px 조작 영역 안에 얇은 선과 작은 그립을 표시하고 hover/focus로 강조한다.</td>
+</tr>
+<tr>
+<td>PL-3</td>
+<td>상단은 화면에 맞는 높이와 요약 내부 스크롤을 사용한다. 크게 보기·흰 배지·720px 메시지 폭·오른쪽 사용자/좌장·왼쪽 프로필을 유지했다. 작성창 최대 크기는 상단 실측 높이와 대화100px를 예약한다. 61개 회귀 테스트 및 DB11개 테이블 보존을 확인했다.</td>
+</tr>
+</tbody>
+</table></div>
+<p>직접 관측: 수정 전 목록 상단1071.7px, 작성창 상단1165.9px로 약94px가 잘려 세 후보 중 마지막 한 명만 보였다. 원인은 작성창 overflow 경계였으며, 수정 후에는 목록 상단1068.2px의 첫 후보까지 실제 클릭 대상으로 잡혔다.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>검증 화면</th>
+<th style="text-align: right;">요약 보이는 높이 / 내용 높이(px)</th>
+<th style="text-align: right;">대화 높이(px)</th>
+<th style="text-align: right;">작성창 높이(px)</th>
+<th>멘션 후보</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>실제4318 약1517×1398</td>
+<td style="text-align: right;">234.90 / 287</td>
+<td style="text-align: right;">735.50</td>
+<td style="text-align: right;">232.99</td>
+<td>3/3 보임·hit-test 통과</td>
+</tr>
+<tr>
+<td>1280×720 CSS viewport</td>
+<td style="text-align: right;">176.59 / 286</td>
+<td style="text-align: right;">148.44</td>
+<td style="text-align: right;">200</td>
+<td>3/3 보임·hit-test 통과</td>
+</tr>
+<tr>
+<td>760×900 CSS viewport</td>
+<td style="text-align: right;">219 / 354</td>
+<td style="text-align: right;">179.83</td>
+<td style="text-align: right;">200</td>
+<td>3/3 보임·hit-test 통과</td>
+</tr>
+<tr>
+<td>1600×1000 CSS viewport</td>
+<td style="text-align: right;">235 / 264</td>
+<td style="text-align: right;">370.03</td>
+<td style="text-align: right;">200</td>
+<td>3/3 보임·hit-test 통과</td>
+</tr>
+<tr>
+<td>1280×720 작성창 End</td>
+<td style="text-align: right;">내부 스크롤 유지</td>
+<td style="text-align: right;">100.44</td>
+<td style="text-align: right;">248</td>
+<td>작성창을 늘려도 대화 유지</td>
+</tr>
+</tbody>
+</table></div>
+<p>후속 검증 범위: 별도 GET 전용 프록시4320과 iframe으로 같은 production 앱을 렌더링했다. 프록시는 별도 origin의 레이아웃 설정을 써 원래4318 설정을 건드리지 않는다. 세 조절바 방향키·작성창 Home/End·초기화, 요약 크게 보기를 실제 브라우저에서 확인했다. iframe은 자동화 도구의 키보드 focus 제약으로 화면·hit-test·크기 변화만 확인했고, 멘션 키보드 선택은 실제4318에서 확인했다. 물리 조절바 드래그는 이번 후속에서 재실행하지 않았으며 기존 pointer handler를 유지했다.</p>
+<p>미전송 초안은 검증 직전 값으로 복원했다. 모델 요청0건, DB11개 테이블의 전후 JSON SHA-256은 <code>9a5d07bb14c6aeed2bd3fa732f542a3ddf6582a9690e27ecaf15fe0a37f0bb5f</code>로 일치했다.</p>
+<p>독립 수용 검토: PL-1~PL-3 PASS. 실제 화면 검증은 root가 수행하고, 별도 검토자는 코드·시험·측정 근거의 일관성을 확인했다. 위에 명시한 iframe 키보드·물리 드래그 범위는 추가 검증 완료로 해석하지 않는다.</p>
+<ul>
+<li><a href="validation/panel-menu-layout.json">후속 검증 JSON</a></li>
+<li><a href="screenshots/panel-menu-before.jpg">수정 전</a> · <a href="screenshots/panel-menu-main.jpg">실제 앱</a></li>
+<li><a href="screenshots/panel-menu-normal.jpg">1280 화면</a> · <a href="screenshots/panel-menu-narrow.jpg">760 화면</a> · <a href="screenshots/panel-menu-wide.jpg">1600 화면</a></li>
+</ul></article><footer>원본: docs/design/0004-resizable-panels.md<br>본문 SHA-256: c0bf44a19822e3f42d725d8d20759eb6c5405bfcc0d680a82cba78d04c97968e</footer></main></div>
+<!-- Mermaid third-party license: Mermaid is distributed under the MIT license. See https://github.com/mermaid-js/mermaid/blob/develop/LICENSE -->
+<script src="research/assets/mermaid.min.js"></script><script>
+window.designRenderDone=false;
+mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'base',themeVariables:{fontFamily:'Segoe UI, Malgun Gothic, sans-serif',primaryColor:'#e6f2ee',primaryTextColor:'#202c35',lineColor:'#4c7972',primaryBorderColor:'#76a69b'}});
+mermaid.run({querySelector:'.mermaid'}).then(()=>{window.designRenderDone=true}).catch(e=>{window.designRenderError=String(e);console.error(e)});
+</script></body></html>

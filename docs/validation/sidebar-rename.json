@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-23",
+  "targetedTests": {
+    "pass": 28,
+    "fail": 0
+  },
+  "channelsRenamed": 3,
+  "roomsRenamed": 4,
+  "selectionPreserved": true,
+  "includesEmptyChannelAndArchivedRoom": true,
+  "reloaded": true,
+  "personaAcrossChannels": {
+    "first": {
+      "author": "엘라",
+      "hue": "#c7a447",
+      "name": "엘라"
+    },
+    "second": {
+      "author": "엘라",
+      "hue": "#c7a447",
+      "name": "엘라"
+    }
+  },
+  "operations": [
+    {
+      "kind": "채널",
+      "oldName": "첫 채널",
+      "newName": "개발 작업",
+      "selected": "첫 토론장"
+    },
+    {
+      "kind": "채널",
+      "oldName": "빈 채널",
+      "newName": "추가 계획",
+      "selected": "첫 토론장"
+    },
+    {
+      "kind": "토론장",
+      "oldName": "둘째 토론장",
+      "newName": "참고 문헌 검토",
+      "selected": "첫 토론장"
+    },
+    {
+      "kind": "토론장",
+      "oldName": "보관 토론장",
+      "newName": "지난 토론 기록",
+      "selected": "첫 토론장"
+    },
+    {
+      "kind": "토론장",
+      "oldName": "미분류 토론장",
+      "newName": "독립 토론장",
+      "selected": "첫 토론장"
+    },
+    {
+      "kind": "토론장",
+      "oldName": "첫 토론장",
+      "newName": "앱 UI 개발",
+      "selected": "앱 UI 개발"
+    }
+  ],
+  "providerInvocations": 0,
+  "productionTestMessages": 0,
+  "fullTests": {
+    "command": "npm test",
+    "pass": 71,
+    "fail": 0
+  }
+}

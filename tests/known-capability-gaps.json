@@ -1,0 +1,40 @@
+{
+  "version": 3,
+  "verifiedPilot": {
+    "newCanaryProviders": [
+      "codex",
+      "claude"
+    ],
+    "correlatedReplies": 3,
+    "proposedDecisions": 1,
+    "decisionConfirmed": false,
+    "modelTransport": "room-scoped HTTP helper with explicit canary wake by operator",
+    "mcpTransport": "separate real stdio protocol verification",
+    "isolatedTestsPassed": 16,
+    "uiViewports": [
+      "1280x800",
+      "1440x900"
+    ]
+  },
+  "gaps": [
+    "Orca terminal discovery requires explicit native-ID confirmation; a shared cwd alone is not identity proof.",
+    "Busy, nonempty, or unrecognized composer screens wait; no atomic host draft CAS exists for concurrent human typing.",
+    "Provider permissions still apply. The owned Claude canary used room-only MCP and disabled prompt suggestions only in that process.",
+    "General participant new/resume/fork lifecycle and desktop shell packaging remain unimplemented.",
+    "Original full V-01 through V-13 and cross-project lifecycle/policy acceptance remain incomplete.",
+    "Historical pilot results describe their original operator-triggered scope; they are not retroactive automatic-delivery evidence."
+  ],
+  "currentValidation": {
+    "date": "2026-10-23",
+    "proof": "docs/validation/participant-delivery.json",
+    "testsPassed": 96,
+    "automaticParticipantProviders": [
+      "codex",
+      "claude"
+    ],
+    "completedAutomaticDiscussionDeliveries": 6,
+    "dedicatedChairRoundTrip": true,
+    "sameRequestRecoveryVerified": true,
+    "originalValidationMessagesPreserved": 30
+  }
+}

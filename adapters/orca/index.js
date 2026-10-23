@@ -1,0 +1,49 @@
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { createHash } from 'node:crypto';
+
+const exec = promisify(execFile);
+const localEnv = { ...process.env }; delete localEnv.ORCA_ENVIRONMENT; delete localEnv.ORCA_PAIRING_CODE; delete localEnv.ORCA_REMOTE_PAIRING;
+const options = { windowsHide: true, shell: false, maxBuffer: 2_000_000, timeout: 15_000, env: localEnv };
+async function executable() { if (process.env.ORCA_CLI_COMMAND) return process.env.ORCA_CLI_COMMAND; const finder = process.platform === 'win32' ? 'where.exe' : 'which'; const { stdout } = await exec(finder, [process.platform === 'win32' ? 'orca.exe' : 'orca'], options); const found = stdout.trim().split(/\r?\n/)[0]; if (!found) throw new Error('orca executable not found on PATH'); return found; }
+async function nativeRun(bin, args, runOptions) { try { return await exec(bin, args, runOptions); } catch (error) { return { status: error.code === 'ETIMEDOUT' ? 124 : 1, stdout: error.stdout || '', stderr: error.stderr || error.message }; } }
+function parsed(result) { try { const text = String(result?.stdout || '').trim(); return text ? JSON.parse(text) : null; } catch { return null; } }
+async function command(run, args, bin = null) { const result = await run(bin || await executable(), args, options), body = parsed(result); if (result?.error || (result?.status !== undefined && result.status !== 0 && body?.result?.wait?.satisfied!==false)) { const error = new Error(body?.error?.message || body?.message || result?.stderr || result?.error?.message || 'orca command failed'); error.code = body?.error?.code || body?.code || 'ORCA_COMMAND_FAILED'; error.receipt = body; throw error; } if (!body || body.ok === false) throw new Error(body?.error?.message || 'Orca returned an invalid response'); return body; }
+const terminal = response => response?.result?.terminal;
+const agent = value => /^(codex|claude)(?:\b|[-_])/i.exec(value || '')?.[1]?.toLowerCase() || null;
+function sameTerminal(value, binding, session) { return !!value && value.handle === binding.handle && value.incarnationId === binding.incarnation && agent(value.agentIdentity) === session.provider && value.connected === true && value.writable === true && value.orphaned !== true; }
+function emptyComposer(provider, read) {
+ if(!read||read.source!=='screen'||!Array.isArray(read.tail)||Object.hasOwn(read,'draft'))return false;
+ const lines=read.tail.map(x=>String(x).trim());if(lines.slice(-10).some(line=>/esc to interrupt|^• Working \(/i.test(line)))return false;let index=-1;
+ for(let i=lines.length-1;i>=0;i--)if(/^[›❯](?:\s|$)/u.test(lines[i])){index=i;break;}
+ if(index<0||index<lines.length-8)return false;
+ const composer=lines[index],after=lines.slice(index+1).filter(Boolean);
+ if(provider==='codex')return ['› Ask Codex to do anything','› Ask a follow-up question','›'].includes(composer)&&after.every(line=>/^(?:GPT-|gpt-|o\d|\? for shortcuts|[-─━]{3,})/i.test(line));
+ if(provider!=='claude'||!/^[-─━]{8}/.test(lines[index-1]||''))return false;
+ return (composer==='❯'||/^❯\s*Try\s+["“].+["”]$/.test(composer))&&after.length>0&&/^[-─━]{8}/.test(after[0])&&after.slice(1).every(line=>/manual mode on|shortcuts|don't ask on|bypass permissions on|shift\+tab to cycle|remaining context|\bmodel\b/i.test(line));
+}
+function composerFingerprint(binding, session, reading) {
+ return createHash('sha256').update(JSON.stringify({provider:session.provider,handle:binding.handle,incarnation:binding.incarnation,draft:reading?.draft,tail:reading?.tail})).digest('hex');
+}
+function confirmedEmpty(binding, session, reading, confirmedComposer) {
+ if (!confirmedComposer || confirmedComposer.fingerprint !== composerFingerprint(binding, session, reading)) return false;
+ const withoutDraft={...reading}; delete withoutDraft.draft;
+ return emptyComposer(session.provider, withoutDraft);
+}
+function preflightFailure(reasonCode, reading = null, shown = null, binding = null, session = null) {
+ const reasons={
+  draft_exists:'Orca가 입력란의 문구를 감지해 전달을 보류했어요. 현재 연동은 실제 초안과 추천 문구를 구분하지 못해요.',
+  busy_idle_unverified:'세션이 대기 상태인지 확인되지 않아 전달하지 않았어요. 작업이 끝난 뒤 다시 확인해요.',
+  identity_changed:'확인했던 세션 연결이 바뀌어 전달하지 않았어요. 원래 세션 연결을 다시 확인해요.',
+  screen_unavailable:'세션 화면을 확인할 수 없어 전달하지 않았어요. 원래 세션 연결을 다시 확인해요.',
+  composer_unverified:'입력창이 비어 있는지 확인할 수 없어 전달하지 않았어요. 원래 세션에서 입력창을 확인한 뒤 다시 시도해요.'
+ };
+ return {ok:false,reasonCode,reason:reasons[reasonCode],...(reading?{reading}:{}),...(shown?{shown}:{}),...(reasonCode==='draft_exists'&&binding&&session?{confirmedComposer:{fingerprint:composerFingerprint(binding,session,reading),phrasePreview:String(reading.draft||'').slice(0,160)}}:{})};
+}
+function receiptFor(response, binding, session, requestId) { const receipt = response?.result?.send; if (!receipt || receipt.handle !== binding.handle || receipt.accepted !== true || receipt.prompt?.requestId !== requestId || receipt.prompt?.provider !== session.provider || receipt.prompt?.processIncarnation !== binding.incarnation) return null; const stages = receipt.prompt.stages; if (!Array.isArray(stages) || !stages.some(x => ['input_accepted', 'turn_started'].includes(x))) return null; return { receipt, stage: stages.includes('turn_started') ? 'turn_started' : 'input_accepted' }; }
+async function show(run, binding, bin = null) { return terminal(await command(run, ['terminal', 'show', '--terminal', binding.handle, '--json'], bin)); }
+async function readIdle(run, binding, bin = null) { const waited=await command(run, ['terminal', 'wait', '--terminal', binding.handle, '--for', 'tui-idle', '--timeout-ms', '1', '--json'], bin);if(waited?.result?.wait?.satisfied!==true)return {source:'idle-unverified',tail:[]}; const response = await command(run, ['terminal', 'read', '--terminal', binding.handle, '--screen', '--limit', '80', '--json'], bin); return terminal(response) || response?.result; }
+
+export async function discover() { try { const response = await command(nativeRun, ['terminal', 'list', '--limit', '80', '--json']); return { runtimeId: response?._meta?.runtimeId || null, sessions: (response?.result?.terminals || []).filter(t => agent(t.agentIdentity) && t.handle && t.incarnationId).map(t => ({ provider: agent(t.agentIdentity), host: 'orca', nativeId: null, cwd: t.worktreePath || null, profile: t.agentIdentity, title:t.title||null, handle: t.handle, incarnation: t.incarnationId, capabilities: { rawInspect: true, followup: false, steer: false }, status: 'discovered', blockedReason: 'Orca discovery has no native conversation ID, policy, draft, or reply evidence' })) }; } catch (error) { return { runtimeId: null, sessions: [], error: `Orca discovery unavailable: ${error.message}` }; } }
+export async function readOutput(binding) { if (!binding?.handle || !binding?.incarnation) throw new Error('exact active Orca binding is required'); const shown = await show(nativeRun, binding); if (!shown || shown.handle !== binding.handle || shown.incarnationId !== binding.incarnation) throw new Error('Orca binding changed; raw output not read'); const read = terminal(await command(nativeRun,['terminal','read','--terminal',binding.handle,'--screen','--limit','80','--json'])); return { source: read?.source || 'unknown', lines: Array.isArray(read?.tail) ? read.tail : [], draftKnown: Object.hasOwn(read || {}, 'draft'), warning: 'Raw terminal output is not a correlated response.' }; }
+export function createOrcaParticipantAdapter({ run = nativeRun, bin = null } = {}) { const preflight = async (binding, session, { confirmedComposer = null } = {}) => { if (!binding?.handle || !binding?.incarnation || !['codex', 'claude'].includes(session?.provider)) return preflightFailure('identity_changed'); const shown = await show(run, binding, bin); if (!sameTerminal(shown, binding, session)) return preflightFailure('identity_changed',null,shown); let reading;try{reading = await readIdle(run, binding, bin);}catch{return preflightFailure('screen_unavailable');} if(reading?.source==='idle-unverified')return preflightFailure('busy_idle_unverified',reading); if(reading?.source!=='screen'||!Array.isArray(reading?.tail))return preflightFailure('screen_unavailable',reading); if (confirmedComposer && composerFingerprint(binding,session,reading)!==confirmedComposer.fingerprint) return preflightFailure('composer_unverified',reading); if(Object.hasOwn(reading||{},'draft')) { if (!confirmedEmpty(binding,session,reading,confirmedComposer)) return preflightFailure('draft_exists',reading,shown,binding,session); return { ok: true, shown, reading }; } return emptyComposer(session.provider, reading) ? { ok: true, shown, reading } : preflightFailure('composer_unverified',reading); }; const submit = async (binding, session, prompt, requestId) => { const response = await command(run, ['terminal', 'send', '--terminal', binding.handle, '--text', prompt, '--enter', '--wait-submit', '1', '--retry-request', requestId, '--json'], bin); const valid = receiptFor(response, binding, session, requestId); return valid ? { ok: true, ...valid } : { ok: false, reason: 'uncorrelated or incomplete host receipt', receipt: response }; }; return { preflight, async send(binding, session, prompt, requestId, { observeOnly = false, confirmedComposer = null } = {}) { if (!observeOnly) { const first = await preflight(binding, session,{confirmedComposer}); if (!first.ok) return first; const final = await preflight(binding, session,{confirmedComposer}); if (!final.ok) return final; } return submit(binding, session, prompt, requestId); }, async observe(binding, session, prompt, requestId) { return submit(binding, session, prompt, requestId); } }; }

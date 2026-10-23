@@ -1,0 +1,90 @@
+{
+  "observedAt": "2026-10-23T05:35:20.425Z",
+  "tests": {
+    "passed": 104,
+    "failed": 0
+  },
+  "production": {
+    "url": "http://127.0.0.1:4318/",
+    "originalMessagesPreserved": 37,
+    "canonicalOriginalHash": "a5329d96884a6e2fb4273a1e7f3e276154b47fb80e315fc50f4e279aa12b6527",
+    "activeRoomsUnderArchivedChannel": 0
+  },
+  "browser": {
+    "viewports": [
+      {
+        "dialogFits": true,
+        "height": 900,
+        "idVisible": true,
+        "rowHeight": 65.98958587646484,
+        "width": 1440
+      },
+      {
+        "dialogFits": true,
+        "height": 800,
+        "idVisible": true,
+        "rowHeight": 65.98958587646484,
+        "width": 1280
+      }
+    ],
+    "productionViewports": [
+      {
+        "dialogFits": true,
+        "height": 1000,
+        "idVisible": true,
+        "rowHeight": 65.98958587646484,
+        "rows": 4,
+        "width": 1600
+      },
+      {
+        "dialogFits": true,
+        "height": 888,
+        "idVisible": true,
+        "rowHeight": 65.98958587646484,
+        "rows": 4,
+        "width": 1422
+      }
+    ],
+    "filteredPrimary": 4,
+    "withInternal": 80,
+    "archiveGuard": true,
+    "archiveToggle": true,
+    "roomRestoreParent": true,
+    "channelRestoreLeavesChildren": true,
+    "selectionFallback": true,
+    "emptyFallback": true,
+    "keyboardSelectPreservesNativeId": "01a1617d-0e24-7363-8b95-f9ef38f98440",
+    "topbarMenuVerified": true
+  },
+  "isolated": {
+    "url": "http://127.0.0.1:4323/",
+    "historyMessageId": "ab5e1de6-1774-4705-a733-717bca3926ab",
+    "historyPreserved": true
+  },
+  "catalogRules": [
+    "Codex thread_source subagent/guardian_review, structured source.subagent, agent_role+nickname",
+    "Claude isSidechain/isSubagent and native child metadata",
+    "Exact generated SAO worker preamble from installed native.py, not SAO title keywords",
+    "Exact app-owned chair initialization envelope, not human discussions about chairs",
+    "Explicit native UUID and includeInternal permit intentional access; registered borrowed sessions preserved"
+  ],
+  "sources": [
+    {
+      "title": "VS Code Quick Picks",
+      "url": "https://code.visualstudio.com/api/ux-guidelines/quick-picks"
+    },
+    {
+      "title": "Linear Search",
+      "url": "https://linear.app/docs/search"
+    },
+    {
+      "title": "Slack Archive or delete a channel",
+      "url": "https://slack.com/help/articles/213185307-Archive-or-delete-a-channel"
+    }
+  ],
+  "limits": [
+    "Native history summaries may be first-input previews, not newly generated summaries.",
+    "Only recognized internal metadata/envelopes are excluded; arbitrary unknown third-party worker formats may remain.",
+    "Desktop browser validation; touch/mobile-specific interactions are not covered."
+  ]
+}
