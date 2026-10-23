@@ -6,7 +6,8 @@ import {marked} from '/vendor/marked.js';
 import DOMPurify from '/vendor/purify.js';
 import {createRenderer,createMentionInput} from '/rich-text.js';
 import {createAttachmentComposer} from '/attachments.js';
-let current, rooms=[], channels=[], pendingSend, selectedRoomId,showArchived=false;const draftBodies=new Map();const stateLabel={queued:'요청 대기',claimed:'전달 예약',submitting:'요청 제공 중',accepted:'호스트 접수',running:'생성 중',completed:'응답 회수',unknown:'확인 필요',blocked:'차단',failed:'실패',cancelled:'취소'}; const $=s=>document.querySelector(s);
+import {deliveryPresentation} from '/delivery-status.js';
+let current, rooms=[], channels=[], pendingSend, selectedRoomId,showArchived=false;const draftBodies=new Map(); const $=s=>document.querySelector(s);
 const connection=document.createElement('div');connection.id='connection';connection.setAttribute('role','status');connection.hidden=true;$('#error').before(connection);
 const api=createApiClient({onConnection:state=>{connection.hidden=state==='online';connection.textContent=state==='offline'?'연결 끊김 · 입력은 보존돼. 로컬 서버가 돌아오면 자동으로 다시 연결할게.':state==='reconnecting'?'로컬 서버에 다시 연결하는 중…':'';}});
 const req=api.request;
@@ -102,12 +103,13 @@ function deliveryText(message){
  const wrap=document.createElement('div');wrap.className='delivery-list';
  for(const d of ds){
   const m=current.members.find(x=>x.id===d.membership_id);
-  const badge=text('span',`${m?.alias||m?.display_name||m?.native_id||'수신자'} · ${stateLabel[d.state]||d.state}`,'badge '+d.state);
-  badge.title=`요청: ${d.request_id}${d.blocked_reason?'\n사유: '+d.blocked_reason:''}`;wrap.append(badge);
-  if(d.blocked_reason)wrap.append(text('span',d.blocked_reason,'delivery-reason'));
+  const presentation=deliveryPresentation(d);
+  const badge=text('span',`${m?.alias||m?.display_name||m?.native_id||'수신자'} · ${presentation.label}`,'badge '+presentation.state);
+  badge.title=`요청: ${d.request_id}${presentation.reason?'\n사유: '+presentation.reason:''}`;wrap.append(badge);
+  if(presentation.reason)wrap.append(text('span',presentation.reason,'delivery-reason'));
   if((d.kind==='followup'||message.kind==='followup')&&d.state!=='completed'){
-   const retry=text('button',d.state==='unknown'?'상태 확인':'응답 재호출','delivery-retry');retry.type='button';
-   retry.title=d.state==='unknown'?'같은 요청의 접수 상태를 먼저 확인해요.':'기존 요청을 확인하고 누락된 응답을 다시 요청해요.';
+   const retry=text('button',presentation.blocked||d.state==='unknown'?'상태 다시 확인':'응답 재호출','delivery-retry');retry.type='button';
+   retry.title=presentation.blocked?'전달 조건을 다시 확인하고, 준비되면 기존 요청을 전달해요. 새 요청을 만들지 않아요.':d.state==='unknown'?'같은 요청의 접수 상태를 먼저 확인해요.':'기존 요청을 확인하고 누락된 응답을 다시 요청해요.';
    retry.onclick=async()=>{retry.disabled=true;try{const result=await req(`/api/rooms/${current.id}/deliveries/${d.id}/retry`,{method:'POST',body:'{}'});if(result.message||result.error)error(result.error||result.message);await openRoom(current.id,false);}catch(e){error(e.message);retry.disabled=false;}};
    wrap.append(retry);
   }
@@ -160,16 +162,19 @@ function renderParticipants() {
   const area=$('#participants'),chairArea=$('#chairProfile');area.replaceChildren();chairArea.replaceChildren();
   for(const m of current.members) {
     const deliveries=current.deliveries.filter(d=>d.membership_id===m.id&&['followup','steer'].includes(d.kind));
-    const state=['running','unknown','submitting','accepted','claimed','queued','blocked'].find(state=>deliveries.some(d=>d.state===state));
+    const pendingState=['running','unknown','submitting','accepted','claimed','queued','blocked'].find(state=>deliveries.some(d=>d.state===state));
+    const pendingDelivery=pendingState&&deliveries.find(d=>d.state===pendingState);
+    const presentation=pendingDelivery&&deliveryPresentation(pendingDelivery),state=presentation?.state;
     const b=text('button','','participant'+(state==='running'?' generating':''));
     applySessionColor(b,m);
     b.disabled=!!m.left_at;b.dataset.state=state||'idle';
     const identity=text('span','','participant-identity'),name=text('span','','participant-name');name.append(text('strong',memberName(m)),text('span',providerName(m)+(m.role==='chair'?' · 좌장':''),'provider-badge'));identity.append(avatar(m),name);
     b.append(identity);
     const ownedChair=current.chair?.session_id===m.session_id;
-    b.append(text('span',m.left_at?'이탈':ownedChair&&current.chair.status!=='ready'?chairStatus(current.chair.status):m.read_only?'읽기 전용':state?stateLabel[state]:ownedChair?'별도 좌장 · 자동 응답':'참여 중 · 협력 연결',state==='unknown'||m.read_only?'blocked':'ok'));
+    b.append(text('span',m.left_at?'이탈':ownedChair&&current.chair.status!=='ready'?chairStatus(current.chair.status):m.read_only?'읽기 전용':presentation?presentation.label:ownedChair?'별도 좌장 · 자동 응답':'참여 중 · 협력 연결',state==='unknown'||presentation?.blocked||m.read_only?'blocked':'ok'));
+    if(presentation?.reason)b.append(text('span',presentation.reason,'participant-delivery-reason'));
     b.title=`${m.display_name||''}\n${m.provider} · ${m.mode}`;
-    b.onclick=()=>{$('.inspector').classList.add('open');detailToggle.setAttribute('aria-expanded','true');const detail=$('#memberDetail'),capabilities=typeof m.capabilities==='string'?JSON.parse(m.capabilities||'{}'):(m.capabilities||{});detail.replaceChildren(text('strong',memberName(m)),text('div',`원래 이름: ${m.display_name||'없음'}\nNative ID: ${m.native_id}\nCWD: ${m.cwd}\n연결 모드: ${m.mode}\n소유: ${m.ownership}\n정책: ${m.policy_revision||'관측 불가'}\n상태: ${m.blocked_reason||'사용자가 확인한 참여 정보'}`,'detail'));const raw=text('button','원래 세션 출력 보기');raw.disabled=capabilities.rawInspect!==true;raw.title=raw.disabled?'이 참여자에 원래 출력 조회가 허용되지 않았어.':'';raw.onclick=async()=>{try{const r=await req(`/api/rooms/${current.id}/sessions/${m.session_id}/output`);detail.replaceChildren(text('p',r.warning||'선택한 출력입니다.','muted'),text('pre',(r.lines||[]).join('\n'),'detail'))}catch(e){error(e.message)}};detail.append(raw);const canAutomate=m.mode==='live_attach'&&m.handle&&m.incarnation;if(canAutomate){const automatic=memberButton(capabilities.automaticInput?'자동 전달 해제':'자동 전달 연결',async()=>{const result=await req(`/api/rooms/${current.id}/sessions/${m.session_id}/automation`,{method:'POST',body:JSON.stringify({enabled:!capabilities.automaticInput})});if(result.message||result.error)error(result.error||result.message);await openRoom(current.id,false);});automatic.title=capabilities.automaticInput?'이 세션의 새 자동 전달을 끄고 협력 연결은 유지해.':'확인된 현재 세션에만 새 자동 전달을 허용해.';detail.append(automatic);}else if(m.mode==='live_attach')detail.append(text('p','자동 전달은 이 대화 ID·작업 폴더에 정확히 연결된 현재 세션을 확인한 뒤에만 허용할 수 있어.','muted'));if(ownedChair){detail.append(text('p',current.chair.error||'이 토론장만 맡는 별도 세션이야. 초대한 참여자와 다른 대화 ID로 이어가.','muted'));for(const run of current.chair_runs||[]){if(run.status==='unknown'){detail.append(text('p','결과 확인 필요 · '+(run.error||'응답 접수 여부 미확인'),'form-error'));if(run.output_json)detail.append(memberButton('저장된 결과 적용',async()=>{await req(`/api/rooms/${current.id}/chair/reconcile`,{method:'POST',body:JSON.stringify({runId:run.id})});await openRoom(current.id,false);detail.replaceChildren(text('p','저장된 결과를 적용했어. 모델을 다시 실행하지 않았어.'));}));}}}else{detail.append(memberButton('참여 정보 발급',()=>provision(m)),memberButton('토론에서 빼기',()=>leaveMember(m)));}};(ownedChair?chairArea:area).append(b);
+    b.onclick=()=>{$('.inspector').classList.add('open');detailToggle.setAttribute('aria-expanded','true');const detail=$('#memberDetail'),capabilities=typeof m.capabilities==='string'?JSON.parse(m.capabilities||'{}'):(m.capabilities||{}),pendingText=presentation?.reason||presentation?.label||m.blocked_reason||'사용자가 확인한 참여 정보';detail.replaceChildren(text('strong',memberName(m)),text('div',`원래 이름: ${m.display_name||'없음'}\nNative ID: ${m.native_id}\nCWD: ${m.cwd}\n연결 모드: ${m.mode}\n소유: ${m.ownership}\n정책: ${m.policy_revision||'관측 불가'}\n상태: ${pendingText}`,'detail'));const raw=text('button','원래 세션 출력 보기');raw.disabled=capabilities.rawInspect!==true;raw.title=raw.disabled?'이 참여자에 원래 출력 조회가 허용되지 않았어.':'';raw.onclick=async()=>{try{const r=await req(`/api/rooms/${current.id}/sessions/${m.session_id}/output`);detail.replaceChildren(text('p',r.warning||'선택한 출력입니다.','muted'),text('pre',(r.lines||[]).join('\n'),'detail'))}catch(e){error(e.message)}};detail.append(raw);const canAutomate=m.mode==='live_attach'&&m.handle&&m.incarnation;if(canAutomate){const automatic=memberButton(capabilities.automaticInput?'자동 전달 해제':'자동 전달 연결',async()=>{const result=await req(`/api/rooms/${current.id}/sessions/${m.session_id}/automation`,{method:'POST',body:JSON.stringify({enabled:!capabilities.automaticInput})});if(result.message||result.error)error(result.error||result.message);await openRoom(current.id,false);});automatic.title=capabilities.automaticInput?'이 세션의 새 자동 전달을 끄고 협력 연결은 유지해.':'확인된 현재 세션에만 새 자동 전달을 허용해.';detail.append(automatic);}else if(m.mode==='live_attach')detail.append(text('p','자동 전달은 이 대화 ID·작업 폴더에 정확히 연결된 현재 세션을 확인한 뒤에만 허용할 수 있어.','muted'));if(ownedChair){detail.append(text('p',current.chair.error||'이 토론장만 맡는 별도 세션이야. 초대한 참여자와 다른 대화 ID로 이어가.','muted'));for(const run of current.chair_runs||[]){if(run.status==='unknown'){detail.append(text('p','결과 확인 필요 · '+(run.error||'응답 접수 여부 미확인'),'form-error'));if(run.output_json)detail.append(memberButton('저장된 결과 적용',async()=>{await req(`/api/rooms/${current.id}/chair/reconcile`,{method:'POST',body:JSON.stringify({runId:run.id})});await openRoom(current.id,false);detail.replaceChildren(text('p','저장된 결과를 적용했어. 모델을 다시 실행하지 않았어.'));}));}}}else{detail.append(memberButton('참여 정보 발급',()=>provision(m)),memberButton('토론에서 빼기',()=>leaveMember(m)));}};(ownedChair?chairArea:area).append(b);
   }
   if(!chairArea.children.length)chairArea.append(text('p',current.chair?chairStatus(current.chair.status):'별도 좌장을 만들어줘.','muted'));
   if(!area.children.length)area.append(text('p','함께 논의할 세션을 초대해줘.','muted'));
@@ -473,7 +478,8 @@ async function showDiscovery(){
  const {d,f}=dialog('세션 선택');d.classList.add('session-picker');
  f.setAttribute('aria-label','초대할 세션 선택');
  const heading=f.querySelector('h2'),header=text('div','','picker-heading'),close=memberButton('×',()=>d.close());close.className='picker-close';close.setAttribute('aria-label','세션 선택 닫기');header.append(heading,close);
- const searchWrap=text('div','','picker-search'),query=document.createElement('input');query.type='search';query.placeholder='제목, 프로젝트, 세션 ID로 검색';query.setAttribute('aria-label','세션 카탈로그 검색');query.setAttribute('autocomplete','off');searchWrap.append(actionIcon('search'),query);
+ const searchWrap=text('div','','picker-search'),query=document.createElement('input');query.type='search';query.placeholder='전체 작업공간에서 제목, 프로젝트, 세션 ID로 검색';query.setAttribute('aria-label','세션 카탈로그 검색');query.setAttribute('autocomplete','off');
+ const clearQuery=memberButton('검색 지우기',()=>{query.value='';syncSearchScope();load();});clearQuery.type='button';clearQuery.className='picker-query-clear';clearQuery.hidden=true;searchWrap.append(actionIcon('search'),query,clearQuery);
  const filters=text('div','','picker-filters'),tabs=text('div','','provider-tabs');tabs.setAttribute('aria-label','Provider 필터');
  let provider='',entries=[],selected=-1,version=0,timer;
  const providerButtons=[];
@@ -497,10 +503,11 @@ async function showDiscovery(){
  }
  function navigate(event){if(!entries.length||event.isComposing)return;if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();select((selected+(event.key==='ArrowUp'?-1:1)+entries.length)%entries.length,event.target!==query);}else if(event.key==='Enter'){event.preventDefault();choose.click();}}
  query.addEventListener('keydown',navigate);list.addEventListener('keydown',navigate);
+ function syncSearchScope(){clearQuery.hidden=!query.value.trim();}
  async function load(){
   const own=++version;entries=[];selected=-1;choose.disabled=true;list.replaceChildren(text('p','세션을 찾고 있어요…','picker-empty'));select(-1);status.textContent='조회 중…';warning.textContent='';
   try{const params=new URLSearchParams();if(query.value.trim())params.set('query',query.value.trim());if(provider)params.set('provider',provider);if(internal.input.checked)params.set('includeInternal','1');const result=await req('/api/sessions/catalog?'+params);if(own!==version||!d.open)return;
-   entries=result.sessions||[];list.replaceChildren();status.textContent=entries.length+'개 · 최근 기록 순'+(entries.length>=80?' · 최대 80개':'');
+   entries=result.sessions||[];list.replaceChildren();const activeQuery=query.value.trim();status.textContent=activeQuery?`전체 작업공간에서 “${activeQuery}” 검색 · ${entries.length}개`:`전체 작업공간 · ${entries.length}개 · 최근 기록 순`+(entries.length>=80?' · 최대 80개':'');
    warning.textContent=(result.errors||[]).map(e=>typeof e==='string'?e:`${e.provider}: ${e.message}`).join(' / ');
    entries.forEach((candidate,index)=>{const row=text('button','','picker-option');row.type='button';row.id='session-choice-'+index;row.setAttribute('role','option');row.setAttribute('aria-selected','false');row.tabIndex=-1;
     const icon=document.createElement('img');icon.src='/assets/providers/'+candidate.provider+'.png';icon.alt=candidate.provider;icon.className='picker-provider-icon';
@@ -511,7 +518,7 @@ async function showDiscovery(){
    select(entries.length?0:-1);
   }catch(e){if(own!==version||!d.open)return;list.replaceChildren(text('p',e.message,'form-error'));status.textContent='조회 실패';}
  }
- query.oninput=()=>{clearTimeout(timer);timer=setTimeout(load,180);};internal.input.onchange=load;d.addEventListener('close',()=>{clearTimeout(timer);version++;});await load();
+ query.oninput=()=>{syncSearchScope();clearTimeout(timer);timer=setTimeout(load,180);};internal.input.onchange=load;d.addEventListener('close',()=>{clearTimeout(timer);version++;});syncSearchScope();await load();
 }
 async function editLimits(){if(!current)return;const {d,f}=dialog('토론 한도');const requests=inputField(f,'사용자 요청당 최대 전달 수','requests',current.request_budget,'number'),rounds=inputField(f,'요청당 최대 자동 대화 라운드','rounds',current.round_budget,'number');for(const i of [requests,rounds]){i.min='1';i.max='100'}f.append(text('p','새 사용자 입력마다 별도 한도를 사용해요. 병렬 질문은 한 라운드로 세며, 한도에 도달하면 추가 자동 질문만 멈춰요.','muted'));const errorBox=text('p','','form-error');f.append(errorBox);actions(f,'적용');f.onsubmit=async e=>{e.preventDefault();try{await req(`/api/rooms/${current.id}/limits`,{method:'POST',body:JSON.stringify({requestBudget:Number(requests.value),roundBudget:Number(rounds.value)})});d.close();await openRoom(current.id,false)}catch(e){errorBox.textContent=e.message}};d.showModal()}
 function updateRoomControls(){for(const id of ['invite','limits','workspaceButton'])$('#'+id).disabled=!active();$('#composer button[type=submit]').disabled=!active()||attachmentComposer?.pending();const steer=$('#kind option[value=steer]');steer.disabled=true;steer.textContent='방향 수정 · 연결 미지원';}

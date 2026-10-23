@@ -41,6 +41,14 @@ test('draft or busy terminal is rejected before an attempt exists', async () => 
   finally { store.db.close(); rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('a blocked preflight sends nothing, remains queued, and succeeds on a later tick',async()=>{
+ const {store,delivery}=setup();let ready=false;const calls=[];
+ const adapter={async preflight(){return ready?{ok:true}:{ok:false,reasonCode:'draft_exists',reason:'Orca가 입력란의 문구를 감지해 전달을 보류했어요. 현재 연동은 실제 초안과 추천 문구를 구분하지 못해요.'};},async send(){calls.push('send');return {ok:true,stage:'turn_started',receipt:{}};}};
+ const {dir,value}=dispatcher(store,adapter);
+ try{assert.equal((await value.tick())[0].state,'skipped');assert.equal(calls.length,0);assert.equal(store.db.prepare('SELECT state,blocked_reason FROM deliveries WHERE id=?').get(delivery.id).state,'queued');assert.match(store.db.prepare('SELECT blocked_reason FROM deliveries WHERE id=?').get(delivery.id).blocked_reason,/초안/);ready=true;assert.equal((await value.tick())[0].state,'running');assert.equal(calls.length,1);}
+ finally{store.db.close();rmSync(dir,{recursive:true,force:true});}
+});
+
 test('restart recovery observes the persisted request and accepts a later authenticated reply', async () => {
   const { store, room, delivery } = setup(), first = fakeAdapter(), one = dispatcher(store, first);
   try {
@@ -101,12 +109,23 @@ test('Orca adapter accepts only exact empty composer and correlated receipt', as
 
 test('real provider footers are accepted while an active turn or hidden draft is never sent to',async()=>{
  for(const provider of ['codex','claude']){
-  const tail=provider==='codex'?['history','› Ask Codex to do anything','GPT-6.1-Sol medium · C:/work','? for shortcuts']:['history','──────── 토론장 ─','❯','────────────────','⏵⏵ don\'t ask on (shift+tab to cycle)'];
+  const tail=provider==='codex'?['history','› Ask Codex to do anything','GPT-6.1-Sol medium · C:/work','? for shortcuts']:['history','──────── 토론장 ─','❯','────────────────','⏵⏵ bypass permissions on (shift+tab to cycle)'];
   for(const condition of ['empty','draft','working','idle-unknown']){
    const run=async(bin,args)=>({status:0,stdout:JSON.stringify({ok:true,result:args[1]==='show'?{terminal:{handle:'t',incarnationId:'inc',agentIdentity:provider,connected:true,writable:true}}:args[1]==='wait'?{wait:{satisfied:condition!=='idle-unknown'}}:{terminal:{source:'screen',tail:condition==='working'?['• Working (18s • esc to interrupt)',...tail.slice(1)]:tail,...condition==='draft'?{draft:'작성 중인 원문'}:{}}}})});
    const result=await createOrcaParticipantAdapter({bin:'fixture',run}).preflight({handle:'t',incarnation:'inc'},{provider});assert.equal(result.ok,condition==='empty',provider+':'+condition);
+   if(condition==='draft')assert.equal(result.reasonCode,'draft_exists');
+   if(condition==='idle-unknown')assert.equal(result.reasonCode,'busy_idle_unverified');
   }
  }
+});
+
+test('preflight distinguishes identity, screen, and unknown composer without submitting',async()=>{
+ const cases=[
+  ['identity_changed',args=>args[1]==='show'?{terminal:{handle:'other',incarnationId:'inc',agentIdentity:'claude',connected:true,writable:true}}:null],
+  ['screen_unavailable',args=>args[1]==='show'?{terminal:{handle:'t',incarnationId:'inc',agentIdentity:'claude',connected:true,writable:true}}:args[1]==='wait'?{wait:{satisfied:true}}:{terminal:{source:'api',tail:[]}}],
+  ['composer_unverified',args=>args[1]==='show'?{terminal:{handle:'t',incarnationId:'inc',agentIdentity:'claude',connected:true,writable:true}}:args[1]==='wait'?{wait:{satisfied:true}}:{terminal:{source:'screen',tail:['history','❯ unknown footer']}}]
+ ];
+ for(const [code,fixture] of cases){const seen=[];const run=async(_bin,args)=>{seen.push(args);return {status:0,stdout:JSON.stringify({ok:true,result:fixture(args)})}};const adapter=createOrcaParticipantAdapter({bin:'fixture',run}),result=await adapter.send({handle:'t',incarnation:'inc'},{provider:'claude'},'must not send','req');assert.equal(result.reasonCode,code);assert.equal(seen.some(args=>args[1]==='send'),false);}
 });
 
 test('a draft appearing after reservation releases only the unsent fence and may be delivered later',async()=>{

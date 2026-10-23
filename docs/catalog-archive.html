@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="source-sha256" content="c36cf21ccaea49323d79f6955e9a362e6a9fe41102004706ae00e94cce37c34a"><title>채널 보관과 세션 선택 UX</title><style>
+<meta name="source-sha256" content="cd01c1c12532d6a6b7a6a8e161366c96eb313612393a7960ef20dc246891ae6d"><title>채널 보관과 세션 선택 UX</title><style>
     :root{--ink:#202c35;--muted:#64757a;--accent:#006c62;--line:#dce4e4;--paper:#fff;--bg:#f3f6f5}
     *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}
     body{margin:0;color:var(--ink);background:var(--bg);font:15px/1.85 'Segoe UI','Malgun Gothic',sans-serif}
@@ -34,7 +34,7 @@
     @media print{aside,.skip{display:none}.shell{display:block}main{padding:0}.table-scroll{overflow:visible}pre.mermaid{break-inside:avoid}body{background:white}}
     </style></head>
 <body><a class="skip" href="#document">본문으로 이동</a><div class="shell">
-<aside><div class="brand">INTER SESSION<br>ORCHESTRATOR</div><span class="status">DONE</span><nav aria-label="문서 목차"><a href="research/index.html">최신 벤치마킹 조사 →</a>
+<aside><div class="brand">INTER SESSION<br>ORCHESTRATOR</div><span class="status">수정 적용 · Claude 재개 미확인</span><nav aria-label="문서 목차"><a href="research/index.html">최신 벤치마킹 조사 →</a>
 <a href="#_1">한눈에 보기</a>
 <a href="#1-intent">1. 의도 (Intent)</a>
 <a href="#2-acceptance">2. 수용 기준 (Acceptance)</a>
@@ -48,6 +48,7 @@
 <a href="#10-risks">10. 잠재 문제 (Risks)</a>
 <a href="#11-slices">11. 착수 순서 (Slices)</a>
 <a href="#12-traceability">12. 추적성 (Traceability)</a>
+<a href="#13">13. 카탈로그 범위와 전달 차단 후속 수정</a>
 <a href="#_8">참고</a></nav></aside>
 <main id="document"><header class="meta"><span>UX RESEARCH → IMPLEMENTATION</span><span>2026.10.23 · WINDOWS / LOCAL</span></header>
 <article><!-- sr:plan
@@ -61,7 +62,7 @@
 <h2 id="_1">한눈에 보기</h2>
 <ul>
 <li>목적: 채널 보관의 전제를 지키면서 목록의 잡음과 공간 낭비를 줄인다.</li>
-<li>현재 상태: 구현·브라우저 검증을 마치고 4318 실행판에 적용했다. 전체 테스트 104/104, 기존 발언 37건 원문 보존을 확인했다(근거는 추적성 절).</li>
+<li>현재 상태: 구현·브라우저 검증을 마치고4318에 적용했다. 최신 후속 수정의 전체 테스트109/109, 기존38발언 원문 보존을 확인했다. 원래 Claude의 실제 응답 회수는 Orca 초안 상태 정리 전까지 미확인이다(§12~13).</li>
 <li>핵심 결론: 보관은 삭제와 분리하고, 기본 목록은 활성 항목·주 작업 세션 중심으로 표시한다.</li>
 <li>원인 또는 판단 근거: 변경 전 카탈로그는 모든 정보와 버튼을 항목마다 반복했다. 현재는 높이 약66px의 행과 선택 상세를 분리하고 채널 보관 필드를 추가했다.</li>
 <li>결정: 검색 가능한 짧은 행과 선택 상세, 명시적인 보관 표시 토글, 주요 작업과 보조 작업이 구분된 상단바를 적용한다.</li>
@@ -383,13 +384,55 @@
 <p>기준 revision은 f8bde4e다. 채널 backend066a2e4와 catalog577e42f·c0d074a를 현재 feat/archive-session-picker 브랜치에 통합했다. 실행판은 http://127.0.0.1:4318/ 이며 기존37발언을 보존했다. 이 결과는 이번6개 수용 기준의 완료이고 원래 전체 host V01~13 완료를 뜻하지 않는다.</p>
 <h3 id="_7">재검토 조건</h3>
 <p>provider가 native 이력 형식을 바꾸거나 알려지지 않은 worker가 기본 목록에 보이면 fixture와 분류 규칙을 갱신한다. 긴 한국어 제목·작업 경로로 실사용 선택이 어려워지면 상세의 줄 수와 비율을 다시 조정한다.</p>
+<h2 id="13">13. 카탈로그 범위와 전달 차단 후속 수정</h2>
+<p>사용자는 다른 프로젝트 세션이 보이지 않는 듯한 현상과, Claude가 응답하지 않으면서 '요청 대기'로 표시되는 문제를 보고했다.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>확인 항목</th>
+<th>직접 관측</th>
+<th>조치</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>카탈로그 기본 범위</td>
+<td>검색어 없는 native 조회와4318 UI는80개 결과·17개 서로 다른cwd 및cwd 미확인 항목을 반환한다. 현재 프로젝트로 제한하는 요청 파라미터는 없다. 직전 QA 화면에는 프로젝트 이름 검색어가 들어 있었다.</td>
+<td>전체 작업공간 범위와 검색 해제를 명시한다. 검색·provider 필터·최근 순서는 유지한다.</td>
+</tr>
+<tr>
+<td>Claude 연결</td>
+<td>등록한 handle·incarnation이 일치하고 connected/writable=true다. 원래 대기 요청3건은queued이며 전송 전 차단됐다.</td>
+<td>프로세스 종료로 단정하지 않는다. 차단 사유를 카드·타임라인·상세에 표시한다.</td>
+</tr>
+<tr>
+<td>Claude 입력란 문구</td>
+<td>Orca <code>terminal read --screen</code>은 판독한 문구를draft에 따로 반환하며tail에서는 제외한다. 반환 정보에 셀의dim 스타일은 없다.</td>
+<td>draft 보고만으로 사용자가 작성한 초안이라고 단정하지 않는다. 자동 전달은 보류하고 정확한 감지 사유를 표시한다.</td>
+</tr>
+<tr>
+<td>정상 Claude footer</td>
+<td>실제 화면의 <code>bypass permissions on (shift+tab to cycle)</code>을 기존 판독기는 허용하지 않았다.</td>
+<td>알려진 표시 형식을 추가하되 권한 설정을 변경하지 않는다. 초안·작업 중·불명 화면은 계속 거부한다.</td>
+</tr>
+<tr>
+<td>상태 표시</td>
+<td>queued에blocked_reason이 있어도 '요청 대기'로 표시했다.</td>
+<td>저장된queued와 재확인 스케줄은 유지하고, 사용자에게 '전달 차단' 및 이유·해결 방법을 표시한다.</td>
+</tr>
+</tbody>
+</table></div>
+<p>후속 수정은4318에 적용했다. 전체109개 테스트와 실제 UI에서 기본80개→프로젝트 검색4개→검색 지우기80개를 확인했다. 참여자 카드·타임라인3건·세션 상세 모두 '전달 차단'과 초안 사유를 표시한다. 수정 전 기존38발언도 동일하게 유지됐다. <a href="validation/catalog-delivery.json">후속 검증 JSON</a>, <a href="screenshots/catalog-global-scope.png">전체 범위 화면</a>, <a href="screenshots/claude-delivery-blocked.png">차단 표시 화면</a>을 보관한다.</p>
+<p>감지된 문구는 사용자 요청에 따라 비공개 백업했다. 일반 편집 입력은 문구를 지우지 못했다. 사용자에게 수동으로 지우라는 안내는 철회했고, 사용자가 직접 복구를 재승인했다. 기존 요청3건의 실제 Claude 응답 회수는 아직 <strong>UNVERIFIED</strong>다.</p>
+<p>설치된 Orca 코드를 추적하면draft는 별도 저장소가 아니라 터미널 커서 문맥에서 판독한 결과다. 다만dim 셀을 제외한afterCursor가 비면rawAfterCursor로 되돌아가며, 일부 고정 placeholder만 제외한다. 따라서 임의의 흐린 추천 문구를 실제 초안으로 오인할 수 있는 경로가 있다. 현재 한국어 문구가 실제로dim인지 CLI 응답만으로 확정할 수는 없다. <a href="https://code.claude.com/docs/en/interactive-mode#prompt-suggestions">Claude 공식 문서</a>도 다음 질문 추천은Tab/오른쪽키로 작성란에 넣고, 타이핑하면 숨겨진다고 설명한다.</p>
+<p>근거는 설치된Orca <code>out/shared/terminal-cursor-line-context.js</code>, <code>terminal-composer-draft.js</code> 및 <code>out/main/index.js</code>의readRenderedScreen·Rir/a8·Iir/Fir 경로다. 자동 전달을 위해 이 불명 문구를 무조건 무시하지 않으며 권한 설정도 변경하지 않는다. 다른 프로젝트 세션으로 테스트 입력을 보내지 않았다.</p>
 <h2 id="_8">참고</h2>
 <ul>
 <li><a href="index.html">session-room-foundation</a>, <a href="research/index.html">inter-session-index</a></li>
 <li><a href="https://code.visualstudio.com/api/ux-guidelines/quick-picks">VS Code Quick Picks</a></li>
 <li><a href="https://linear.app/docs/search">Linear Search</a></li>
 <li><a href="https://slack.com/help/articles/213185307-Archive-or-delete-a-channel">Slack Archive</a></li>
-</ul></article><footer>원본: docs/design/0007-catalog-archive.md<br>본문 SHA-256: c36cf21ccaea49323d79f6955e9a362e6a9fe41102004706ae00e94cce37c34a</footer></main></div>
+</ul></article><footer>원본: docs/design/0007-catalog-archive.md<br>본문 SHA-256: cd01c1c12532d6a6b7a6a8e161366c96eb313612393a7960ef20dc246891ae6d</footer></main></div>
 <!-- Mermaid third-party license: The MIT License (MIT)
 
 Copyright (c) 2014 - 2022 Knut Sveidqvist
