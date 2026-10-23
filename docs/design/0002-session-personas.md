@@ -309,6 +309,17 @@ sequenceDiagram
 - [표시 검증 JSON](validation/conversation-persona-colors.json)
 - [프로필과 좌장 응답 화면](screenshots/conversation-persona-colors.jpg)
 
+## 15. 개별 이름 수정과 토론장 간 세션 매핑
+
+2026-10-23 좌측 목록의 모든 실제 채널과 토론장 행에 독립적인 연필 아이콘을 배치한다. 채널과 토론장 이름을 각각 수정하며, 선택하지 않은 토론장·보관된 토론장·빈 채널에도 적용한다. 이름 수정 버튼은 토론장 이동 버튼의 형제 요소로 두고 중첩 버튼을 만들지 않는다. 수정만으로 현재 대화를 전환하지 않으며 현재 토론장 수정 시 상단 제목도 갱신한다. ‘채널 없음’은 저장된 채널이 아닌 미분류 그룹 표시다.
+
+세션 별칭·프로필 색상은 기존 sessions 레코드에 전역 저장하고 memberships에는 별도로 재배정하지 않는다. 같은 등록 세션 ID는 다른 채널·토론장에서도 같은 이름·색상을 유지한다. 기존 세션을 재등록할 때는 provider·host·native ID·cwd·profile 정규화 신원이 일치하면 같은 ID를 재사용한다. provider가 다른 native ID는 별도 신원이며, 실행 경계를 보호하는 이 복합 신원을 이번 UI 변경에서 합치지 않는다. 서로 다른 세션의 alias는 unique index로 구분한다.
+
+검증: 격리 브라우저에서 채널 3개·토론장 4개의 이름을 실제 수정하고 새로고침 후 유지됨을 확인했다. 비선택 토론장 수정 시 현재 대화 유지, 편집 버튼 개수 3/4, 중첩 버튼 0개·가로 넘침 없음. 다른 채널의 토론장 두 곳에서 동일 등록 세션의 alias·색상·발언자 표시가 일치했다. 파일 DB 재열기·재등록·서로 다른 채널의 membership ID 분리·동일 세션 ID 유지와 provider 간 신원 분리를 테스트했다. 관련 회귀 28/28 통과. 실제 4318에는 검증용 이름 변경·모델 요청을 보내지 않았다.
+
+- [이름 수정 검증 JSON](validation/sidebar-rename.json)
+- [좌측 연필 아이콘 화면](screenshots/sidebar-rename.jpg)
+
 ## 참고
 
 - [[session-room-foundation]] — 원래 세션 신원과 전달 불변식.

@@ -13,7 +13,30 @@ const renderMarkdown=createRenderer({parse:source=>marked.parse(source,{gfm:true
 const text=(tag,value,cls)=>{const x=document.createElement(tag);x.textContent=value;if(cls)x.className=cls;return x};
 function error(value=''){const e=$('#error');e.textContent=value;e.hidden=!value}
 function active(){return current&&!current.archived_at}
-function renderNav(){const nav=$('#rooms');nav.replaceChildren();const groups=[...channels.map(c=>[c,rooms.filter(r=>r.channel_id===c.id)]),[{name:'채널 없음'},rooms.filter(r=>!r.channel_id)]];for(const [channel,list] of groups){if(!list.length&&!channel.id)continue;const channelLine=text('p','# '+channel.name,'channel-label');if(channel.id){const rename=text('button','이름 변경','rename-link');rename.type='button';rename.onclick=()=>renameDialog('channel',channel);channelLine.append(rename);}nav.append(channelLine);for(const room of list){const b=text('button',(room.archived_at?'⌁ ':'# ')+room.name,'room-link'+(current?.id===room.id?' active':''));b.onclick=()=>openRoom(room.id);nav.append(b)}}const select=$('#channelChoice');const empty=text('option','채널 없음');empty.value='';select.replaceChildren(empty);for(const c of channels){const o=text('option',c.name);o.value=c.id;select.append(o)}}
+function renameButton(label,onClick){
+ const button=text('button','','rename-link rename-icon');button.type='button';button.title=label;button.setAttribute('aria-label',label);button.onclick=onClick;
+ const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS('http://www.w3.org/2000/svg','path');
+ svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.setAttribute('focusable','false');
+ path.setAttribute('d','m16 4 4 4M4 16 16 4a2.8 2.8 0 0 1 4 4L8 20l-5 1 1-5Z');svg.append(path);button.append(svg);return button;
+}
+function renderNav(){
+ const nav=$('#rooms');nav.replaceChildren();
+ const groups=[...channels.map(c=>[c,rooms.filter(r=>r.channel_id===c.id)]),[{name:'채널 없음'},rooms.filter(r=>!r.channel_id)]];
+ for(const [channel,list] of groups){
+  if(!list.length&&!channel.id)continue;
+  const heading=text('div','','channel-label');heading.append(text('span','# '+channel.name,'nav-label'));
+  if(channel.id){heading.dataset.channelId=channel.id;heading.append(renameButton(channel.name+' 채널 이름 변경',()=>renameDialog('channel',channel)));}
+  nav.append(heading);
+  for(const room of list){
+   const selected=current?.id===room.id,row=text('div','','room-nav-row'+(selected?' active':''));row.dataset.roomId=room.id;
+   const button=text('button',(room.archived_at?'⌁ ':'# ')+room.name,'room-link'+(selected?' active':''));button.type='button';button.onclick=()=>openRoom(room.id);
+   if(selected)button.setAttribute('aria-current','page');
+   row.append(button,renameButton(room.name+' 토론장 이름 변경',()=>renameDialog('room',room)));nav.append(row);
+  }
+ }
+ const select=$('#channelChoice'),empty=text('option','채널 없음');empty.value='';select.replaceChildren(empty);
+ for(const c of channels){const option=text('option',c.name);option.value=c.id;select.append(option);}
+}
 async function refresh(keep=true){const [rs,cs]=await Promise.all([req('/api/rooms'),req('/api/channels')]);rooms=rs.rooms;channels=cs.channels;renderNav();if(keep&&current){const found=rooms.find(r=>r.id===current.id);if(found)await openRoom(found.id,false)}}
 function deliveryText(message){const ds=current.deliveries.filter(d=>d.message_id===message.id);if(!ds.length)return null;const wrap=document.createElement('div');wrap.className='delivery-list';for(const d of ds){const m=current.members.find(x=>x.id===d.membership_id);const badge=text('span',`${m?.alias||m?.display_name||m?.native_id||'수신자'} · ${stateLabel[d.state]||d.state}`,'badge '+d.state);badge.title=`요청: ${d.request_id}${d.blocked_reason?'\n사유: '+d.blocked_reason:''}`;wrap.append(badge)}return wrap}
 
@@ -344,9 +367,8 @@ const closeInspector=memberButton('닫기',()=>{$('.inspector').classList.remove
 
 initLayout();
 
-const renameRoomButton=memberButton('이름 변경',()=>{if(current)renameDialog('room',current);});
-renameRoomButton.id='renameRoom';renameRoomButton.className='rename-link';
-renameRoomButton.setAttribute('aria-label','토론장 이름 변경');
+const renameRoomButton=renameButton('토론장 이름 변경',()=>{if(current)renameDialog('room',current);});
+renameRoomButton.id='renameRoom';
 $('#title').after(renameRoomButton);
 
 const expandSummary=memberButton('크게 보기',()=>{

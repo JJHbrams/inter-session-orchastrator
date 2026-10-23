@@ -82,11 +82,19 @@ test('Windows path separators and case do not create a second session identity',
   assert.equal(s.db.prepare('SELECT count(*) n FROM sessions').get().n,1);
 });
 test('personas survive reopen, identity registration, and room changes',()=>{
-  const s=new Store();const first=registered(s).session;const persona={alias:first.alias,avatar:first.avatar};
-  const same=registered(s).session;assert.deepEqual({alias:same.alias,avatar:same.avatar},persona);
-  const other=s.registerSession({provider:'claude',host:'test',nativeId:'native-2',cwd:'C:/work',profile:'default',mode:'read_only'}).session;
-  assert.notEqual(other.alias,persona.alias);const room=s.createRoom('r');s.join(room.id,first.id,false);s.join(room.id,other.id,true);
-  assert.equal(s.room(room.id).members.find(m=>m.session_id===first.id).alias,persona.alias);
+  const dir=mkdtempSync(join(tmpdir(),'rooms-persona-')),path=join(dir,'test.sqlite');let s=new Store(path);
+  try{
+    const first=registered(s).session,persona={alias:first.alias,avatar:first.avatar};
+    const same=registered(s).session;assert.equal(same.id,first.id);assert.deepEqual({alias:same.alias,avatar:same.avatar},persona);
+    const other=s.registerSession({provider:'claude',host:'test',nativeId:'native-1',cwd:'C:/work',profile:'default',mode:'read_only'}).session;
+    assert.notEqual(other.id,first.id);assert.notEqual(other.alias,persona.alias);
+    const rooms=[s.createRoom('first room',s.createChannel('first channel').id),s.createRoom('second room',s.createChannel('second channel').id)];
+    const memberships=rooms.map(room=>s.join(room.id,first.id,false));assert.notEqual(memberships[0].id,memberships[1].id);
+    s.join(rooms[1].id,other.id,true);s.db.close();s=new Store(path);
+    const reopened=registered(s).session;assert.equal(reopened.id,first.id);
+    for(const room of rooms){const member=s.room(room.id).members.find(m=>m.session_id===first.id);assert.deepEqual({alias:member.alias,avatar:member.avatar},persona);}
+    assert.equal(s.db.prepare('SELECT count(*) n FROM sessions WHERE id=?').get(first.id).n,1);
+  }finally{s.db.close();rmSync(dir,{recursive:true,force:true});}
 });
 test('mention routing is exact, deduped, frozen, and never falls back to all',()=>{
   const s=new Store(),r=s.createRoom('r'),a=registered(s).session,b=s.registerSession({provider:'claude',host:'test',nativeId:'b',cwd:'C:/b',profile:'default',mode:'live_attach',verified:true,capabilities:{followup:true}}).session;
