@@ -1,92 +1,21 @@
-import { spawnSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 
-const ORCA = 'C:/Users/jhjang/AppData/Local/Programs/orca/resources/bin/orca.exe';
+const exec = promisify(execFile);
+const localEnv = { ...process.env }; delete localEnv.ORCA_ENVIRONMENT; delete localEnv.ORCA_PAIRING_CODE; delete localEnv.ORCA_REMOTE_PAIRING;
+const options = { windowsHide: true, shell: false, maxBuffer: 2_000_000, timeout: 15_000, env: localEnv };
+async function executable() { if (process.env.ORCA_CLI_COMMAND) return process.env.ORCA_CLI_COMMAND; const finder = process.platform === 'win32' ? 'where.exe' : 'which'; const { stdout } = await exec(finder, [process.platform === 'win32' ? 'orca.exe' : 'orca'], options); const found = stdout.trim().split(/\r?\n/)[0]; if (!found) throw new Error('orca executable not found on PATH'); return found; }
+async function nativeRun(bin, args, runOptions) { try { return await exec(bin, args, runOptions); } catch (error) { return { status: error.code === 'ETIMEDOUT' ? 124 : 1, stdout: error.stdout || '', stderr: error.stderr || error.message }; } }
+function parsed(result) { try { const text = String(result?.stdout || '').trim(); return text ? JSON.parse(text) : null; } catch { return null; } }
+async function command(run, args, bin = null) { const result = await run(bin || await executable(), args, options), body = parsed(result); if (result?.error || (result?.status !== undefined && result.status !== 0)) { const error = new Error(body?.error?.message || body?.message || result?.stderr || result?.error?.message || 'orca command failed'); error.code = body?.error?.code || body?.code || 'ORCA_COMMAND_FAILED'; error.receipt = body; throw error; } if (!body || body.ok === false) throw new Error(body?.error?.message || 'Orca returned an invalid response'); return body; }
+const terminal = response => response?.result?.terminal;
+const agent = value => /^(codex|claude)(?:\b|[-_])/i.exec(value || '')?.[1]?.toLowerCase() || null;
+function sameTerminal(value, binding, session) { return !!value && value.handle === binding.handle && value.incarnationId === binding.incarnation && agent(value.agentIdentity) === session.provider && value.connected === true && value.writable === true && value.orphaned !== true; }
+function emptyComposer(provider, read) { if (!read || read.source !== 'screen' || !Array.isArray(read.tail) || (Object.hasOwn(read, 'draft') && String(read.draft).length)) return false; const lines = read.tail.map(x => String(x).trim()); const line = [...lines].reverse().find(Boolean) || ''; if (provider === 'codex') return ['› Ask Codex to do anything', '› Ask a follow-up question', '›'].includes(line); if (provider !== 'claude') return false; if (line === '❯') return true; const composerIndex = lines.lastIndexOf(line), preceding = lines[composerIndex - 1] || '', following = lines.slice(composerIndex + 1).join(' '); return /^❯\s*Try\s+["“].+["”]$/.test(line) && /^[-─━]{3,}$/.test(preceding) && /manual mode on|shortcuts/i.test(following); }
+function receiptFor(response, binding, session, requestId) { const receipt = response?.result?.send; if (!receipt || receipt.handle !== binding.handle || receipt.accepted !== true || receipt.prompt?.requestId !== requestId || receipt.prompt?.provider !== session.provider || receipt.prompt?.processIncarnation !== binding.incarnation) return null; const stages = receipt.prompt.stages; if (!Array.isArray(stages) || !stages.some(x => ['input_accepted', 'turn_started'].includes(x))) return null; return { receipt, stage: stages.includes('turn_started') ? 'turn_started' : 'input_accepted' }; }
+async function show(run, binding, bin = null) { return terminal(await command(run, ['terminal', 'show', '--terminal', binding.handle, '--json'], bin)); }
+async function readIdle(run, binding, bin = null) { await command(run, ['terminal', 'wait', '--terminal', binding.handle, '--for', 'tui-idle', '--timeout-ms', '1', '--json'], bin); const response = await command(run, ['terminal', 'read', '--terminal', binding.handle, '--screen', '--limit', '80', '--json'], bin); return terminal(response) || response?.result; }
 
-function json(result) {
-  const text = String(result?.stdout || '').trim();
-  if (!text) return null;
-  try { return JSON.parse(text); } catch { return null; }
-}
-
-function command(run, args) {
-  const result = run(ORCA, args, { timeout: 15_000, encoding: 'utf8' });
-  const body = json(result);
-  if (result?.status && result.status !== 0) {
-    const error = new Error(body?.error?.message || body?.message || result.stderr || 'orca command failed');
-    error.code = body?.error?.code || body?.code || 'ORCA_COMMAND_FAILED';
-    error.receipt = body;
-    throw error;
-  }
-  return body ?? result?.stdout ?? '';
-}
-
-function valueAt(object, names) {
-  if (!object || typeof object !== 'object') return undefined;
-  for (const name of names) if (object[name] !== undefined) return object[name];
-  for (const value of Object.values(object)) {
-    const found = valueAt(value, names);
-    if (found !== undefined) return found;
-  }
-  return undefined;
-}
-
-function screenText(reading) {
-  if (typeof reading === 'string') return reading;
-  return reading?.screen || reading?.text || reading?.terminal?.screen || '';
-}
-
-function emptyComposer(provider, screen) {
-  const trimmed = String(screen || '').trim();
-  if (!trimmed) return false;
-  const codex = ['› Ask Codex to do anything', '› Ask a follow-up question', '›'];
-  const claude = ['❯'];
-  return (provider === 'codex' ? codex : provider === 'claude' ? claude : []).some(prompt => trimmed === prompt);
-}
-
-function validReceipt(receipt, binding, session) {
-  const provider = valueAt(receipt, ['provider']);
-  const incarnation = valueAt(receipt, ['processIncarnation', 'process_incarnation', 'incarnation']);
-  const stage = valueAt(receipt, ['stage', 'status']);
-  return provider === session.provider && incarnation === binding.incarnation && ['input_accepted', 'turn_started'].includes(stage);
-}
-
-export function createOrcaParticipantAdapter({ run = spawnSync } = {}) {
-  const show = binding => command(run, ['terminal', 'show', binding.handle, '--json']);
-  const read = binding => command(run, ['terminal', 'read', binding.handle, '--screen', '--wait', '--for', 'tui-idle', '--timeout-ms', '1', '--json']);
-
-  return {
-    async preflight(binding, session) {
-      if (!binding?.handle || !binding?.incarnation || !['codex', 'claude'].includes(session?.provider)) {
-        return { ok: false, reason: 'unverified native terminal identity' };
-      }
-      const shown = show(binding);
-      const incarnation = valueAt(shown, ['processIncarnation', 'process_incarnation', 'incarnation']);
-      const provider = valueAt(shown, ['provider']);
-      if (provider !== session.provider || incarnation !== binding.incarnation) return { ok: false, reason: 'terminal identity changed', shown };
-      const before = read(binding);
-      const draft = valueAt(before, ['draft']);
-      if (draft !== undefined && String(draft).length) return { ok: false, reason: 'composer has a draft', before };
-      if (!emptyComposer(session.provider, screenText(before))) return { ok: false, reason: 'composer is not exactly empty and idle', before };
-      return { ok: true, shown, before };
-    },
-
-    async send(binding, session, prompt, hostRequestId, { observeOnly = false } = {}) {
-      if (observeOnly) return this.observe(binding, session, hostRequestId);
-      const first = await this.preflight(binding, session);
-      if (!first.ok) return first;
-      // Recheck immediately before submit.  Orca exposes no atomic draft CAS, so a
-      // human may still type after this check; callers must report that residual race.
-      const final = await this.preflight(binding, session);
-      if (!final.ok) return final;
-      const receipt = command(run, ['terminal', 'send', binding.handle, '--text', prompt, '--enter', '--wait-submit', '1', '--retry-request', hostRequestId, '--json']);
-      if (!validReceipt(receipt, binding, session)) return { ok: false, reason: 'uncorrelated or incomplete host receipt', receipt };
-      return { ok: true, receipt, stage: valueAt(receipt, ['stage', 'status']) };
-    },
-
-    async observe(binding, session, hostRequestId) {
-      const receipt = command(run, ['terminal', 'send', binding.handle, '--retry-request', hostRequestId, '--json']);
-      if (!validReceipt(receipt, binding, session)) return { ok: false, reason: 'host receipt remains unknown', receipt };
-      return { ok: true, receipt, stage: valueAt(receipt, ['stage', 'status']) };
-    }
-  };
-}
+export async function discover() { try { const response = await command(nativeRun, ['terminal', 'list', '--limit', '80', '--json']); return { runtimeId: response?._meta?.runtimeId || null, sessions: (response?.result?.terminals || []).filter(t => agent(t.agentIdentity) && t.handle && t.incarnationId).map(t => ({ provider: agent(t.agentIdentity), host: 'orca', nativeId: null, cwd: t.worktreePath || null, profile: t.agentIdentity, handle: t.handle, incarnation: t.incarnationId, capabilities: { rawInspect: true, followup: false, steer: false }, status: 'discovered', blockedReason: 'Orca discovery has no native conversation ID, policy, draft, or reply evidence' })) }; } catch (error) { return { runtimeId: null, sessions: [], error: `Orca discovery unavailable: ${error.message}` }; } }
+export async function readOutput(binding) { if (!binding?.handle || !binding?.incarnation) throw new Error('exact active Orca binding is required'); const shown = await show(nativeRun, binding); if (!shown || shown.handle !== binding.handle || shown.incarnationId !== binding.incarnation) throw new Error('Orca binding changed; raw output not read'); const read = await readIdle(nativeRun, binding); return { source: read?.source || 'unknown', lines: Array.isArray(read?.tail) ? read.tail : [], draftKnown: Object.hasOwn(read || {}, 'draft'), warning: 'Raw terminal output is not a correlated response.' }; }
+export function createOrcaParticipantAdapter({ run = nativeRun, bin = null } = {}) { const preflight = async (binding, session) => { if (!binding?.handle || !binding?.incarnation || !['codex', 'claude'].includes(session?.provider)) return { ok: false, reason: 'unverified native terminal identity' }; const shown = await show(run, binding, bin); if (!sameTerminal(shown, binding, session)) return { ok: false, reason: 'terminal identity changed', shown }; const reading = await readIdle(run, binding, bin); return emptyComposer(session.provider, reading) ? { ok: true, shown, reading } : { ok: false, reason: 'composer is not exactly empty and idle', reading }; }; const submit = async (binding, session, prompt, requestId) => { const response = await command(run, ['terminal', 'send', '--terminal', binding.handle, '--text', prompt, '--enter', '--wait-submit', '1', '--retry-request', requestId, '--json'], bin); const valid = receiptFor(response, binding, session, requestId); return valid ? { ok: true, ...valid } : { ok: false, reason: 'uncorrelated or incomplete host receipt', receipt: response }; }; return { preflight, async send(binding, session, prompt, requestId, { observeOnly = false } = {}) { if (!observeOnly) { const first = await preflight(binding, session); if (!first.ok) return first; const final = await preflight(binding, session); if (!final.ok) return final; } return submit(binding, session, prompt, requestId); }, async observe(binding, session, prompt, requestId) { return submit(binding, session, prompt, requestId); } }; }

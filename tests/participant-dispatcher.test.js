@@ -55,6 +55,20 @@ test('restart recovery observes the persisted request and accepts a later authen
   } finally { store.db.close(); rmSync(one.dir, { recursive: true, force: true }); }
 });
 
+test('accepted idle delivery gets one durable recovery nudge and repeated retry observes it', async () => {
+  const { store, room, delivery } = setup(), adapter = fakeAdapter(), one = dispatcher(store, adapter);
+  try {
+    await one.value.tick();
+    const first = await one.value.retry(room.id, delivery.id);
+    assert.equal(first.state, 'accepted');
+    const recovery = store.db.prepare('SELECT * FROM participant_recoveries WHERE delivery_id=?').get(delivery.id);
+    assert.ok(recovery); assert.equal(adapter.calls.filter(call => !call.options.observeOnly).length, 2);
+    await one.value.retry(room.id, delivery.id);
+    assert.equal(store.db.prepare('SELECT count(*) n FROM participant_recoveries WHERE delivery_id=?').get(delivery.id).n, 1);
+    assert.equal(adapter.calls.filter(call => call.requestId === recovery.host_request_id && !call.options.observeOnly).length, 1);
+  } finally { store.db.close(); rmSync(one.dir, { recursive: true, force: true }); }
+});
+
 test('paused, archived, readonly, and opted-out members never create automatic attempts', async () => {
   for (const state of ['paused', 'archived', 'readonly', 'opted-out']) {
     const options = state === 'readonly' ? { readOnly: true } : state === 'opted-out' ? { automaticInput: false } : {};
@@ -69,15 +83,18 @@ test('paused, archived, readonly, and opted-out members never create automatic a
 
 test('Orca adapter accepts only exact empty composer and correlated receipt', async () => {
   const responses = [
-    { status: 0, stdout: JSON.stringify({ provider: 'codex', processIncarnation: 'inc' }) },
-    { status: 0, stdout: JSON.stringify({ screen: '› Ask Codex to do anything' }) },
-    { status: 0, stdout: JSON.stringify({ provider: 'codex', processIncarnation: 'inc' }) },
-    { status: 0, stdout: JSON.stringify({ screen: '› Ask Codex to do anything' }) },
-    { status: 0, stdout: JSON.stringify({ provider: 'codex', processIncarnation: 'inc', stage: 'input_accepted' }) }
+    { ok: true, result: { terminal: { handle: 't', incarnationId: 'inc', agentIdentity: 'codex', connected: true, writable: true, orphaned: false } } },
+    { ok: true, result: {} }, { ok: true, result: { terminal: { source: 'screen', tail: ['history', '› Ask Codex to do anything'] } } },
+    { ok: true, result: { terminal: { handle: 't', incarnationId: 'inc', agentIdentity: 'codex', connected: true, writable: true, orphaned: false } } },
+    { ok: true, result: {} }, { ok: true, result: { terminal: { source: 'screen', tail: ['› Ask Codex to do anything'] } } },
+    { ok: true, result: { send: { handle: 't', accepted: true, prompt: { requestId: 'request', provider: 'codex', processIncarnation: 'inc', stages: ['input_accepted'] } } } }
   ];
-  const adapter = createOrcaParticipantAdapter({ run: () => responses.shift() });
+  const seen = [], adapter = createOrcaParticipantAdapter({ bin: 'orca-test', run: async (_bin, args) => { seen.push(args); return { status: 0, stdout: JSON.stringify(responses.shift()) }; } });
   const result = await adapter.send({ handle: 't', incarnation: 'inc' }, { provider: 'codex' }, 'prompt', 'request');
   assert.equal(result.ok, true);
-  const busy = createOrcaParticipantAdapter({ run: () => ({ status: 0, stdout: JSON.stringify({ screen: '› Ask Codex to do anything\nhello' }) }) });
+  assert.deepEqual(seen.at(-1).slice(0, 3), ['terminal', 'send', '--terminal']);
+  const busy = createOrcaParticipantAdapter({ bin: 'orca-test', run: async () => ({ status: 0, stdout: JSON.stringify({ ok: true, result: { terminal: { handle: 't', incarnationId: 'inc', agentIdentity: 'codex', connected: true, writable: true, orphaned: false } } }) }) });
   assert.equal((await busy.preflight({ handle: 't', incarnation: 'inc' }, { provider: 'codex' })).ok, false);
+  const failed = createOrcaParticipantAdapter({ bin: 'orca-test', run: async () => ({ status: 1, stdout: JSON.stringify({ error: { code: 'denied', message: 'structured failure' } }) }) });
+  await assert.rejects(() => failed.preflight({ handle: 't', incarnation: 'inc' }, { provider: 'codex' }), /structured failure/);
 });
