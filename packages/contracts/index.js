@@ -2,7 +2,19 @@ import { createHash, randomUUID } from 'node:crypto';
 
 export const MODES = Object.freeze(['live_attach', 'read_only', 'resume', 'fork', 'new']);
 export const DELIVERY_STATES = Object.freeze(['queued', 'claimed', 'submitting', 'accepted', 'running', 'completed', 'failed', 'blocked', 'unknown', 'cancelled']);
-export const REACTION_EMOJIS = Object.freeze(['👍', '❤️', '💡', '👀']);
+// The first five are offered to new clients. The final two remain readable and removable
+// so existing rooms retain their historical reaction meaning.
+export const REACTION_EMOJIS = Object.freeze(['👍', '👎', '❓', '✅', '💡', '❤️', '👀']);
+export const DEFAULT_REACTION_EMOJIS = Object.freeze(REACTION_EMOJIS.slice(0, 5));
+export const REACTION_MEANINGS = Object.freeze({
+  '👍': { label: '좋아요', hint: 'Positive quality feedback, not formal approval.' },
+  '👎': { label: '반대', hint: 'Clarify the reason for disagreement if it is not already given.' },
+  '❓': { label: '모르겠음', hint: 'Ask which part is unclear and explain before proceeding; this is a clarification request, not an uncertainty vote.' },
+  '✅': { label: '확인', hint: 'Received or understood, not agreement or completed work.' },
+  '💡': { label: '아이디어 있음', hint: 'Ask this reactor for their concrete idea if it is not already explained.' },
+  '❤️': { label: '공감', hint: 'Legacy positive reaction.' },
+  '👀': { label: '확인 중', hint: 'Legacy checking reaction.' }
+});
 export const identityKey = ({ provider, host, nativeId, cwd, profile }) => {
   let path = cwd.replaceAll('\\', '/').replace(/\/+$/, '');
   if (/^[a-z]:\//i.test(path) || path.startsWith('//')) path = path.toLowerCase();
