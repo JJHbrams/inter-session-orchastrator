@@ -261,18 +261,26 @@ function renderMentionMenu() {
 $('#body').addEventListener('input',()=>{if(current)draftBodies.set(current.id,$('#body').value);error();mentionClosed=false;mentionIndex=0;renderMentionMenu();});
 $('#body').addEventListener('click',()=>{mentionClosed=false;renderMentionMenu();});
 $('#body').addEventListener('keydown',event=>{
-  if(event.isComposing||$('#mentionMenu').hidden)return;
-  const candidates=mentionCandidates();if(!candidates.length)return;
-  if(['ArrowDown','ArrowUp'].includes(event.key)){event.preventDefault();mentionIndex=(mentionIndex+(event.key==='ArrowDown'?1:-1)+candidates.length)%candidates.length;renderMentionMenu();}
-  else if(['Enter','Tab'].includes(event.key)){event.preventDefault();chooseMention(candidates[mentionIndex]);}
-  else if(event.key==='Escape'){event.preventDefault();mentionClosed=true;renderMentionMenu();}
+  if(event.isComposing||event.keyCode===229)return;
+  if(event.key==='Enter'&&event.shiftKey)return;
+  const candidates=$('#mentionMenu').hidden?[]:mentionCandidates();
+  if(candidates.length){
+    if(['ArrowDown','ArrowUp'].includes(event.key)){event.preventDefault();mentionIndex=(mentionIndex+(event.key==='ArrowDown'?1:-1)+candidates.length)%candidates.length;renderMentionMenu();}
+    else if(['Enter','Tab'].includes(event.key)){event.preventDefault();chooseMention(candidates[mentionIndex]);}
+    else if(event.key==='Escape'){event.preventDefault();mentionClosed=true;renderMentionMenu();}
+    return;
+  }
+  if(event.key==='Enter'){
+    event.preventDefault();const submit=$('#composer button[type=submit]');
+    if(!event.repeat&&!submit.disabled)$('#composer').requestSubmit(submit);
+  }
 });
 const attachmentStrip=text('div','','attachment-strip');attachmentStrip.id='attachmentStrip';attachmentStrip.setAttribute('aria-live','polite');
 const attachButton=text('button','파일 추가','attachment-button');attachButton.type='button';attachButton.setAttribute('aria-label','파일 선택');
 const attachInput=document.createElement('input');attachInput.type='file';attachInput.multiple=true;attachInput.hidden=true;attachInput.setAttribute('aria-label','첨부할 파일 선택');
 const attachmentToolbar=text('div','','attachment-toolbar');attachmentToolbar.append(attachButton,attachInput,attachmentStrip);$('#body').closest('.message-label').after(attachmentToolbar);
 $('#body').required=false;
-$('#body').placeholder='@이름으로 보낼 참여자를 지정하거나, 좌장에게 맡겨보세요';
+$('#body').placeholder='@이름으로 지정 · Enter 전송 · Shift+Enter 줄바꿈';
 const asBase64=file=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(reader.error);reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.readAsDataURL(file);});
 const attachmentComposer=createAttachmentComposer({
   upload:async(roomId,file,requestKey)=>req(`/api/rooms/${roomId}/attachments`,{method:'POST',body:JSON.stringify({filename:file.name,mime:file.type||'application/octet-stream',base64:await asBase64(file),requestKey})}),

@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="source-sha256" content="2ecb4ab431977f0be4dddc7f719fa5f8c21d5dbd8707bdbfeaad7b1aefbc13fc"><title>통합 멘션과 좌장 기본 라우팅</title><style>
+<meta name="source-sha256" content="2d30976194efa676a86fb3a1df56880e7298ddcd1610ffc8cd0ba9beb4568bc7"><title>통합 멘션과 좌장 기본 라우팅</title><style>
     :root{--ink:#202c35;--muted:#64757a;--accent:#006c62;--line:#dce4e4;--paper:#fff;--bg:#f3f6f5}
     *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}
     body{margin:0;color:var(--ink);background:var(--bg);font:15px/1.85 'Segoe UI','Malgun Gothic',sans-serif}
@@ -48,7 +48,8 @@
 <a href="#12">12. 검증 결과</a>
 <a href="#_8">참고</a>
 <a href="#13">13. 파란 멘션 강조 후속</a>
-<a href="#14">14. 전체 참여자 멘션</a></nav></aside>
+<a href="#14">14. 전체 참여자 멘션</a>
+<a href="#15">15. 입력창 키 동작</a></nav></aside>
 <main id="document"><header class="meta"><span>BENCHMARK → DESIGN</span><span>2026.10.22 · WINDOWS / LOCAL</span></header>
 <article><h1 id="_1">통합 멘션과 좌장 기본 라우팅</h1>
 <!-- sr:plan
@@ -448,7 +449,10 @@
 </table></div>
 <p>브라우저 미리보기와 서버가 공유 resolver를 사용하며 실제 membership ID로 저장한다. 기존 무멘션 좌장 경유와 개별 멘션 라우팅은 유지한다. 협력 참여자는 기존 MCP inbox 조회로 요청을 받는다.</p>
 <p>전체 회귀 71/71 통과. 격리 4320 토론장에서 @to_ → Enter 자동완성, 입력·사용자/참여자 게시 강조, 민수·지수만 수신자 미리보기 및 queued 전달 2건을 확인했다. 좌장·읽기 전용·이탈자는 전달 0건, chair_runs 0건이다. 실제 4318에는 테스트 입력을 보내지 않았다.</p>
-<p><a href="validation/to-all-mention.json">검증 JSON</a> · <a href="screenshots/to-all-mention.jpg">검증 화면</a></p></article><footer>원본: docs/design/0006-mention-routing.md<br>본문 SHA-256: 2ecb4ab431977f0be4dddc7f719fa5f8c21d5dbd8707bdbfeaad7b1aefbc13fc</footer></main></div>
+<p><a href="validation/to-all-mention.json">검증 JSON</a> · <a href="screenshots/to-all-mention.jpg">검증 화면</a></p>
+<h2 id="15">15. 입력창 키 동작</h2>
+<p>Enter는 기존 보내기 버튼과 같은 form submit 경로로 전송하며, Shift+Enter는 native textarea 줄바꿈을 유지한다. 멘션 후보가 열린 동안 Enter/Tab은 후보 선택이 우선이고 Shift+Enter는 이때도 줄바꿈한다. IME isComposing 또는 keyCode 229는 전송하지 않으며, 반복 keydown과 비활성 보내기 버튼은 새 전송을 만들지 않는다. 기존 첨부·수신자·본문 검증과 멱등 키를 공유한다.</p>
+<p>격리 브라우저에서 Shift+Enter로 ‘첫 줄\n둘째 줄’을 작성한 뒤 Enter로 게시 한 건이 저장되고 입력이 비워지는 것을 확인했다. @to_ → Enter는 @to_all 선택만 하고 메시지 수가 늘지 않았으며, 후보 중 Shift+Enter도 실제 줄바꿈만 했다. 실제 handler의 IME·229·반복·disabled·멘션 선택 등 8개 경계 검사와 관련 기존 회귀 6/6을 통과했다. OS 한글 IME 자체를 자동 조작한 검증은 아니다.</p></article><footer>원본: docs/design/0006-mention-routing.md<br>본문 SHA-256: 2d30976194efa676a86fb3a1df56880e7298ddcd1610ffc8cd0ba9beb4568bc7</footer></main></div>
 <!-- Mermaid third-party license: The MIT License (MIT)
 
 Copyright (c) 2014 - 2022 Knut Sveidqvist

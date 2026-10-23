@@ -211,3 +211,9 @@ stateDiagram-v2
 
 [검증 JSON](../validation/to-all-mention.json) · [검증 화면](../screenshots/to-all-mention.jpg)
 
+## 15. 입력창 키 동작
+
+Enter는 기존 보내기 버튼과 같은 form submit 경로로 전송하며, Shift+Enter는 native textarea 줄바꿈을 유지한다. 멘션 후보가 열린 동안 Enter/Tab은 후보 선택이 우선이고 Shift+Enter는 이때도 줄바꿈한다. IME isComposing 또는 keyCode 229는 전송하지 않으며, 반복 keydown과 비활성 보내기 버튼은 새 전송을 만들지 않는다. 기존 첨부·수신자·본문 검증과 멱등 키를 공유한다.
+
+격리 브라우저에서 Shift+Enter로 ‘첫 줄\n둘째 줄’을 작성한 뒤 Enter로 게시 한 건이 저장되고 입력이 비워지는 것을 확인했다. @to_ → Enter는 @to_all 선택만 하고 메시지 수가 늘지 않았으며, 후보 중 Shift+Enter도 실제 줄바꿈만 했다. 실제 handler의 IME·229·반복·disabled·멘션 선택 등 8개 경계 검사와 관련 기존 회귀 6/6을 통과했다. OS 한글 IME 자체를 자동 조작한 검증은 아니다.
+
