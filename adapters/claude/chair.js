@@ -1,10 +1,11 @@
 import {spawn} from 'node:child_process';
 import {mkdir} from 'node:fs/promises';
+import {chairOutputSchema,validateChairOutput} from '../chair/schema.js';
 const attachments={type:'array',items:{type:'string'},maxItems:5};
 const question={type:'object',additionalProperties:false,required:['targetMembershipIds','body'],properties:{targetMembershipIds:{type:'array',items:{type:'string'},minItems:1,maxItems:20},body:{type:'string',minLength:1,maxLength:8000},attachmentIds:attachments}};
 const proposal={type:'object',additionalProperties:false,required:['body','sourceIds'],properties:{body:{type:'string',minLength:1,maxLength:8000},sourceIds:{type:'array',items:{type:'string'},maxItems:100},attachmentIds:attachments}};
 const reaction={type:'object',additionalProperties:false,required:['messageId','emoji','active'],properties:{messageId:{type:'string'},emoji:{enum:['👍','👎','❓','✅','💡','❤️','👀']},active:{type:'boolean'}}};
-const schema=JSON.stringify({type:'object',additionalProperties:false,required:['speech','questions','proposal'],properties:{speech:{type:'string',minLength:1,maxLength:8000},attachmentIds:attachments,questions:{type:'array',items:question,maxItems:5},proposal:{anyOf:[{type:'null'},proposal]},reactions:{type:'array',items:reaction,maxItems:20}}});
+const schema=JSON.stringify(chairOutputSchema);
 export function chairInput(nativeId,prompt,images=[]){
  if(!Array.isArray(images)||images.length>5)throw Error('좌장 이미지 입력 한도 초과');
  const content=[{type:'text',text:prompt}];let bytes=0;
@@ -17,7 +18,7 @@ export function chairInput(nativeId,prompt,images=[]){
  return JSON.stringify({type:'user',session_id:nativeId,parent_tool_use_id:null,message:{role:'user',content}})+'\n';
 }
 export function createClaudeChairRunner({spawnProcess=spawn,timeoutMs=150000,maxBytes=2_000_000,command=process.env.CLAUDE_CHAIR_COMMAND||'C:/Users/jhjang/.local/bin/claude.exe'}={}) {
-  const call=async({flag,nativeId,cwd,prompt,onStarted,images=[]})=>{
+  const call=async({flag,nativeId,cwd,prompt,onStarted,images=[],model,effort})=>{
     const input=chairInput(nativeId,prompt,images);
     await mkdir(cwd,{recursive:true});
     return new Promise((resolve,reject)=>{
@@ -25,7 +26,7 @@ export function createClaudeChairRunner({spawnProcess=spawn,timeoutMs=150000,max
       const finish=(error)=>{if(settled)return;settled=true;clearTimeout(timer);if(error){child?.kill();reject(error);}else resolve({nativeId,started,output});};
       const timer=setTimeout(()=>finish(Error('좌장 응답 제한시간 초과 · 실행 여부 확인 필요')),timeoutMs);
       try {
-        child=spawnProcess(command,[flag,nativeId,'--print','--input-format','stream-json','--output-format','stream-json','--verbose','--include-partial-messages','--json-schema',schema,'--safe-mode','--tools','','--strict-mcp-config','--mcp-config','{"mcpServers":{}}','--permission-mode','manual'],{cwd,windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
+        const args=[flag,nativeId,'--print','--input-format','stream-json','--output-format','stream-json','--verbose','--include-partial-messages','--json-schema',schema,'--safe-mode','--tools','','--strict-mcp-config','--mcp-config','{"mcpServers":{}}','--permission-mode','manual'];if(model!=null)args.push('--model',model);if(effort!=null)args.push('--effort',effort);child=spawnProcess(command,args,{cwd,windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
       } catch(error){finish(error);return;}
       const consume=line=>{
         if(settled||!line.trim())return;
@@ -39,7 +40,7 @@ export function createClaudeChairRunner({spawnProcess=spawn,timeoutMs=150000,max
         }
         if(event.type==='result'){
           if(event.subtype&&event.subtype!=='success')return finish(Error('Claude 좌장 실행 실패 · '+event.subtype));
-          successful=true;output=event.structured_output;
+          if(!validateChairOutput(event.structured_output))return finish(Error('Claude 좌장 구조화 결과가 유효하지 않아.'));successful=true;output=event.structured_output;
         }
       };
       child.stdout.setEncoding('utf8');
@@ -50,5 +51,5 @@ export function createClaudeChairRunner({spawnProcess=spawn,timeoutMs=150000,max
       child.on('close',code=>{consume(buffer);if(settled)return;if(code!==0)return finish(Error('Claude 좌장이 응답 완료 전에 종료됐어 · exit '+code));if(!confirmed||!successful||!started||!output)return finish(Error('좌장 신원·모델 응답·구조화 결과를 확인하지 못했어.'));finish();});
     });
   };
-  return {initialize:({nativeId,cwd})=>call({flag:'--session-id',nativeId,cwd,prompt:'You are a dedicated discussion chair. Tools are disabled. Coordinate only through the supplied JSON schema. Initialize now with a short Korean greeting in speech, questions:[], proposal:null. Do not ask any questions yet.'}),resume:({nativeId,cwd,body,onStarted,images=[]})=>call({flag:'--resume',nativeId,cwd,prompt:body,onStarted,images})};
+  return {initialize:({nativeId,cwd,model,effort})=>call({flag:'--session-id',nativeId,cwd,model,effort,prompt:'You are a dedicated discussion chair. Tools are disabled. Coordinate only through the supplied JSON schema. Initialize now with a short Korean greeting in speech, questions:[], proposal:null. Do not ask any questions yet.'}),resume:({nativeId,cwd,body,onStarted,images=[],model,effort})=>call({flag:'--resume',nativeId,cwd,prompt:body,onStarted,images,model,effort})};
 }
