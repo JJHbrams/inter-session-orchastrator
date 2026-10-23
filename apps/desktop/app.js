@@ -20,21 +20,55 @@ function renameButton(label,onClick){
  svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.setAttribute('focusable','false');
  path.setAttribute('d','m16 4 4 4M4 16 16 4a2.8 2.8 0 0 1 4 4L8 20l-5 1 1-5Z');svg.append(path);button.append(svg);return button;
 }
+let navContextMenu;
+function closeNavContextMenu(restoreFocus=false){
+ if(!navContextMenu)return;
+ const {element,kind,id}=navContextMenu;navContextMenu=null;element.remove();
+ if(restoreFocus){const selector=kind==='channel'?`[data-channel-id="${CSS.escape(id)}"]`:`[data-room-id="${CSS.escape(id)}"] .room-link`;$('#rooms').querySelector(selector)?.focus();}
+}
+function bindNavContextMenu(element,kind,item){
+ element.setAttribute('aria-haspopup','menu');
+ const open=event=>{
+  event.preventDefault();event.stopPropagation();closeNavContextMenu();
+  const menu=text('div','','nav-context-menu');menu.setAttribute('role','menu');menu.setAttribute('aria-label',item.name+' '+(kind==='channel'?'채널':'토론장'));
+  const rename=text('button','이름 변경');rename.type='button';rename.setAttribute('role','menuitem');
+  rename.onclick=()=>{closeNavContextMenu();const target=(kind==='channel'?channels:rooms).find(value=>value.id===item.id);if(target)renameDialog(kind,target);};
+  menu.append(rename);document.body.append(menu);navContextMenu={element:menu,kind,id:item.id};
+  const rect=element.getBoundingClientRect(),box=menu.getBoundingClientRect(),keyboard=event.type==='keydown';
+  const x=keyboard?rect.left:event.clientX,y=keyboard?rect.bottom:event.clientY;
+  menu.style.left=Math.max(8,Math.min(x,window.innerWidth-box.width-8))+'px';menu.style.top=Math.max(8,Math.min(y,window.innerHeight-box.height-8))+'px';rename.focus();
+ };
+ element.oncontextmenu=open;
+ element.onkeydown=event=>{if(event.key==='ContextMenu'||(event.shiftKey&&event.key==='F10'))open(event);};
+}
+document.addEventListener('pointerdown',event=>{if(navContextMenu&&!navContextMenu.element.contains(event.target))closeNavContextMenu();});
+document.addEventListener('keydown',event=>{
+ if(!navContextMenu)return;
+ if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeNavContextMenu(true);}
+ else if(event.key==='Tab')closeNavContextMenu(true);
+ else if(['ArrowDown','ArrowUp','Home','End'].includes(event.key)){event.preventDefault();navContextMenu.element.querySelector('[role="menuitem"]').focus();}
+});
+window.addEventListener('resize',()=>closeNavContextMenu());
+document.addEventListener('scroll',event=>{if(navContextMenu&&!navContextMenu.element.contains(event.target))closeNavContextMenu();},true);
 function renderNav(){
- const nav=$('#rooms');nav.replaceChildren();
+ const nav=$('#rooms'),focused=document.activeElement;
+ const focusId=focused.closest?.('[data-room-id],[data-channel-id]')?.dataset;
+ nav.replaceChildren();
  const groups=[...channels.map(c=>[c,rooms.filter(r=>r.channel_id===c.id)]),[{name:'채널 없음'},rooms.filter(r=>!r.channel_id)]];
  for(const [channel,list] of groups){
   if(!list.length&&!channel.id)continue;
-  const heading=text('div','','channel-label');heading.append(text('span','# '+channel.name,'nav-label'));
-  if(channel.id){heading.dataset.channelId=channel.id;heading.append(renameButton(channel.name+' 채널 이름 변경',()=>renameDialog('channel',channel)));}
+  const heading=text('div','','channel-label');heading.append(text('span',(channel.id?'# ':'')+channel.name,'nav-label'));
+  if(channel.id){heading.dataset.channelId=channel.id;heading.tabIndex=0;bindNavContextMenu(heading,'channel',channel);}
   nav.append(heading);
   for(const room of list){
    const selected=current?.id===room.id,row=text('div','','room-nav-row'+(selected?' active':''));row.dataset.roomId=room.id;
-   const button=text('button',(room.archived_at?'⌁ ':'# ')+room.name,'room-link'+(selected?' active':''));button.type='button';button.onclick=()=>openRoom(room.id);
+   const button=text('button',(room.archived_at?'⌁ ':'')+room.name,'room-link'+(selected?' active':''));button.type='button';button.onclick=()=>{closeNavContextMenu();openRoom(room.id);};bindNavContextMenu(button,'room',room);
    if(selected)button.setAttribute('aria-current','page');
-   row.append(button,renameButton(room.name+' 토론장 이름 변경',()=>renameDialog('room',room)));nav.append(row);
+   row.append(button);nav.append(row);
   }
  }
+ if(focusId?.roomId)nav.querySelector(`[data-room-id="${CSS.escape(focusId.roomId)}"] .room-link`)?.focus();
+ else if(focusId?.channelId)nav.querySelector(`[data-channel-id="${CSS.escape(focusId.channelId)}"]`)?.focus();
  const select=$('#channelChoice'),empty=text('option','채널 없음');empty.value='';select.replaceChildren(empty);
  for(const c of channels){const option=text('option',c.name);option.value=c.id;select.append(option);}
 }
