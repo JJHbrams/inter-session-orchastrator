@@ -14,6 +14,12 @@ test('chair invalid targets roll back every output and never auto replay',async(
  await c.create(r.id);const input=s.post({roomId:r.id,body:'ask',kind:'followup',routingMode:'chair',requestKey:'bad'});await c.tick(r.id);await c.tick(r.id);
  assert.equal(calls,1);assert.equal(s.room(r.id).messages.some(m=>m.body==='must rollback'),false);assert.equal(s.snapshot(input.message.id).deliveries[0].state,'unknown');
 });
+test('chair invalid reaction rolls back speech, questions, and reactions without replay',async()=>{
+ const s=new Store(),r=s.createRoom('invalid reaction'),peer=participant(s,r),c=new ChairCoordinator(s,{runner:readyRunner}),chair=await c.create(r.id),chairMember=s.room(r.id).members.find(m=>m.session_id===chair.session_id);
+ const input=s.post({roomId:r.id,body:'ask',kind:'followup',targets:[chairMember.id],requestKey:'invalid-reaction'}),run=s.chairRun(r.id,input.deliveries[0].request_id);
+ assert.throws(()=>c.applyOutput(r.id,chair,{message_id:input.message.id,request_id:run.request_key,body:'ask'},run,{id:'none'},{speech:'must rollback',questions:[{targetMembershipIds:[peer.id],body:'question'}],reactions:[{messageId:'foreign',emoji:'💡',active:true}],proposal:null}),/반응/);
+ assert.equal(s.room(r.id).messages.some(m=>m.body==='must rollback'||m.body==='question'),false);assert.equal(s.room(r.id).reactions.length,0);
+});
 test('chair output cannot re-send a current explicit recipient and remains atomic',async()=>{
  const s=new Store(),r=s.createRoom('dedup'),peer=participant(s,r),c=new ChairCoordinator(s,{runner:readyRunner});const chair=await c.create(r.id);
  const chairMember=s.room(r.id).members.find(m=>m.session_id===chair.session_id);
@@ -23,7 +29,7 @@ test('chair output cannot re-send a current explicit recipient and remains atomi
  assert.equal(s.room(r.id).messages.some(m=>m.body==='will fail'),false);
  assert.doesNotThrow(()=>c.validate(r.id,chair,{speech:'clarify',questions:[{targetMembershipIds:[peer.id],body:'Which constraint matters most?'}],proposal:null},{currentTargets:[peer.id],currentInput:'mixed'}));
  const prompt=c.context(r.id,chair,{message_id:input.message.id,body:'mixed',request_id:'context'},null),context=JSON.parse(prompt.slice(prompt.indexOf('\n')+1));
- assert.equal(context.chairIdentity.alias,chairMember.alias);assert.equal(context.chairIdentity.role,'chair');assert.equal(context.chairIdentity.membershipId,chairMember.id);assert.ok(context.currentTargets.includes(peer.id));assert.equal(context.participants.find(p=>p.membershipId===peer.id).displayName,peer.session.display_name);
+ assert.equal(context.chairIdentity.alias,chairMember.alias);assert.equal(context.chairIdentity.role,'chair');assert.equal(context.chairIdentity.membershipId,chairMember.id);assert.ok(context.currentTargets.includes(peer.id));const peerContext=context.participants.find(p=>p.membershipId===peer.id);assert.equal(peerContext.displayName,peer.session.display_name);assert.equal(peerContext.sessionId,peer.session.id);assert.equal(context.messages.find(m=>m.id===input.message.id).senderMembershipId,null);
  s.db.close();
 });
 
