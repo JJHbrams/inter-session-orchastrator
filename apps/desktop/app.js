@@ -7,6 +7,7 @@ import DOMPurify from '/vendor/purify.js';
 import {createRenderer,createMentionInput} from '/rich-text.js';
 import {createAttachmentComposer} from '/attachments.js';
 import {deliveryPresentation} from '/delivery-status.js';
+import {chairSettingsFields,dialoguePresets,dialogueLimitSummary} from '/chair-settings.js';
 let current, rooms=[], channels=[], pendingSend, selectedRoomId,showArchived=false;const draftBodies=new Map(); const $=s=>document.querySelector(s);
 const connection=document.createElement('div');connection.id='connection';connection.setAttribute('role','status');connection.hidden=true;$('#error').before(connection);
 const api=createApiClient({onConnection:state=>{connection.hidden=state==='online';connection.textContent=state==='offline'?'연결 끊김 · 입력은 보존돼. 로컬 서버가 돌아오면 자동으로 다시 연결할게.':state==='reconnecting'?'로컬 서버에 다시 연결하는 중…':'';}});
@@ -171,12 +172,14 @@ function renderParticipants() {
     const identity=text('span','','participant-identity'),name=text('span','','participant-name');name.append(text('strong',memberName(m)),text('span',providerName(m)+(m.role==='chair'?' · 좌장':''),'provider-badge'));identity.append(avatar(m),name);
     b.append(identity);
     const ownedChair=current.chair?.session_id===m.session_id;
+    if(ownedChair)b.append(text('span',`${current.chair.model||'CLI 기본 모델'} · ${current.chair.effort||'기본 effort'}`,'chair-model-caption'));
     b.append(text('span',m.left_at?'이탈':ownedChair&&current.chair.status!=='ready'?chairStatus(current.chair.status):m.read_only?'읽기 전용':presentation?presentation.label:ownedChair?'별도 좌장 · 자동 응답':'참여 중 · 협력 연결',state==='unknown'||presentation?.blocked||m.read_only?'blocked':'ok'));
     if(presentation?.reason)b.append(text('span',presentation.reason,'participant-delivery-reason'));
     b.title=`${m.display_name||''}\n${m.provider} · ${m.mode}`;
     b.onclick=()=>{$('.inspector').classList.add('open');detailToggle.setAttribute('aria-expanded','true');const detail=$('#memberDetail'),capabilities=typeof m.capabilities==='string'?JSON.parse(m.capabilities||'{}'):(m.capabilities||{}),pendingText=presentation?.reason||presentation?.label||m.blocked_reason||'사용자가 확인한 참여 정보';detail.replaceChildren(text('strong',memberName(m)),text('div',`원래 이름: ${m.display_name||'없음'}\nNative ID: ${m.native_id}\nCWD: ${m.cwd}\n연결 모드: ${m.mode}\n소유: ${m.ownership}\n정책: ${m.policy_revision||'관측 불가'}\n상태: ${pendingText}`,'detail'));const raw=text('button','원래 세션 출력 보기');raw.disabled=capabilities.rawInspect!==true;raw.title=raw.disabled?'이 참여자에 원래 출력 조회가 허용되지 않았어.':'';raw.onclick=async()=>{try{const r=await req(`/api/rooms/${current.id}/sessions/${m.session_id}/output`);detail.replaceChildren(text('p',r.warning||'선택한 출력입니다.','muted'),text('pre',(r.lines||[]).join('\n'),'detail'))}catch(e){error(e.message)}};detail.append(raw);const canAutomate=m.mode==='live_attach'&&m.handle&&m.incarnation;if(canAutomate){const automatic=memberButton(capabilities.automaticInput?'자동 전달 해제':'자동 전달 연결',async()=>{const result=await req(`/api/rooms/${current.id}/sessions/${m.session_id}/automation`,{method:'POST',body:JSON.stringify({enabled:!capabilities.automaticInput})});if(result.message||result.error)error(result.error||result.message);await openRoom(current.id,false);});automatic.title=capabilities.automaticInput?'이 세션의 새 자동 전달을 끄고 협력 연결은 유지해.':'확인된 현재 세션에만 새 자동 전달을 허용해.';detail.append(automatic);}else if(m.mode==='live_attach')detail.append(text('p','자동 전달은 이 대화 ID·작업 폴더에 정확히 연결된 현재 세션을 확인한 뒤에만 허용할 수 있어.','muted'));if(ownedChair){detail.append(text('p',current.chair.error||'이 토론장만 맡는 별도 세션이야. 초대한 참여자와 다른 대화 ID로 이어가.','muted'));for(const run of current.chair_runs||[]){if(run.status==='unknown'){detail.append(text('p','결과 확인 필요 · '+(run.error||'응답 접수 여부 미확인'),'form-error'));if(run.output_json)detail.append(memberButton('저장된 결과 적용',async()=>{await req(`/api/rooms/${current.id}/chair/reconcile`,{method:'POST',body:JSON.stringify({runId:run.id})});await openRoom(current.id,false);detail.replaceChildren(text('p','저장된 결과를 적용했어. 모델을 다시 실행하지 않았어.'));}));}}}else{detail.append(memberButton('참여 정보 발급',()=>provision(m)),memberButton('토론에서 빼기',()=>leaveMember(m)));}};(ownedChair?chairArea:area).append(b);
   }
   if(!chairArea.children.length)chairArea.append(text('p',current.chair?chairStatus(current.chair.status):'별도 좌장을 만들어줘.','muted'));
+  if(current.chair){const settings=memberButton('모델 · effort 설정',chairSettingsDialog);settings.className='chair-model-settings';settings.disabled=!active()||current.chair.status==='initializing';settings.prepend(actionIcon('settings'));chairArea.append(settings);}
   if(!area.children.length)area.append(text('p','함께 논의할 세션을 초대해줘.','muted'));
 }
 let decisionSignature;
@@ -520,21 +523,50 @@ async function showDiscovery(){
  }
  query.oninput=()=>{syncSearchScope();clearTimeout(timer);timer=setTimeout(load,180);};internal.input.onchange=load;d.addEventListener('close',()=>{clearTimeout(timer);version++;});syncSearchScope();await load();
 }
-async function editLimits(){if(!current)return;const {d,f}=dialog('토론 한도');const requests=inputField(f,'사용자 요청당 최대 전달 수','requests',current.request_budget,'number'),rounds=inputField(f,'요청당 최대 자동 대화 라운드','rounds',current.round_budget,'number');for(const i of [requests,rounds]){i.min='1';i.max='100'}f.append(text('p','새 사용자 입력마다 별도 한도를 사용해요. 병렬 질문은 한 라운드로 세며, 한도에 도달하면 추가 자동 질문만 멈춰요.','muted'));const errorBox=text('p','','form-error');f.append(errorBox);actions(f,'적용');f.onsubmit=async e=>{e.preventDefault();try{await req(`/api/rooms/${current.id}/limits`,{method:'POST',body:JSON.stringify({requestBudget:Number(requests.value),roundBudget:Number(rounds.value)})});d.close();await openRoom(current.id,false)}catch(e){errorBox.textContent=e.message}};d.showModal()}
+async function editLimits(){
+ if(!active())return;const roomId=current.id,{d,f}=dialog('자동 대화 설정');d.classList.add('dialogue-settings-dialog');
+ f.append(text('p','내 입력 한 번에 얼마나 논의할까요?','settings-intro'),text('p','여러 참여자에게 동시에 물어도 한 차례로 세요. 새 사용자 입력은 새 한도로 시작해요.','setting-help'));
+ const choices=text('fieldset','','dialogue-presets');choices.append(text('legend','자동 질문·답변 횟수'));
+ let selected=dialoguePresets.some(p=>p.rounds===current.round_budget)?String(current.round_budget):'custom';
+ const customLabel=text('label','최대 횟수','custom-rounds'),rounds=document.createElement('input');rounds.type='number';rounds.name='rounds';rounds.min='1';rounds.max='100';rounds.required=true;rounds.value=current.round_budget;customLabel.append(rounds);
+ for(const preset of [...dialoguePresets,{rounds:'custom',label:'직접 정하기',detail:'1~100차례 안에서 정해요.'}]){
+  const label=text('label','','dialogue-preset'),radio=document.createElement('input');radio.type='radio';radio.name='preset';radio.value=String(preset.rounds);radio.checked=radio.value===selected;
+  const copy=text('span');copy.append(text('strong',preset.label),text('small',preset.detail));label.append(radio,copy);choices.append(label);
+  radio.onchange=()=>{selected=radio.value;sync();};
+ }
+ f.append(choices,customLabel);const advanced=text('details','','dialogue-advanced');advanced.append(text('summary','고급 · 메시지 전달 안전 상한'));
+ const requests=inputField(advanced,'입력 한 번당 최대 메시지 전달 수','requests',current.request_budget,'number');requests.min='1';requests.max='100';
+ advanced.append(text('p','여러 참여자에게 보낸 질문과 좌장의 취합 요청을 모두 합쳐 세요. 이 상한에 먼저 도달하면 선택한 횟수보다 일찍 자동 질문이 멈출 수 있어요.','setting-help'));
+ const summary=text('p','','dialogue-limit-summary');f.append(advanced,summary,text('p','한도에 도달하면 추가 자동 질문만 멈춰요. 다음 사용자 입력은 계속 보낼 수 있어요.','setting-help'));
+ function sync(){customLabel.hidden=selected!=='custom';rounds.disabled=selected!=='custom';summary.textContent=dialogueLimitSummary(selected==='custom'?Number(rounds.value):Number(selected),Number(requests.value));}
+ rounds.oninput=sync;requests.oninput=sync;sync();const errorBox=text('p','','form-error');f.append(errorBox);actions(f,'적용');
+ f.onsubmit=async event=>{event.preventDefault();const submit=f.querySelector('[type=submit]');submit.disabled=true;try{await req(`/api/rooms/${roomId}/limits`,{method:'POST',body:JSON.stringify({requestBudget:Number(requests.value),roundBudget:selected==='custom'?Number(rounds.value):Number(selected)})});d.close();await openRoom(roomId,false);}catch(e){errorBox.textContent=e.message;submit.disabled=false;}};d.showModal();
+}
 function updateRoomControls(){for(const id of ['invite','limits','workspaceButton'])$('#'+id).disabled=!active();$('#composer button[type=submit]').disabled=!active()||attachmentComposer?.pending();const steer=$('#kind option[value=steer]');steer.disabled=true;steer.textContent='방향 수정 · 연결 미지원';}
-const inviteButton=memberButton('세션 초대',()=>showDiscovery());inviteButton.id='invite';const limitButton=memberButton('토론 한도',editLimits);limitButton.id='limits';$('.room-actions').prepend(inviteButton,limitButton);$('#discover').onclick=showDiscovery;
+const inviteButton=memberButton('세션 초대',()=>showDiscovery());inviteButton.id='invite';const limitButton=memberButton('자동 대화 설정',editLimits);limitButton.id='limits';$('.room-actions').prepend(inviteButton,limitButton);$('#discover').onclick=showDiscovery;
 $('#workspaceButton').onclick=workspaceDialog;
 
 $('#kind').value='followup';$('#kind').dispatchEvent(new Event('change'));
 
 const chairStatus=state=>({initializing:'좌장 생성 중',ready:'좌장 준비됨',submitting:'좌장에게 전달 중',running:'응답 생성 중',unknown:'좌장 실행 확인 필요',failed:'좌장 연결 실패'}[state]||state);
-const createChairButton=memberButton('별도 좌장 만들기',async()=>{
-  if(!active())return;
-  const roomId=current.id;createChairButton.disabled=true;
-  try{await req(`/api/rooms/${roomId}/chair`,{method:'POST',body:'{}'});await openRoom(roomId,false);}finally{renderChairControl();}
-});
-createChairButton.id='createChair';createChairButton.title='이 토론장만 맡는 별도 Claude 대화를 만들고, 이후에는 같은 ID로 이어가.';$('.room-actions').prepend(createChairButton);
-function renderChairControl(){const chair=current?.chair;createChairButton.disabled=!active()||!!chair;createChairButton.textContent=chair?chairStatus(chair.status):'별도 좌장 만들기';createChairButton.title=chair?.error||'초대한 참여자와 다른 전용 Claude 세션';if(chair?.error)error('좌장 · '+chair.error);}
+async function chairSettingsDialog(){
+ if(!active())return;const roomId=current.id,chair=current.chair,catalog=await req('/api/chair/options');
+ const {d,f}=dialog(chair?'좌장 설정':'좌장 만들기');d.classList.add('chair-settings-dialog');
+ f.append(text('p',chair?'다음 응답에 쓸 모델과 추론 깊이를 정해요.':'이 토론장만 맡을 별도 좌장을 만들어요.','settings-intro'));
+ const fields=chairSettingsFields(document,catalog,{provider:chair?.provider||catalog.defaults?.provider||'claude',model:chair?.model,effort:chair?.effort,lockedProvider:!!chair});f.append(fields.element);
+ f.append(text('p',chair?'Provider와 대화 ID는 그대로 유지해요. 진행 중인 응답은 기존 설정으로 마치고, 변경한 설정은 다음 실행부터 적용해요.':'Provider는 생성 후 고정돼요. 모델과 effort는 토론 중에도 바꿀 수 있어요.','settings-application'));
+ if(chair?.error)f.append(text('p',chair.error,'form-error'));
+ const errorBox=text('p','','form-error');errorBox.setAttribute('role','status');f.append(errorBox);actions(f,chair?'다음 응답부터 적용':'좌장 만들기');
+ let saving=false;d.addEventListener('cancel',event=>{if(saving)event.preventDefault();});
+ f.onsubmit=async event=>{event.preventDefault();if(saving)return;saving=true;const values=fields.value();for(const control of f.querySelectorAll('input,select,button'))control.disabled=true;errorBox.textContent=chair?'설정 저장 중…':'별도 좌장을 생성 중이에요. 잠시 기다려주세요…';
+  try{await req(`/api/rooms/${roomId}/chair${chair?'/settings':''}`,{method:'POST',body:JSON.stringify(values)});d.close();await openRoom(roomId,false);}
+  catch(e){errorBox.textContent=e.message;for(const control of f.querySelectorAll('input,select,button'))control.disabled=false;fields.providerInput.disabled=!!chair;fields.customInput.disabled=fields.modelInput.value!=='__custom__';fields.effortInput.disabled=fields.effortInput.options.length===1;}
+  finally{saving=false;renderChairControl();renderToolbar();}
+ };d.showModal();
+}
+const createChairButton=memberButton('좌장 만들기',chairSettingsDialog);
+createChairButton.id='createChair';$('.room-actions').prepend(createChairButton);
+function renderChairControl(){const chair=current?.chair;createChairButton.disabled=!active()||chair?.status==='initializing';createChairButton.textContent=chair?(chair.status==='initializing'?'좌장 생성 중':'좌장 설정'):'좌장 만들기';createChairButton.title=chair?.error||'좌장의 provider·모델·effort 설정';if(chair?.error)error('좌장 · '+chair.error);}
 const detailToggle=memberButton('세션 상세',()=>{const open=$('.inspector').classList.toggle('open');detailToggle.setAttribute('aria-expanded',String(open));});detailToggle.classList.add('details-toggle');detailToggle.setAttribute('aria-expanded','false');$('.room-actions').append(detailToggle);
 
 const closeInspector=memberButton('닫기',()=>{$('.inspector').classList.remove('open');detailToggle.setAttribute('aria-expanded','false');});closeInspector.className='inspector-close';$('.inspector').prepend(closeInspector);

@@ -12,7 +12,7 @@ function codexModels(){
   try{
     const parsed=JSON.parse(readFileSync(join(homedir(),'.codex','models_cache.json'),'utf8'));
     if(!Array.isArray(parsed.models))throw Error('models cache has no models');
-    return {models:parsed.models.filter(x=>typeof x?.slug==='string').map(x=>({id:x.slug,label:x.slug,efforts:(x.supported_reasoning_levels||[]).map(y=>y?.effort).filter(e=>EFFORTS.includes(e))})),source:'local models_cache.json'};
+    return {models:parsed.models.filter(x=>typeof x?.slug==='string'&&x.visibility!=='hide').map(x=>({id:x.slug,label:x.slug,efforts:(x.supported_reasoning_levels||[]).map(y=>y?.effort).filter(e=>EFFORTS.includes(e))})),source:'local models_cache.json'};
   }catch(error){return {models:[],source:'local models_cache.json unavailable'};}
 }
 export function getChairOptions(){

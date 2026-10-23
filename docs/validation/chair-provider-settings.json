@@ -1,0 +1,355 @@
+{
+  "date": "2026-10-23T06:58:44.214Z",
+  "tests": {
+    "command": "npm test",
+    "passed": 120,
+    "failed": 0
+  },
+  "providers": {
+    "claude": {
+      "provider": "claude",
+      "roomId": "00057031-0efd-43d9-aa99-1695d112144a",
+      "nativeId": "37f80853-7caa-4e1d-ad7a-1bb68dead87d",
+      "initial": {
+        "model": "sonnet",
+        "effort": "low"
+      },
+      "changed": {
+        "model": "opus",
+        "effort": "medium"
+      },
+      "initialRequest": "525503c1-806d-480a-a4af-a6e674798a37",
+      "runs": [
+        {
+          "id": "8e49f7f1-0ac3-46fa-a156-ec59cb4ad57e",
+          "room_id": "00057031-0efd-43d9-aa99-1695d112144a",
+          "delivery_id": "5fe53654-378e-4d40-a82e-59bbcd0db14e",
+          "request_key": "673dcd54-ac11-4234-8962-2262cfa5074c",
+          "kind": "turn",
+          "status": "completed",
+          "error": null,
+          "created_at": "2026-10-23T06:47:19.203Z",
+          "updated_at": "2026-10-23T06:47:23.917Z",
+          "provider": "claude",
+          "model": "sonnet",
+          "effort": "low",
+          "settings_revision": 1,
+          "output_json": "{\"speech\":\"기억 코드: 하늘고래731. 참여자 호출은 필요하지 않아 별도로 선택하지 않았습니다.\",\"questions\":[],\"proposal\":null}"
+        },
+        {
+          "id": "1ed27db5-8cb4-4816-89ed-c1d1fec2731e",
+          "room_id": "00057031-0efd-43d9-aa99-1695d112144a",
+          "delivery_id": "9607465d-838e-4d99-8411-4fd52c607ec7",
+          "request_key": "954ee4d3-cdd9-4fdf-9c04-540582f18ea6",
+          "kind": "turn",
+          "status": "completed",
+          "error": null,
+          "created_at": "2026-10-23T06:47:25.235Z",
+          "updated_at": "2026-10-23T06:47:30.570Z",
+          "provider": "claude",
+          "model": "opus",
+          "effort": "medium",
+          "settings_revision": 2,
+          "output_json": "{\"speech\":\"앞에서 알려주신 검증용 기억 코드는 하늘고래731입니다. 직접 답할 수 있는 요청이라 참여자는 부르지 않았습니다.\",\"questions\":[],\"proposal\":null}"
+        }
+      ],
+      "messages": [
+        {
+          "id": "27c968e6-f8fb-41a9-873d-8b1d5ed49c7b",
+          "body": "안녕하세요, 이번 토론의 의장을 맡았습니다. 참석자 여러분의 의견을 모아 논의를 원활하게 진행하겠습니다. 준비되시면 시작하겠습니다.",
+          "sender_role": "chair"
+        },
+        {
+          "id": "525503c1-806d-480a-a4af-a6e674798a37",
+          "body": "검증용 기억 코드 하늘고래731를 기억하고 speech에 그대로 한 번 적어줘. questions는 빈 배열, proposal은 null로 해. 참여자 호출은 필요 없어.",
+          "sender_role": null
+        },
+        {
+          "id": "bad9e847-5d38-4ddb-b04b-c721627674c7",
+          "body": "기억 코드: 하늘고래731. 참여자 호출은 필요하지 않아 별도로 선택하지 않았습니다.",
+          "sender_role": "chair"
+        },
+        {
+          "id": "0f0c68ee-eea9-4eef-8bc2-785eb4ac9dd8",
+          "body": "앞에서 알려준 검증용 기억 코드를 speech에 한 번 적어줘. questions는 빈 배열, proposal은 null로 해.",
+          "sender_role": null
+        },
+        {
+          "id": "e8c544d3-1710-4404-b8bb-e62706560ee8",
+          "body": "앞에서 알려주신 검증용 기억 코드는 하늘고래731입니다. 직접 답할 수 있는 요청이라 참여자는 부르지 않았습니다.",
+          "sender_role": "chair"
+        }
+      ],
+      "inflightSnapshotPreserved": true,
+      "sameNativeId": true,
+      "continuityMarker": "하늘고래731",
+      "settingsEvents": [
+        {
+          "id": "0b6a966a-c587-4bd5-b55d-95d5d7735ef0",
+          "room_id": "00057031-0efd-43d9-aa99-1695d112144a",
+          "event": "chair.settings",
+          "payload": "{\"provider\":\"claude\",\"model\":\"opus\",\"effort\":\"medium\",\"settingsRevision\":2}",
+          "created_at": "2026-10-23T06:47:19.832Z"
+        }
+      ],
+      "settingsChangedDuringFirstRun": true
+    },
+    "codex": {
+      "provider": "codex",
+      "roomId": "a7a1b4d8-3c41-4e2d-ab53-cf33e262ea22",
+      "nativeId": "01a16782-db44-73d2-ab29-3f489da53fed",
+      "initial": {
+        "model": "gpt-6.1-sol",
+        "effort": "low"
+      },
+      "changed": {
+        "model": "gpt-6-luna",
+        "effort": "medium"
+      },
+      "runs": [
+        {
+          "id": "27f77cef-1d4e-48a4-93c7-0c062037e5d5",
+          "room_id": "a7a1b4d8-3c41-4e2d-ab53-cf33e262ea22",
+          "delivery_id": "5f4a01f0-a93c-43df-ac69-7ec7c90801ba",
+          "request_key": "150a7386-2178-4d8f-aaf3-87e59a2c0d6e",
+          "kind": "turn",
+          "status": "completed",
+          "error": null,
+          "created_at": "2026-10-23T06:46:57.131Z",
+          "updated_at": "2026-10-23T06:49:42.725Z",
+          "provider": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "low",
+          "settings_revision": 1,
+          "output_json": "{\"speech\":\"초록여우842를 이 대화에서 기억하겠습니다. 직접 처리할 요청이므로 참여자를 호출하지 않았습니다.\",\"attachmentIds\":null,\"questions\":[],\"proposal\":null,\"reactions\":null}"
+        },
+        {
+          "id": "423180ea-fe1e-4967-8560-ebdd26a1b18b",
+          "room_id": "a7a1b4d8-3c41-4e2d-ab53-cf33e262ea22",
+          "delivery_id": "b9e492fa-a2b5-45a5-8a85-3a5450f3cb8a",
+          "request_key": "595631f1-3888-48ab-a54f-d69104e01fa1",
+          "kind": "turn",
+          "status": "completed",
+          "error": null,
+          "created_at": "2026-10-23T06:49:42.929Z",
+          "updated_at": "2026-10-23T06:49:50.072Z",
+          "provider": "codex",
+          "model": "gpt-6-luna",
+          "effort": "medium",
+          "settings_revision": 2,
+          "output_json": "{\"speech\":\"초록여우842\",\"attachmentIds\":null,\"questions\":[],\"proposal\":null,\"reactions\":null}"
+        }
+      ],
+      "messages": [
+        {
+          "id": "5021d7bc-568e-4da2-8a94-62dbdd75300c",
+          "body": "논의할 주제와 결정해야 할 사항을 알려주세요. 쟁점을 정리하고 참여자 의견을 균형 있게 조율하겠습니다.",
+          "sender_role": "chair"
+        },
+        {
+          "id": "160ee449-732c-4061-b5a0-cda2a2e1a508",
+          "body": "검증용 기억 코드 초록여우842를 기억하고 speech에 그대로 한 번 적어줘. questions는 빈 배열, proposal은 null로 해. 참여자 호출은 필요 없어.",
+          "sender_role": null
+        },
+        {
+          "id": "e6866a86-14ec-4078-8753-b948745bfde6",
+          "body": "초록여우842를 이 대화에서 기억하겠습니다. 직접 처리할 요청이므로 참여자를 호출하지 않았습니다.",
+          "sender_role": "chair"
+        },
+        {
+          "id": "4088dca3-823d-4233-9a5c-d2e7c020dacb",
+          "body": "앞에서 알려준 검증용 기억 코드를 speech에 한 번 적어줘. questions는 빈 배열, proposal은 null로 해.",
+          "sender_role": null
+        },
+        {
+          "id": "3e694a66-2995-4f68-b793-1a53a54245a4",
+          "body": "초록여우842",
+          "sender_role": "chair"
+        }
+      ],
+      "inflightSnapshotPreserved": true,
+      "sameNativeId": true,
+      "continuityMarker": "초록여우842",
+      "initialFailure": "Nullable optional fields rejected by old coordinator validation",
+      "savedResultRecoveredWithoutReplay": true,
+      "settingsEvents": [
+        {
+          "id": "0a24859d-382b-4b08-8259-afc8169a4988",
+          "room_id": "a7a1b4d8-3c41-4e2d-ab53-cf33e262ea22",
+          "event": "chair.settings",
+          "payload": "{\"provider\":\"codex\",\"model\":\"gpt-6-luna\",\"effort\":\"medium\",\"settingsRevision\":2}",
+          "created_at": "2026-10-23T06:46:57.652Z"
+        },
+        {
+          "id": "7af83e73-11b7-4638-87ed-7e8c9cd3dc18",
+          "room_id": "a7a1b4d8-3c41-4e2d-ab53-cf33e262ea22",
+          "event": "chair.settings",
+          "payload": "{\"provider\":\"codex\",\"model\":\"gpt-6-luna\",\"effort\":\"high\",\"settingsRevision\":3}",
+          "created_at": "2026-10-23T06:50:33.942Z"
+        }
+      ],
+      "settingsChangedDuringFirstRun": true
+    }
+  },
+  "nativeModelTransitions": {
+    "claude": [
+      {
+        "model": "claude-sonnet-5-5",
+        "timestamp": "2026-10-23T06:45:48.891Z"
+      },
+      {
+        "model": "claude-opus-5-5",
+        "timestamp": "2026-10-23T06:47:29.425Z"
+      }
+    ],
+    "codex": [
+      {
+        "model": "gpt-6.1-sol",
+        "effort": "low",
+        "reasoning_effort": null
+      },
+      {
+        "model": "gpt-6-luna",
+        "effort": "medium",
+        "reasoning_effort": null
+      }
+    ]
+  },
+  "ui": {
+    "viewport": {
+      "dialog": {
+        "bottom": 789.828125,
+        "height": 679.671875,
+        "left": 435,
+        "right": 1005,
+        "top": 110.15625,
+        "width": 570,
+        "x": 435,
+        "y": 110.15625
+      },
+      "height": 900,
+      "overflow": false,
+      "width": 1440
+    },
+    "customLimitsSaved": {
+      "rounds": 4,
+      "requests": 30,
+      "reopened": true
+    },
+    "presetSaved": {
+      "rounds": 1,
+      "reopened": true
+    },
+    "chairSettings": {
+      "provider": "codex",
+      "providerLocked": true,
+      "effort": "high",
+      "savedAndReopened": true
+    },
+    "codexCreatedViaUi": true,
+    "narrow": {
+      "dialog": {
+        "bottom": 622.75,
+        "height": 445.5,
+        "left": 355,
+        "right": 925,
+        "top": 177.25,
+        "width": 570,
+        "x": 355,
+        "y": 177.25
+      },
+      "height": 800,
+      "overflow": false,
+      "width": 1280
+    }
+  },
+  "production": {
+    "url": "http://127.0.0.1:4318",
+    "rooms": 5,
+    "providerChangeRejected": 409,
+    "catalogModelCounts": [
+      {
+        "provider": "claude",
+        "models": 4
+      },
+      {
+        "provider": "codex",
+        "models": 7
+      }
+    ],
+    "checks": {
+      "rooms": {
+        "originals": 5,
+        "changed": []
+      },
+      "channels": {
+        "originals": 1,
+        "changed": []
+      },
+      "chairs": {
+        "originals": 2,
+        "changed": []
+      },
+      "sessions": {
+        "originals": 5,
+        "changed": []
+      },
+      "messages": {
+        "originals": 38,
+        "changed": []
+      },
+      "decisions": {
+        "originals": 2,
+        "changed": []
+      },
+      "sources": {
+        "originals": 10,
+        "changed": []
+      }
+    },
+    "chairs": [
+      {
+        "room_id": "4928678e-04b5-4d48-8cfe-ecd6ed894103",
+        "native_id": "cc814236-53b6-4612-a4cf-79b111feb2f3",
+        "provider": "claude",
+        "model": null,
+        "effort": null,
+        "settings_revision": 1
+      },
+      {
+        "room_id": "2e293ea4-8d4c-42cd-809a-485fa20ff219",
+        "native_id": "e8ff4215-9b68-49df-bb9b-e892e2360962",
+        "provider": "claude",
+        "model": null,
+        "effort": null,
+        "settings_revision": 1
+      }
+    ],
+    "allPreserved": true,
+    "existingChairSettingsUiVerified": true
+  },
+  "screenshots": [
+    "screenshots/chair-settings-1440.png",
+    "screenshots/chair-settings-1280.png",
+    "screenshots/dialogue-settings-1440.png"
+  ],
+  "limitations": [
+    "An existing borrowed Claude participant draft/suggestion remains blocked; new dedicated Claude chairs were separately verified."
+  ],
+  "reportValidation": {
+    "mermaidParsed": 5,
+    "resourceReferencesValid": true,
+    "wikiSourceMatch": true,
+    "sourceSha256": "eb6c8303902298c8bc57c83ed580643b00af01e579dd533253e0a166c2795376",
+    "htmlVisualCheck": "UNVERIFIED: browser file URL policy blocked; app UI was separately visually verified"
+  },
+  "acceptanceAudit": {
+    "AC-1": "PASS",
+    "AC-2": "PASS",
+    "AC-3": "PASS",
+    "AC-4": "PASS",
+    "AC-5": "PASS",
+    "overall": "PASS",
+    "reviewer": "fresh independent planner"
+  }
+}

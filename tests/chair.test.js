@@ -9,6 +9,15 @@ test('chair restart recovery leaves fenced work unknown without replay',async()=
 function participant(s,room,label='peer'){const session=s.registerSession({provider:'codex',host:'test',nativeId:label,cwd:'C:/test',profile:'default',mode:'live_attach',ownership:'borrowed',verified:true,capabilities:{followup:true}}).session;return {...s.join(room.id,session.id,false),session};}
 const readyRunner={initialize:runner.initialize,resume:runner.resume};
 
+test('strict provider nullable optional fields publish a response and reconcile without replay',async()=>{
+ const s=new Store(),r=s.createRoom('nullable');let calls=0;
+ const output={speech:'Codex reply',questions:[],proposal:null,attachmentIds:null,reactions:null};
+ const c=new ChairCoordinator(s,{runner:{...readyRunner,resume:async({nativeId,onStarted})=>{calls++;onStarted();return {nativeId,started:true,output};}}});
+ await c.create(r.id);const input=s.post({roomId:r.id,body:'ask',kind:'followup',routingMode:'chair'});await c.tick(r.id);
+ const run=s.room(r.id).chair_runs[0];assert.equal(run.status,'completed');assert.equal(s.room(r.id).messages.at(-1).body,output.speech);assert.equal(s.snapshot(input.message.id).deliveries[0].state,'completed');
+ c.reconcile(r.id,run.id);assert.equal(calls,1);assert.equal(s.room(r.id).messages.filter(m=>m.body===output.speech).length,1);s.db.close();
+});
+
 test('chair invalid targets roll back every output and never auto replay',async()=>{
  const s=new Store(),r=s.createRoom('invalid');let calls=0;const c=new ChairCoordinator(s,{runner:{...readyRunner,resume:async({nativeId,onStarted})=>{calls++;onStarted();return {nativeId,started:true,output:{speech:'must rollback',questions:[{targetMembershipIds:['foreign'],body:'bad'}],proposal:null}};}}});
  await c.create(r.id);const input=s.post({roomId:r.id,body:'ask',kind:'followup',routingMode:'chair',requestKey:'bad'});await c.tick(r.id);await c.tick(r.id);

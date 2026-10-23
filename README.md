@@ -45,6 +45,10 @@ npm start
 
 `@to_all`은 좌장·이탈자·읽기 전용을 제외한 현재 참여자 모두에게 직접 질문한다. 멘션 후보와 파란 강조를 지원하며 전송 전 실제 수신자를 보여준다. 개별 멘션과 겹쳐도 한 번만 전달하고, 좌장도 명시적으로 멘션했을 때만 좌장을 추가한다. 잘못된 개별 멘션을 섞거나 수신자가 없으면 전송을 차단한다.
 
+**좌장 만들기**에서 Claude/Codex와 모델·effort를 선택한다. 생성한 뒤에는 **좌장 설정** 또는 좌장 카드 아래 **모델 · effort 설정**에서 변경한다. Provider와 대화 ID는 고정하고 진행 중 응답은 기존 설정으로 마치며, 다음 실행부터 새 모델·effort를 사용한다. CLI 기본 모델을 선택하면 해당 CLI 기본 effort를 함께 사용한다. 직접 모델 ID 입력은 provider가 허용할 때 제공하며, 지원 effort를 확인할 수 없는 모델은 기본 effort를 사용한다.
+
+**더 보기 → 자동 대화 설정**은 사용자 입력 한 번을 기준으로 **한 번만 / 최대 3차례 / 최대 6차례 / 직접 정하기**를 제공한다. 한 차례는 좌장의 질문과 참여자의 답변이며, 여러 대상에게 동시에 질문해도 한 차례다. 병렬 질문과 좌장 취합을 합산하는 메시지 전달 상한은 고급 설정에서 따로 조절한다. 두 한도 중 먼저 도달한 한도가 추가 자동 질문을 멈추며, 다음 사용자 입력은 새 한도로 시작한다.
+
 참여 세션에는 지속되는 랜덤 별칭과 색상 프로필이 배정된다. `@이름`으로 좌장 또는 참여자 한 명·여러 명에게 직접 질문하며, 후보는 방향키·Enter·Tab으로 선택한다. 별도 수신 모드 버튼은 없다. 전송 전에 직접 수신자 또는 기본 좌장을 미리 보여주고 모르는 별칭·작성 중인 `@`·읽기 전용 대상은 차단한다. 멘션 없는 질문은 전용 좌장 한 명이 먼저 받으며, 좌장이 없거나 이전 실행 확인이 필요하면 차단한다. 게시·알림 모드와 이모지 반응은 실행 요청을 만들지 않는다.
 
 참석자 카드와 발언에는 동일 프로필·별칭을, provider는 보조 배지로 표시한다. 생성 테두리는 실제 저장된 running 상태에서만 켜진다. 기본 반응은 **👍 좋아요 → 👎 반대 → ❓ 모르겠음 → ✅ 확인(알았음) → 💡 아이디어 있음** 순서다. 숫자를 누르면 반응자 이름·프로필·provider가 보이고, 내 반응만 독립적으로 추가·취소한다. 기존 ❤️·👀 기록은 남는다.
@@ -82,6 +86,7 @@ npm test
 
 - [자동 전달·재호출·카탈로그·작업공간 실제 검증](docs/validation/participant-delivery.json)
 - [채널 보관·세션 선택 UX 조사와 구현](docs/catalog-archive.html) / [명세 원문](docs/design/0007-catalog-archive.md) / [검증 근거](docs/validation/catalog-archive.json)
+- [좌장 provider·모델 설정과 자동 대화 한도](docs/chair-provider-settings.html) / [명세 원문](docs/design/0008-chair-provider-settings.md) / [검증 근거](docs/validation/chair-provider-settings.json)
 
 - [별도 좌장·인증 복구·메신저 명세](docs/dedicated-chair.html) / [원문](docs/design/0003-dedicated-chair.md) / [실제 검증 근거](docs/validation/dedicated-chair.json)
 - [패널 조절·이름 변경 명세](docs/resizable-panels.html) / [원문](docs/design/0004-resizable-panels.md)

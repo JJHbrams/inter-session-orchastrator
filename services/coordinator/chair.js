@@ -135,10 +135,10 @@ export class ChairCoordinator {
     for(const run of runs){try{this.reconcile(roomId,run.id);}catch{/* Keep genuine unresolved or invalid results for explicit inspection. */}}
   }
   validate(roomId,chair,output,{currentTargets=[],currentInput=''}={}){
-    if(!output||!Array.isArray(output.questions)||output.questions.length>5||!(output.proposal===null||typeof output.proposal==='object')||(output.reactions!==undefined&&!Array.isArray(output.reactions)))throw Error('좌장 응답 형식이 올바르지 않아.');
+    if(!output||!Array.isArray(output.questions)||output.questions.length>5||!(output.proposal===null||typeof output.proposal==='object')||(output.reactions!=null&&!Array.isArray(output.reactions)))throw Error('좌장 응답 형식이 올바르지 않아.');
     requireText(output.speech,'speech');
     for(const object of [output,...output.questions,...(output.proposal?[output.proposal]:[])]){
-      if(object.attachmentIds===undefined)continue;
+      if(object.attachmentIds==null)continue;
       if(!Array.isArray(object.attachmentIds)||object.attachmentIds.length>5||new Set(object.attachmentIds).size!==object.attachmentIds.length)throw Error('좌장 첨부 목록이 올바르지 않아.');
       for(const attachmentId of object.attachmentIds)this.store.readAttachment(roomId,attachmentId,chair.session_id);
     }

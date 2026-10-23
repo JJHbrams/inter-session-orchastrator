@@ -21,11 +21,17 @@ test('real loopback HTTP and MCP enforce identity, room scope and protocol error
     assert.equal((await fetch(base+'/assets/providers/unknown.png')).status,404);
     const layoutModule=await fetch(base+'/layout.js');assert.equal(layoutModule.status,200);assert.match(layoutModule.headers.get('content-type'),/javascript/);
     assert.ok(cookie.startsWith(`rooms_session_${port}=`));
+    const chairOptions=await call('/api/chair/options');assert.equal(chairOptions.status,200);assert.deepEqual(chairOptions.data.providers.map(p=>p.id),['claude','codex']);
+    const chairModule=await fetch(base+'/chair-settings.js');assert.equal(chairModule.status,200);assert.match(chairModule.headers.get('content-type'),/javascript/);
     const noAuth=await call('/api/rooms',null,{cookie:'rooms_session_other=foreign'});assert.equal(noAuth.status,401);assert.equal(noAuth.data.code,'AUTH_REQUIRED');
     const badCsrf=await call('/api/channels',{name:'never-create'},{'x-csrf-token':'stale'});assert.equal(badCsrf.status,403);assert.equal(badCsrf.data.code,'CSRF_INVALID');
     const foreignOrigin=await call('/api/channels',{name:'never-create'},{Origin:'https://unrelated.example'});assert.equal(foreignOrigin.status,403);assert.equal(foreignOrigin.data.code,'ORIGIN_INVALID');
     const room=(await call('/api/rooms',{name:'test'})).data;
     assert.ok(room.cwd);assert.equal((await call(`/api/rooms/${room.id}/workspace`)).data.cwd,room.cwd);
+    assert.equal((await call(`/api/rooms/${room.id}/chair`,{provider:'unsupported'})).status,400);
+    assert.equal((await call(`/api/rooms/${room.id}/chair`,{provider:'claude',model:'sonnet',effort:'ultra'})).status,400);
+    assert.equal((await call(`/api/rooms/${room.id}/chair`,{provider:'claude'},{'x-csrf-token':'stale'})).status,403);
+    assert.equal((await call(`/api/rooms/${room.id}/chair/settings`,{model:'sonnet'}, {cookie:'foreign'})).status,401);
     assert.equal((await call(`/api/rooms/${room.id}/workspace`,{cwd:'relative'})).status,400);
     assert.equal((await call(`/api/rooms/${room.id}/workspace/export`,{})).status,200);
     assert.equal((await call(`/api/rooms/${room.id}/workspace`,null,{cookie:'foreign'})).status,401);
