@@ -134,8 +134,10 @@ export class ParticipantDispatcher {
   }
   async retry(roomId, deliveryId, { composerConfirmation = null } = {}) {
     const roomCwd = this.store.db.prepare('PRAGMA table_info(rooms)').all().some(column => column.name === 'cwd') ? ',r.cwd AS room_cwd' : '';
-    const row = this.store.db.prepare(`SELECT d.*,m.room_id,m.body,mb.session_id,s.provider,s.cwd,b.handle,b.incarnation,b.capabilities,b.mode,b.verified_at${roomCwd}
+    const find = () => this.store.db.prepare(`SELECT d.*,m.room_id,m.body,mb.session_id,s.provider,s.cwd,b.handle,b.incarnation,b.capabilities,b.mode,b.verified_at${roomCwd}
       FROM deliveries d JOIN messages m ON m.id=d.message_id JOIN memberships mb ON mb.id=d.membership_id JOIN sessions s ON s.id=mb.session_id JOIN bindings b ON b.id=d.binding_id JOIN rooms r ON r.id=m.room_id WHERE d.id=? AND m.room_id=?`).get(deliveryId, roomId);
+    if (composerConfirmation && this.ticking) await this.ticking;
+    const row = find();
     if (!row) throw new Error('delivery not found in room');
     const record = this.store.db.prepare('SELECT * FROM participant_dispatches WHERE delivery_id=?').get(deliveryId);
     const confirmedComposer = composerConfirmation ? this.consumeConfirmation(composerConfirmation, row) : null;

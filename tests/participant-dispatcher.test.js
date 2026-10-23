@@ -59,6 +59,17 @@ test('confirmed empty composer retries the original request once and binds the e
  }finally{store.db.close();rmSync(dir,{recursive:true,force:true});}
 });
 
+test('confirmed retry waits for an automatic tick to release its in-flight delivery',async()=>{
+ const {store,room,delivery}=setup(),calls=[];let normal=0,release,entered;const gate=new Promise(resolve=>release=resolve),started=new Promise(resolve=>entered=resolve);
+ const adapter={async preflight(_binding,_session,{confirmedComposer}={}){if(confirmedComposer?.fingerprint==='one')return {ok:true};normal++;if(normal===2){entered();await gate;}return {ok:false,reasonCode:'draft_exists',reason:'draft',confirmedComposer:{fingerprint:'one',phrasePreview:'draft'}};},async send(){calls.push('send');return {ok:true,stage:'turn_started',receipt:{}};}};
+ const {dir,value}=dispatcher(store,adapter);
+ try{
+   const challenge=await value.retry(room.id,delivery.id),tick=value.tick();await started;
+   const confirmed=value.retry(room.id,delivery.id,{composerConfirmation:challenge.composerConfirmation.nonce});let settled=false;confirmed.then(()=>settled=true);await Promise.resolve();assert.equal(settled,false);assert.equal(calls.length,0);
+   release();await tick;const result=await confirmed;assert.equal(result.state,'running');assert.equal(calls.length,1);
+ }finally{store.db.close();rmSync(dir,{recursive:true,force:true});}
+});
+
 test('composer confirmation expires, cannot be reused or moved, and automatic ticks never consume it',async()=>{
  const {store,room,delivery}=setup(),calls=[];
  const adapter={async preflight(_binding,_session,{confirmedComposer}={}){return confirmedComposer?.fingerprint==='one'?{ok:true}:{ok:false,reasonCode:'draft_exists',reason:'draft',confirmedComposer:{fingerprint:'one',phrasePreview:'draft'}};},async send(){calls.push('send');return {ok:true,stage:'turn_started',receipt:{}};}};
