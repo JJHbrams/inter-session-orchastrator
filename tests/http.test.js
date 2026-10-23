@@ -25,6 +25,10 @@ test('real loopback HTTP and MCP enforce identity, room scope and protocol error
     const badCsrf=await call('/api/channels',{name:'never-create'},{'x-csrf-token':'stale'});assert.equal(badCsrf.status,403);assert.equal(badCsrf.data.code,'CSRF_INVALID');
     const foreignOrigin=await call('/api/channels',{name:'never-create'},{Origin:'https://unrelated.example'});assert.equal(foreignOrigin.status,403);assert.equal(foreignOrigin.data.code,'ORIGIN_INVALID');
     const room=(await call('/api/rooms',{name:'test'})).data;
+    assert.ok(room.cwd);assert.equal((await call(`/api/rooms/${room.id}/workspace`)).data.cwd,room.cwd);
+    assert.equal((await call(`/api/rooms/${room.id}/workspace`,{cwd:'relative'})).status,400);
+    assert.equal((await call(`/api/rooms/${room.id}/workspace/export`,{})).status,200);
+    assert.equal((await call(`/api/rooms/${room.id}/workspace`,null,{cookie:'foreign'})).status,401);
     const channel=(await call('/api/channels',{name:'old channel'})).data;
     assert.equal((await call(`/api/channels/${channel.id}/rename`,{name:'forbidden'},{'x-csrf-token':'stale'})).status,403);
     assert.equal((await call(`/api/rooms/${room.id}/rename`,{name:'forbidden'},{Origin:'https://unrelated.example'})).status,403);

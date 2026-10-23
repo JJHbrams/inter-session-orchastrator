@@ -5,7 +5,7 @@ tier: L
 status: building
 owner: jhjang
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-23
 ---
 
 <!-- sr:plan
@@ -30,12 +30,12 @@ updated: 2026-10-22
 ## 한눈에 보기
 
 - 목적: 사람이 세션 사이에서 복사·요약·전달하는 일을 줄인다.
-- 현재 상태: building. Node·SQLite·브라우저 UI·MCP 실행판을 구현했고, 새 Codex·Claude의 상관 응답 3건과 좌장 제안 1건을 검증했다. 전체 명세 완료는 아니다.
+- 현재 상태: building. 정확한 Orca 연결의 opt-in 자동 전달·같은 요청 재호출, provider 세션 카탈로그, room.cwd와 자료 저장을 구현해 4318 앱에 적용했다. 테스트 96/96과 실제 좌장→Codex·Claude→좌장 취합을 확인했다. 전체 명세 완료는 아니다.
 - 핵심 결론: 채널 UI와 좌장은 직접 만들고, 기존 세션 연결은 호스트별 어댑터로 분리한다.
-- 원인 또는 판단 근거: 고정 소스 근거 46건을 계약에 반영했다. 실제 canary 원문·request/reply-to, MCP stdio 및 테스트 16개, 두 해상도 UI는 [[session-room-runtime-validation]]에 기록했다. 기존 작업 세션의 자동 제어는 미검증이다.
+- 원인 또는 판단 근거: 고정 소스 근거 46건과 초기 실행은 [[session-room-runtime-validation]], 이번 자동 전달 6건의 상관 응답·좌장 제안·자료 hash·실제 초대 UI는 아래 후속 검증 근거에 기록했다. 원래 빌린 Claude의 작성 중 입력은 보존하고 대기시켰다.
 - 결정: 2026-10-22 사용자가 개정 spec 검토 후 구현 착수를 승인했다. 수용 기준을 구현 기준으로 삼으며 실제 연결의 지원 범위는 host capability로 확인한다.
-- 다음 행동: 기존 세션의 native ID·권한·busy/draft·host 제출/응답을 함께 확인하는 어댑터를 구현하고 원래 V-01~V-13을 수행한다.
-- 최종 갱신: 2026-10-22, Asia/Seoul.
+- 다음 행동: 원래 V-01~V-13의 cross-project·정책·수명 전체 절차를 검증한다. 미확인 composer와 동시 타이핑 경쟁, 일반 참여자 lifecycle은 남아 있다.
+- 최종 갱신: 2026-10-23, Asia/Seoul.
 
 ## 1. 의도 (Intent)
 
@@ -137,7 +137,7 @@ flowchart LR
 
 ## 5. 구조와 처리 흐름 (Flow)
 
-아래는 목표 host 자동 연결 흐름이다. 현재 실행판은 등록된 참여자가 inbox를 직접 읽는 협력 방식이며, 검증자는 새 canary에만 명시적으로 호출했다. inbox 응답 전에 writer·attempt/fence를 저장하고 unknown이면 후속 제공을 막는다. 이 경로가 기존 host의 idle·초안·권한 제어를 대체하지 않으며 자동 wake·steer는 지원하지 않는다.
+현재 실행판은 정확히 확인된 Orca 연결에 사용자가 자동 전달을 허용하면 idle·빈 composer를 확인해 깨우고 요청별 MCP inbox/reply를 연결한다. writer·attempt/fence와 host 요청 ID는 제출 전에 저장하며 unknown은 같은 영수증부터 대조한다. 권한은 원래 provider 정책을 따르고 busy·초안·해석 불가 화면에는 입력하지 않는다. 일반 후속 요청의 steer 자동 전환은 지원하지 않는다. 원자적 host 초안 잠금이 없어 동시 타이핑 경쟁까지 완전히 보호한다고 주장하지 않는다.
 
 ```mermaid
 flowchart TD
@@ -351,7 +351,9 @@ room은 보관하고 membership은 이탈 시각을 기록한다. 이탈이나 U
 | `tools/render_design.py` | Markdown → HTML 및 본문 동등성 hash |
 | `apps/desktop/` | 구현: 브라우저 채널·참석자·공동 대화·대상 입력·개별 출력 |
 | `services/coordinator/` | 구현: SQLite 이벤트/outbox·writer/fence·HTTP·협력 inbox/reply |
-| `adapters/orca/` | 구현: 읽기 전용 discovery·선택한 멤버 출력. 미구현: 자동 입력·응답 재대조 |
+| `adapters/orca/` | 구현: discovery·출력, idle/빈 composer 확인, 정확한 terminal 제출과 같은 영수증 대조 |
+| `adapters/catalog/` | 구현: Codex·Claude native 이력 메타데이터의 제한된 검색 목록 |
+| `services/coordinator/participant-dispatcher.js`, `workspace.js` | 구현: opt-in 자동 전달·답변 재호출, room.cwd의 대화·합의·첨부 보관 |
 | `adapters/codex/` | (신규) 후속: 앱 소유 참여자/좌장 lifecycle |
 | `adapters/claude/` | (신규) 후속: 앱 소유 참여자/좌장 lifecycle |
 | `packages/contracts/` | 구현: 신원·멤버십·delivery 공통 계약 |
@@ -413,7 +415,7 @@ room은 보관하고 membership은 이탈 시각을 기록한다. 이탈이나 U
 
 각 근거의 고정 revision·파일/행은 [[benchmark-sources]]와 제품별 분석에 연결된다. 위 표는 설계 결정 추적표이며 동작 검증 통과표가 아니다.
 
-### 결과와 남은 증거
+### 초기 실행판 결과와 남은 증거 (2026-10-22 기준)
 
 | 기준 | 담당 slice | 필요한 실행 증거 / 현재 상태 |
 |---|---|---|
@@ -429,7 +431,7 @@ room은 보관하고 membership은 이탈 시각을 기록한다. 이탈이나 U
 | AC-10 | A0, A, C, D | mode·borrowed·관측 정책 표시. provider lifecycle·실효 정책 자동 검증 UNVERIFIED |
 | 전체 | F | 원래 V-01~V-13 전체 절차 미완료. building 유지 |
 
-고정 소스 조사·분석 8개 문서에 이어 로컬 실행판과 테스트 16개를 구현했다. 새 Codex·Claude의 상관 응답 3건, 미확정 좌장 제안 1건, 두 해상도 UI를 검증했다. 모델의 room-scoped HTTP helper 사용과 별도 MCP stdio 검증을 구분한다. 실제 canary 호출은 검증자가 수행했으며 기존 세션 자동 wake, new/resume/fork, 세 번째 전용 좌장, 설치형 패키지는 미구현이다. 상세 증거와 한계는 [[session-room-runtime-validation]]에 있다.
+위 표는 초기 실행판의 당시 검증 범위다. 2026-10-23 자동 전달·전용 좌장·96개 테스트의 후속 증거는 아래 절에 구분한다. 원래 V-01~V-13 전체 완료로 소급 해석하지 않는다. 초기 상세 증거는 [[session-room-runtime-validation]]에 있다.
 
 ## 참고
 
@@ -447,4 +449,40 @@ room은 보관하고 membership은 이탈 시각을 기록한다. 이탈이나 U
 
 2026-10-22 후속 [[dedicated-chair]]에서 별도 앱 소유 Claude 좌장, 공용 질문·발화·제안 타임라인, 서버 재시작 인증 복구와 메신저 최대 폭·좌우 정렬을 구현했다. 실제 전용 좌장과 두 검증용 참여자의 질문/응답/자동 취합 및 동일 ID 재개를 확인했고 테스트 38개가 통과했다.
 
-이 후속 범위의 AC-1~AC-5는 완료했으며 원래 프로젝트 전체 AC 완료를 뜻하지 않는다. 기존 외부 세션의 자동 wake·busy/draft 제어·기존 host 응답 대조와 전용 좌장의 초기화 실패 재시도 UI는 남아 있다.
+이 후속 범위의 AC-1~AC-5는 완료했으며 원래 프로젝트 전체 AC 완료를 뜻하지 않는다. 당시 남아 있던 자동 wake·응답 대조는 다음 후속에서 검증 범위를 확장했다. 전용 좌장 초기화 실패의 재시도 UI는 남아 있다.
+
+### 2026-10-23 자동 전달·재호출·토론장 작업공간
+
+사용자는 앞서 분석한 참여자 자동 전달 경로 적용과 함께 재호출, provider 세션 목록 선택, 토론장 cwd와 공유 자료 관리, 체크박스 배치 수정을 명시적으로 요청했다. 기존 AC-1~AC-6의 후속 구현이며 기존 대화나 프로세스를 임의로 resume/fork하지 않는다.
+
+| 후속 기준 | 관측 결과 | 검증 |
+|---|---|---|
+| F-1 자동 전달 | opt-in한 정확한 Orca binding에 요청별 wake, 인증된 상관 응답 회수 | 실제 Codex·Claude 검증 세션의 request/receipt/reply 대조 |
+| F-2 재호출 | 원래 요청을 재사용하며 완료된 응답·불명 제출은 중복 실행하지 않음 | 중복 클릭·재시작·영수증 조회 fixture 및 실제 재호출 |
+| F-3 기존 작업 보존 | busy·초안·신원 불일치·읽기 전용에는 입력하지 않음 | preflight 거부 테스트와 실제 초안 상태 전후 대조 |
+| F-4 세션 선택 | provider·제목/요약·원래 ID·cwd 검색, 명시적 터미널 연결 및 직접 등록 | 실제 이력 카탈로그·브라우저 선택 동작 |
+| F-5 작업공간 | room.cwd 영속화, 새 좌장 cwd, 결정·대화·첨부 자료를 방별 폴더에 보존 | 재시작·원문/결정 근거·파일 bytes 및 HTTP 경로 검증 |
+| F-6 체크박스 | 입력 바로 옆 이름·키보드 선택·권한 상태 일치 | 브라우저 초대 폼 시각 확인 |
+
+```mermaid
+flowchart LR
+  A[요청과 수신자 저장] --> B[정확한 binding과 opt-in]
+  B --> C{idle 및 비어 있는 입력창}
+  C -->|미확인·초안·busy| D[이유를 표시하며 대기]
+  C -->|확인| E[writer 및 고정 host 요청 ID 저장]
+  E --> F[Orca 전달 및 영수증]
+  F --> G[원래 request ID의 MCP inbox]
+  G --> H[인증된 room_reply]
+  H --> I[좌장 취합 및 workspace 자료 갱신]
+  F -->|결과 불명| J[동일 host 요청 조회]
+```
+
+기존 Orca CLI는 제출 영수증과 같은 ID 재조회를 지원한다. 설치 소스 확인 결과 `terminal.read --screen`은 비어 있지 않은 초안만 `draft`로 반환한다. 단순히 draft 필드가 없다는 이유로 빈 입력창으로 간주하지 않으며, 지원 provider의 명확한 빈 composer와 idle을 함께 확인한다. 전송 직전 신원·화면을 재확인하지만 호스트의 원자적 초안 CAS는 제공되지 않아, 동시에 사용자가 타이핑하는 경쟁까지 완전히 보장하는 것으로 표현하지 않는다. 읽기 전용·검증 불가 대상은 fail closed다.
+
+자료는 지정 cwd의 `.session-rooms/<room-id>/` 아래에 `transcript.md`, `consensus.md`, `manifest.json`과 ID가 붙은 첨부 원본으로 저장한다. app 소유 marker 없는 기존 자료 폴더와 symlink를 덮어쓰지 않는다. 기존 좌장은 원래 대화의 cwd를 유지하고 새 작업공간 정보와 결정 상태를 입력으로 받으며, 새 좌장은 room.cwd에서 시작한다.
+
+구현과 실제 검증의 결과는 `docs/validation/participant-delivery.json`에 별도 기록한다. 이 후속 검증이 원래 V-01~V-13 전체를 대신하지 않는다.
+
+실제 검증에서는 6개 delivery가 모두 completed이며, 두 provider의 3+4=7 응답을 근거로 좌장이 제안 `cf4c55c5-3d77-49bc-b2c1-c7f9db21f5c4`를 남겼다. 자동 호출된 Codex는 HTTP helper, 소유한 Claude canary는 room 전용 native MCP를 사용했다. Claude의 provider 승인 차단과 서버 재시작 뒤에도 기존 요청 ID의 답변을 재호출로 회수했다. 이 canary 프로세스만 shell/file 도구를 제거하고 프롬프트 제안을 껐으며 전역 provider 정책은 변경하지 않았다. 일반 Claude의 알 수 없는 제안 문구는 빈 composer로 추정하지 않는다.
+
+배포 후 기존 대화 30건의 ID·원문·request key·reply-to를 백업과 대조했다. 브라우저에서 cwd가 있는 토론장 생성, 카탈로그 선택 후 기존 마야 별칭 유지, 직접 Claude 읽기 전용 등록, 동의 체크박스 가로 배치와 내보내기를 확인했다. 카탈로그 요약은 native summary 또는 첫 입력 미리보기이며 전 이력의 완전한 요약을 새로 생성하는 기능은 아니다.

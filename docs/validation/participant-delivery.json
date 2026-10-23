@@ -1,0 +1,231 @@
+{
+  "observedAt": "2026-10-23T04:25:34.727Z",
+  "scope": "Opted-in exact local Orca validation sessions; original V01-V13 not fully covered",
+  "tests": {
+    "passed": 96,
+    "failed": 0
+  },
+  "roomId": "bc5ff09f-aebb-430e-a80c-b751f62f0d41",
+  "providers": [
+    "codex",
+    "claude"
+  ],
+  "deliveries": [
+    {
+      "id": "1ca2adf5-a97a-40b5-a5f0-d82d881dd2c5",
+      "requestId": "4304f491-e804-45c4-8287-6dd1ee0cee4d",
+      "state": "completed"
+    },
+    {
+      "id": "8d76d21a-d2ac-4b00-9a1e-428589dd40d5",
+      "requestId": "e44362a2-7fd6-4301-9b14-8a8ec189bd35",
+      "state": "completed"
+    },
+    {
+      "id": "c83a8120-c208-4f9d-957f-bdabd97911fb",
+      "requestId": "bd9409a3-8cf2-463c-9def-473698e6e447",
+      "state": "completed"
+    },
+    {
+      "id": "a6967a81-80a8-42e6-83d7-b85df3d3bcb7",
+      "requestId": "1a344b12-6bb3-4ebb-8e6e-957e26094602",
+      "state": "completed"
+    },
+    {
+      "id": "95fed43e-8481-4ec6-853b-04a7cd28d14b",
+      "requestId": "314d4d3c-54ed-4aac-a83a-1505b07ef360",
+      "state": "completed"
+    },
+    {
+      "id": "714b2627-d29f-4c1a-bd39-d8e8f85434b2",
+      "requestId": "a756fbb4-28f2-4cdd-88e4-a64bec22f78d",
+      "state": "completed"
+    }
+  ],
+  "replies": [
+    {
+      "messageId": "b73f88c0-2299-4293-8cab-0b683230d1b4",
+      "requestId": "e44362a2-7fd6-4301-9b14-8a8ec189bd35",
+      "provider": "codex",
+      "role": "member",
+      "body": "2+2=4이고, 내 provider는 codex입니다. AUTO_REPLY_OK"
+    },
+    {
+      "messageId": "2377957d-edf8-4ca2-a702-90ede364a0c4",
+      "requestId": "4304f491-e804-45c4-8287-6dd1ee0cee4d",
+      "provider": "claude",
+      "role": "member",
+      "body": "2+2=4이고, 내 provider는 claude입니다. AUTO_REPLY_OK"
+    },
+    {
+      "messageId": "6e9840a2-d9f9-434b-bcd3-a3a743e0819e",
+      "requestId": "bd9409a3-8cf2-463c-9def-473698e6e447",
+      "provider": "claude",
+      "role": "chair",
+      "body": "자동 조율 왕복 검증을 시작합니다. 사용자가 이름을 지정해 요청했기 때문에 수아(codex)와 지수(claude)에게만 질문을 보냅니다. 두 분 모두 이 방의 쓰기 가능한 참여자입니다. 3+4의 답과 각자의 provider를 묻는 질문을 한 번씩, 같은 라운드에 보냈습니다. 지금은 두 분의 실제 답변이 도착하기를 기다리고 있습니다. 답변이 모두 도착하면 해당 메시지를 근거로 공통 결론을 proposal로 정리하겠습니다."
+    },
+    {
+      "messageId": "7f27d89e-2275-4fed-8c52-0d62785de21b",
+      "requestId": "1a344b12-6bb3-4ebb-8e6e-957e26094602",
+      "provider": "codex",
+      "role": "member",
+      "body": "3+4=7이고, 내 provider는 codex입니다. AUTO_DISCUSS_OK"
+    },
+    {
+      "messageId": "4ff1d357-471d-4b87-ba5c-b47e146c04bb",
+      "requestId": "314d4d3c-54ed-4aac-a83a-1505b07ef360",
+      "provider": "claude",
+      "role": "member",
+      "body": "3+4=7이고, 내 provider는 claude입니다. AUTO_DISCUSS_OK"
+    },
+    {
+      "messageId": "95abef49-175b-462a-877c-978038eff5a1",
+      "requestId": "a756fbb4-28f2-4cdd-88e4-a64bec22f78d",
+      "provider": "claude",
+      "role": "chair",
+      "body": "수아와 지수의 답변이 모두 도착했습니다. 답변 원문을 근거로 정리합니다.\n\n- 수아(7f27d89e): \"3+4=7이고, 내 provider는 codex입니다. AUTO_DISCUSS_OK\"\n- 지수(4ff1d357): \"3+4=7이고, 내 provider는 claude입니다. AUTO_DISCUSS_OK\"\n\n**합의:** 두 분 모두 3+4=7이라고 답했고, 끝에 AUTO_DISCUSS_OK를 붙였습니다.\n**불일치:** 없습니다. provider가 codex와 claude로 다른 것은 의견 차이가 아니라 각 참여자의 실제 provider이고, 참여자 목록에 등록된 값과도 같습니다.\n**미확인:** 답변 내용과 표식 형식에는 확인할 점이 남아 있지 않습니다. 답변 경로에서 수아는 질문 8c618208에, 지수는 질문 19e1f2b0에 replyTo로 각각 연결되어 있습니다.\n\n자동 라운드는 2회 남았지만 사용자가 \"추가 질문은 필요 없다\"고 했기 때문에 더 질문하지 않고 여기서 마칩니다. 아래 proposal은 의장이 정리한 안이며, 사람이 확인한 것은 아닙니다."
+    }
+  ],
+  "receipts": [
+    {
+      "deliveryId": "1ca2adf5-a97a-40b5-a5f0-d82d881dd2c5",
+      "hostRequestId": "4304f491-e804-45c4-8287-6dd1ee0cee4d",
+      "receiptState": "running",
+      "stages": [
+        "input_accepted",
+        "turn_started"
+      ]
+    },
+    {
+      "deliveryId": "8d76d21a-d2ac-4b00-9a1e-428589dd40d5",
+      "hostRequestId": "e44362a2-7fd6-4301-9b14-8a8ec189bd35",
+      "receiptState": "accepted",
+      "stages": [
+        "input_accepted"
+      ]
+    },
+    {
+      "deliveryId": "a6967a81-80a8-42e6-83d7-b85df3d3bcb7",
+      "hostRequestId": "1a344b12-6bb3-4ebb-8e6e-957e26094602",
+      "receiptState": "running",
+      "stages": [
+        "input_accepted",
+        "turn_started"
+      ]
+    },
+    {
+      "deliveryId": "95fed43e-8481-4ec6-853b-04a7cd28d14b",
+      "hostRequestId": "314d4d3c-54ed-4aac-a83a-1505b07ef360",
+      "receiptState": "running",
+      "stages": [
+        "input_accepted",
+        "turn_started"
+      ]
+    }
+  ],
+  "proposal": {
+    "id": "cf4c55c5-3d77-49bc-b2c1-c7f9db21f5c4",
+    "status": "proposed",
+    "sourceIds": [
+      "19e1f2b0-8b1c-4752-95ed-7fd7587aa261",
+      "4ff1d357-471d-4b87-ba5c-b47e146c04bb",
+      "7f27d89e-2275-4fed-8c52-0d62785de21b",
+      "8c618208-58e4-45bd-b93f-decd2f2b587e"
+    ]
+  },
+  "workspace": {
+    "files": [
+      {
+        "name": "consensus.md",
+        "sha256": "0f73c4009dec9b07ae6366af34b9513338142387b148350a6d6c2c3d89be387b"
+      },
+      {
+        "name": "manifest.json",
+        "sha256": "c57a71848339295f3c08701250f1099c26abc7fbc0f58fc4032faeb62d23ed02"
+      },
+      {
+        "name": "material-b5adb5a8-97d0-40b9-8dba-9764dfbd9b6e-검증자료.txt",
+        "sha256": "b48f93ea2db97aae7e423be5fc58360045024d8ce232e5b2c4497719279f9d06"
+      },
+      {
+        "name": "transcript.md",
+        "sha256": "a90457082b38ed42706cf1554f4d18711ec0b8b03172edec5fbb84249328ff4f"
+      }
+    ],
+    "materialBytesVerified": true
+  },
+  "recovery": {
+    "originalRequestId": "4304f491-e804-45c4-8287-6dd1ee0cee4d",
+    "sameRequestReplyId": "2377957d-edf8-4ca2-a702-90ede364a0c4",
+    "description": "After a coordinator restart and provider permission block, an explicit recovery nudge recovered the answer through scoped native MCP without replacing the original request."
+  },
+  "ui": {
+    "url": "http://127.0.0.1:4318/",
+    "roomCreationWithCwd": true,
+    "catalogSelectionSubmitted": true,
+    "manualReadonlyRegistrationSubmitted": true,
+    "existingAliasPreserved": "마야",
+    "consentRows": {
+      "display": "flex",
+      "alignItems": "center",
+      "inputWidthPx": 16
+    },
+    "workspaceExportClicked": true
+  },
+  "deployment": {
+    "originalMessagesPreserved": 30,
+    "roomId": "4928678e-04b5-4d48-8cfe-ecd6ed894103",
+    "cwd": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator",
+    "chairNativeId": "cc814236-53b6-4612-a4cf-79b111feb2f3",
+    "chairCwd": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator\\.local\\chairs\\4928678e-04b5-4d48-8cfe-ecd6ed894103",
+    "deliveries": [
+      {
+        "id": "0d1dcffa-2302-438b-821c-317e6f647ff8",
+        "requestId": "9e0789a6-8bf4-4466-bd06-bada37d8458c",
+        "state": "queued",
+        "reason": "composer is not exactly empty and idle"
+      },
+      {
+        "id": "210c16e2-dd31-4ee9-b1e6-0b4d26493073",
+        "requestId": "d45bc321-b79c-4ada-a59c-e2259407c45b",
+        "state": "completed",
+        "reason": null
+      },
+      {
+        "id": "4a3de50d-73f4-42d3-b814-e61150bbfe4d",
+        "requestId": "44aef0f1-8c63-4596-b123-83e21f1fd655",
+        "state": "completed",
+        "reason": null
+      },
+      {
+        "id": "3219eb1f-8235-4b07-8189-eb15e907f364",
+        "requestId": "1a94c335-801f-4619-a0c8-8c4395a6c372",
+        "state": "queued",
+        "reason": "composer is not exactly empty and idle"
+      }
+    ],
+    "uiRoom": {
+      "id": "2e293ea4-8d4c-42cd-809a-485fa20ff219",
+      "cwd": "C:\\Users\\jhjang\\vault623\\workspace\\projects\\inter-session-orchastrator\\.local\\automatic-workspace",
+      "members": [
+        {
+          "provider": "claude",
+          "alias": "알렉스",
+          "read_only": 1
+        },
+        {
+          "provider": "codex",
+          "alias": "마야",
+          "read_only": 1
+        }
+      ]
+    }
+  },
+  "limits": [
+    "Unknown/busy/draft composers wait without input; no host atomic draft CAS is available.",
+    "Original borrowed Claude validation draft was preserved and blocks its queued deliveries.",
+    "The owned Claude canary used room-only native MCP, no shell/files tools, and disabled prompt suggestions only in that process; provider permissions were not globally changed.",
+    "Provider history metadata is a title/first-prompt preview when no generated summary exists; capped bounded catalog is not an exhaustive archive.",
+    "General participant new/resume/fork lifecycle and original cross-project V01-V13 remain unverified."
+  ]
+}

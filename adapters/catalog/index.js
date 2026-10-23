@@ -37,7 +37,7 @@ const catalogSession = ({ provider, sessionId, cwd = null, project = null, title
   provider,
   sessionId,
   nativeId: sessionId,
-  cwd: text(cwd) || null,
+  cwd: text(cwd).replace(/^\\\\\?\\([a-z]:\\)/i,'$1').replace(/^\\\\\?\\UNC\\/i,'\\\\') || null,
   project: text(project) || null,
   title: short(title) || 'Untitled session',
   summary: short(summary) || null,

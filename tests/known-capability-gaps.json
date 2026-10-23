@@ -1,1 +1,40 @@
-{"version":2,"verifiedPilot":{"newCanaryProviders":["codex","claude"],"correlatedReplies":3,"proposedDecisions":1,"decisionConfirmed":false,"modelTransport":"room-scoped HTTP helper with explicit canary wake by operator","mcpTransport":"separate real stdio protocol verification","isolatedTestsPassed":16,"uiViewports":["1280x800","1440x900"]},"gaps":["Orca discovery does not provide native provider ID, effective policy, draft, and structured request-correlated completion together.","Cooperative inbox pull does not automatically wake a model; no host submission/reconciliation adapter is implemented.","The two canaries were newly created by the operator in Orca, not by an app-owned provider lifecycle adapter.","No app-owned new/resume/fork adapter or desktop shell packaging is implemented.","A separate third dedicated chair with autonomous progression was not verified.","Original full V-01 through V-13 and all full ACs except browser-pilot AC-9 remain unverified.","The helper requestKey omission was corrected after the original live chair question; do not reinterpret that old null-key record as a passed live key propagation test."]}
+{
+  "version": 3,
+  "verifiedPilot": {
+    "newCanaryProviders": [
+      "codex",
+      "claude"
+    ],
+    "correlatedReplies": 3,
+    "proposedDecisions": 1,
+    "decisionConfirmed": false,
+    "modelTransport": "room-scoped HTTP helper with explicit canary wake by operator",
+    "mcpTransport": "separate real stdio protocol verification",
+    "isolatedTestsPassed": 16,
+    "uiViewports": [
+      "1280x800",
+      "1440x900"
+    ]
+  },
+  "gaps": [
+    "Orca terminal discovery requires explicit native-ID confirmation; a shared cwd alone is not identity proof.",
+    "Busy, nonempty, or unrecognized composer screens wait; no atomic host draft CAS exists for concurrent human typing.",
+    "Provider permissions still apply. The owned Claude canary used room-only MCP and disabled prompt suggestions only in that process.",
+    "General participant new/resume/fork lifecycle and desktop shell packaging remain unimplemented.",
+    "Original full V-01 through V-13 and cross-project lifecycle/policy acceptance remain incomplete.",
+    "Historical pilot results describe their original operator-triggered scope; they are not retroactive automatic-delivery evidence."
+  ],
+  "currentValidation": {
+    "date": "2026-10-23",
+    "proof": "docs/validation/participant-delivery.json",
+    "testsPassed": 96,
+    "automaticParticipantProviders": [
+      "codex",
+      "claude"
+    ],
+    "completedAutomaticDiscussionDeliveries": 6,
+    "dedicatedChairRoundTrip": true,
+    "sameRequestRecoveryVerified": true,
+    "originalValidationMessagesPreserved": 30
+  }
+}

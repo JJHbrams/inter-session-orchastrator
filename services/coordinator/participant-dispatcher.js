@@ -17,6 +17,7 @@ export class ParticipantDispatcher {
       delivery_id TEXT PRIMARY KEY,attempt_id TEXT NOT NULL,host_request_id TEXT NOT NULL,prompt TEXT NOT NULL,
       config_path TEXT NOT NULL,status TEXT NOT NULL,receipt_json TEXT,error TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL
     )`);
+    this.store.db.exec(`CREATE TABLE IF NOT EXISTS participant_recovery_history(host_request_id TEXT PRIMARY KEY,delivery_id TEXT NOT NULL,prompt TEXT NOT NULL,status TEXT NOT NULL,receipt_json TEXT,error TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)`);
     this.store.db.exec(`CREATE TABLE IF NOT EXISTS participant_recoveries(
       delivery_id TEXT PRIMARY KEY,host_request_id TEXT NOT NULL,prompt TEXT NOT NULL,status TEXT NOT NULL,receipt_json TEXT,error TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL
     )`);
@@ -56,7 +57,7 @@ export class ParticipantDispatcher {
 
   prompt(row, configPath, hostRequestId) {
     const q = value => `'${String(value).replaceAll("'", "''")}'`;
-    return `You are a room participant. Run exactly in PowerShell: & ${q(process.execPath)} ${q(helperPath)} --config ${q(configPath)} inbox --request-id ${q(hostRequestId)}. Then use the helper context action for room context, materials, and reactions. Reply only through authenticated room_reply: & ${q(process.execPath)} ${q(helperPath)} --config ${q(configPath)} reply ${q(hostRequestId)} --body-file <answer-file>. Room working directory: ${row.room_cwd || row.cwd}.`;
+    return `You are a room participant in room ${row.room_id}. If room_inbox and room_reply MCP tools are available, first use room_context to confirm that its room ID is ${row.room_id}. Only in that matching room use room_inbox with requestId ${hostRequestId} and room_reply with that exact requestId; no shell commands are needed in that case. If native tools are absent, fail, or belong to a different room, use this room's helper instead; never post to the other room. Run in PowerShell: & ${q(process.execPath)} ${q(helperPath)} --config ${q(configPath)} inbox --request-id ${q(hostRequestId)}. Then use the helper context action for room context, materials, and reactions. Reply only through authenticated room_reply: & ${q(process.execPath)} ${q(helperPath)} --config ${q(configPath)} reply ${q(hostRequestId)} '<your answer; double any single quotes>'. Do not create files merely to submit a reply; --body-file is optional for an existing answer file. Room working directory: ${row.room_cwd || row.cwd}.`;
   }
 
   persist(row, attempt, hostRequestId, prompt, configPath) {
@@ -74,7 +75,7 @@ export class ParticipantDispatcher {
     const prior = this.store.db.prepare('SELECT * FROM participant_dispatches WHERE delivery_id=?').get(row.id);
     if (prior) return this.observe(row, prior);
     const readiness = await this.adapter.preflight(row, row);
-    if (!readiness.ok) return { deliveryId: row.id, state: 'skipped', message: readiness.reason };
+    if (!readiness.ok){this.store.db.prepare("UPDATE deliveries SET blocked_reason=? WHERE id=? AND state='queued'").run(readiness.reason,row.id);return { deliveryId: row.id, state: 'skipped', message: readiness.reason };}
     let configPath;
     try { configPath = this.config(row); } catch (error) { return { deliveryId: row.id, state: 'skipped', message: error.message }; }
     let claim, attempt;
@@ -92,7 +93,7 @@ export class ParticipantDispatcher {
   async send(row, record) {
     try {
       const result = await this.adapter.send(row, row, record.prompt, record.host_request_id);
-      if (!result.ok) return this.record(row, record, 'blocked', result.reason, result.receipt);
+      if (!result.ok){if(!result.receipt){this.store.tx(()=>{this.store.db.prepare("UPDATE attempts SET state='not_sent' WHERE id=?").run(record.attempt_id);this.store.db.prepare("UPDATE deliveries SET state='queued',blocked_reason=? WHERE id=? AND state='submitting'").run(result.reason,row.id);this.store.db.prepare('UPDATE writers SET unresolved_delivery_id=NULL WHERE unresolved_delivery_id=?').run(row.id);this.store.db.prepare('DELETE FROM participant_dispatches WHERE delivery_id=?').run(row.id);});return {deliveryId:row.id,state:'queued',message:result.reason};}return this.record(row,record,'unknown',result.reason,result.receipt);}
       const kind = result.stage === 'turn_started' ? 'turn_started' : 'host_receipt';
       this.store.evidence(record.attempt_id, kind, 'orca', record.host_request_id);
       return this.record(row, record, kind === 'turn_started' ? 'running' : 'accepted', null, result.receipt);
@@ -111,11 +112,12 @@ export class ParticipantDispatcher {
 
   record(row, record, status, error = null, receipt = null) {
     this.store.db.prepare('UPDATE participant_dispatches SET status=?,receipt_json=?,error=?,updated_at=? WHERE delivery_id=?').run(status, receipt ? JSON.stringify(receipt) : null, error, now(), record.delivery_id);
+    if (error) this.store.db.prepare("UPDATE deliveries SET blocked_reason=? WHERE id=? AND state NOT IN ('completed','cancelled')").run(error,record.delivery_id);
     if (status === 'unknown') this.store.db.prepare("UPDATE deliveries SET state='unknown',blocked_reason=? WHERE id=? AND state NOT IN ('completed','cancelled')").run(error || 'host receipt requires reconciliation', record.delivery_id);
     return { deliveryId: row.id, state: status, message: error || (status === 'accepted' ? 'input accepted; awaiting authenticated reply' : status) };
   }
 
-  async tick() { if (this.ticking) return this.ticking; this.ticking = (async () => { const results = []; for (const row of this.eligible()) results.push(await this.dispatch(row)); return results; })(); try { return await this.ticking; } finally { this.ticking = null; } }
+  async tick() { if (this.ticking) return this.ticking; this.ticking = (async () => { const results = []; for (const row of this.eligible()){try{results.push(await this.dispatch(row));}catch(error){this.store.db.prepare("UPDATE deliveries SET blocked_reason=? WHERE id=? AND state='queued'").run(error.message,row.id);results.push({deliveryId:row.id,state:'skipped',message:error.message});}} return results; })(); try { return await this.ticking; } finally { this.ticking = null; } }
   async retry(roomId, deliveryId) {
     const roomCwd = this.store.db.prepare('PRAGMA table_info(rooms)').all().some(column => column.name === 'cwd') ? ',r.cwd AS room_cwd' : '';
     const row = this.store.db.prepare(`SELECT d.*,m.room_id,m.body,mb.session_id,s.provider,s.cwd,b.handle,b.incarnation,b.capabilities,b.mode,b.verified_at${roomCwd}
@@ -128,13 +130,15 @@ export class ParticipantDispatcher {
       return eligible ? this.dispatch(eligible) : { deliveryId, state: 'queued', message: 'delivery is not currently eligible for automatic input' };
     }
     if (row.state === 'completed') return { deliveryId, state: 'completed', message: 'authenticated reply already received; no duplicate send' };
+    this.store.dispatchEligibility(deliveryId);if(!JSON.parse(row.capabilities||'{}').automaticInput)throw Error('자동 전달 연결이 꺼져 있어.');
     const observed = await this.observe(row, record);
     if (!['accepted', 'running'].includes(observed.state)) return observed;
     const prior = this.store.db.prepare('SELECT * FROM participant_recoveries WHERE delivery_id=?').get(deliveryId);
-    if (prior) return this.recover(row, record, prior);
+    if (prior&&(!['accepted','running'].includes(prior.status)||Date.now()-Date.parse(prior.created_at)<30000))return this.recover(row,record,prior);
+    if(prior){const ready=await this.adapter.preflight(row,row);if(!ready.ok)return {...observed,message:'이전 재호출 이후 아직 작업 중이거나 작성 중인 입력이 있어. '+ready.reason};this.store.db.prepare('INSERT OR IGNORE INTO participant_recovery_history VALUES(?,?,?,?,?,?,?,?)').run(prior.host_request_id,prior.delivery_id,prior.prompt,prior.status,prior.receipt_json,prior.error,prior.created_at,prior.updated_at);this.store.db.prepare('DELETE FROM participant_recoveries WHERE delivery_id=?').run(deliveryId);}
     const ready = await this.adapter.preflight(row, row);
     if (!ready.ok) return { ...observed, message: `original receipt observed; recovery nudge not sent: ${ready.reason}` };
-    const recovery = { delivery_id: deliveryId, host_request_id: id(), prompt: `Recover the prior room request ${row.request_id}. Do not redo file edits or tool side effects. Find any prior answer and submit room_reply for the original request; if no prior result exists, say it is missing and ask the user instead of rerunning work.`, status: 'prepared', receipt_json: null, error: null, created_at: now(), updated_at: now() };
+    const recovery = { delivery_id: deliveryId, host_request_id: id(), prompt: this.prompt(row,record.config_path,row.request_id)+` Recover the prior room request ${row.request_id}. Do not redo file edits or tool side effects. Find any prior answer and submit room_reply for the original request; if no prior result exists, say it is missing and ask the user instead of rerunning work.`, status: 'prepared', receipt_json: null, error: null, created_at: now(), updated_at: now() };
     this.store.db.prepare('INSERT INTO participant_recoveries VALUES(?,?,?,?,?,?,?,?)').run(...Object.values(recovery));
     return this.recover(row, record, recovery);
   }

@@ -11,7 +11,7 @@ function fixture() {
   const dbPath = join(root, 'state.sqlite');
   const db = new DatabaseSync(dbPath);
   db.exec('CREATE TABLE threads (id TEXT, cwd TEXT, title TEXT, preview TEXT, first_user_message TEXT, updated_at_ms INTEGER, updated_at INTEGER)');
-  db.prepare('INSERT INTO threads VALUES(?,?,?,?,?,?,?)').run('codex-good', 'C:/work/a', 'State title', 'First prompt from Codex', 'fallback', 1_700_000_000_000, 1);
+  db.prepare('INSERT INTO threads VALUES(?,?,?,?,?,?,?)').run('codex-good', '\\\\?\\C:\\work\\a', 'State title', 'First prompt from Codex', 'fallback', 1_700_000_000_000, 1);
   db.prepare('INSERT INTO threads VALUES(?,?,?,?,?,?,?)').run('codex-other', 'C:/work/b', 'Other', '', 'first user fallback', 1_600_000_000_000, 1);
   db.close();
   const indexPath = join(root, 'session_index.jsonl');
@@ -29,7 +29,7 @@ test('catalog uses native metadata IDs, cwd, titles, provider filtering, and sea
     const all = await listSessions({ paths });
     assert.equal(all.sessions.length, 4);
     const codex = all.sessions.find(item => item.sessionId === 'codex-good');
-    assert.deepEqual({ provider: codex.provider, sessionId: codex.sessionId, nativeId: codex.nativeId, cwd: codex.cwd, title: codex.title, source: codex.source, live: codex.live }, { provider: 'codex', sessionId: 'codex-good', nativeId: 'codex-good', cwd: 'C:/work/a', title: 'Indexed title', source: 'codex-state+index', live: false });
+    assert.deepEqual({ provider: codex.provider, sessionId: codex.sessionId, nativeId: codex.nativeId, cwd: codex.cwd, title: codex.title, source: codex.source, live: codex.live }, { provider: 'codex', sessionId: 'codex-good', nativeId: 'codex-good', cwd: 'C:\\work\\a', title: 'Indexed title', source: 'codex-state+index', live: false });
     assert.equal(codex.summary, 'First prompt from Codex');
     const claude = all.sessions.find(item => item.sessionId === 'claude-good');
     assert.equal(claude.cwd, 'C:/work/claude'); assert.equal(claude.provider, 'claude');

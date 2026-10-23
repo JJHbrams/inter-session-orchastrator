@@ -84,9 +84,9 @@ test('paused, archived, readonly, and opted-out members never create automatic a
 test('Orca adapter accepts only exact empty composer and correlated receipt', async () => {
   const responses = [
     { ok: true, result: { terminal: { handle: 't', incarnationId: 'inc', agentIdentity: 'codex', connected: true, writable: true, orphaned: false } } },
-    { ok: true, result: {} }, { ok: true, result: { terminal: { source: 'screen', tail: ['history', '› Ask Codex to do anything'] } } },
+    { ok: true, result: {wait:{satisfied:true}} }, { ok: true, result: { terminal: { source: 'screen', tail: ['history', '› Ask Codex to do anything'] } } },
     { ok: true, result: { terminal: { handle: 't', incarnationId: 'inc', agentIdentity: 'codex', connected: true, writable: true, orphaned: false } } },
-    { ok: true, result: {} }, { ok: true, result: { terminal: { source: 'screen', tail: ['› Ask Codex to do anything'] } } },
+    { ok: true, result: {wait:{satisfied:true}} }, { ok: true, result: { terminal: { source: 'screen', tail: ['› Ask Codex to do anything'] } } },
     { ok: true, result: { send: { handle: 't', accepted: true, prompt: { requestId: 'request', provider: 'codex', processIncarnation: 'inc', stages: ['input_accepted'] } } } }
   ];
   const seen = [], adapter = createOrcaParticipantAdapter({ bin: 'orca-test', run: async (_bin, args) => { seen.push(args); return { status: 0, stdout: JSON.stringify(responses.shift()) }; } });
@@ -97,4 +97,27 @@ test('Orca adapter accepts only exact empty composer and correlated receipt', as
   assert.equal((await busy.preflight({ handle: 't', incarnation: 'inc' }, { provider: 'codex' })).ok, false);
   const failed = createOrcaParticipantAdapter({ bin: 'orca-test', run: async () => ({ status: 1, stdout: JSON.stringify({ error: { code: 'denied', message: 'structured failure' } }) }) });
   await assert.rejects(() => failed.preflight({ handle: 't', incarnation: 'inc' }, { provider: 'codex' }), /structured failure/);
+});
+
+test('real provider footers are accepted while an active turn or hidden draft is never sent to',async()=>{
+ for(const provider of ['codex','claude']){
+  const tail=provider==='codex'?['history','› Ask Codex to do anything','GPT-6.1-Sol medium · C:/work','? for shortcuts']:['history','──────── 토론장 ─','❯','────────────────','⏵⏵ don\'t ask on (shift+tab to cycle)'];
+  for(const condition of ['empty','draft','working','idle-unknown']){
+   const run=async(bin,args)=>({status:0,stdout:JSON.stringify({ok:true,result:args[1]==='show'?{terminal:{handle:'t',incarnationId:'inc',agentIdentity:provider,connected:true,writable:true}}:args[1]==='wait'?{wait:{satisfied:condition!=='idle-unknown'}}:{terminal:{source:'screen',tail:condition==='working'?['• Working (18s • esc to interrupt)',...tail.slice(1)]:tail,...condition==='draft'?{draft:'작성 중인 원문'}:{}}}})});
+   const result=await createOrcaParticipantAdapter({bin:'fixture',run}).preflight({handle:'t',incarnation:'inc'},{provider});assert.equal(result.ok,condition==='empty',provider+':'+condition);
+  }
+ }
+});
+
+test('a draft appearing after reservation releases only the unsent fence and may be delivered later',async()=>{
+ const {store,delivery}=setup(),adapter=fakeAdapter(),{dir,value}=dispatcher(store,adapter);let blocked=true;
+ adapter.send=async()=>blocked?{ok:false,reason:'new draft before submit'}:{ok:true,stage:'turn_started',receipt:{}};
+ try{assert.equal((await value.tick())[0].state,'queued');assert.equal(store.db.prepare('SELECT unresolved_delivery_id FROM writers').get().unresolved_delivery_id,null);assert.equal(store.db.prepare('SELECT state FROM attempts').get().state,'not_sent');blocked=false;assert.equal((await value.tick())[0].state,'running');assert.equal(store.db.prepare('SELECT count(*) n FROM attempts WHERE delivery_id=?').get(delivery.id).n,2);}
+ finally{store.db.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('reobserving the same durable receipt reconciles restart state without duplicating evidence',async()=>{
+ const {store,delivery}=setup(),adapter=fakeAdapter({stage:'turn_started'}),{dir,value}=dispatcher(store,adapter);
+ try{await value.tick();const row=store.db.prepare('SELECT * FROM participant_dispatches WHERE delivery_id=?').get(delivery.id);store.recover();assert.equal(store.db.prepare('SELECT state FROM deliveries WHERE id=?').get(delivery.id).state,'unknown');store.evidence(row.attempt_id,'turn_started','orca',row.host_request_id);assert.equal(store.db.prepare('SELECT state FROM deliveries WHERE id=?').get(delivery.id).state,'running');assert.equal(store.db.prepare('SELECT blocked_reason FROM deliveries WHERE id=?').get(delivery.id).blocked_reason,null);assert.equal(store.db.prepare('SELECT count(*) n FROM evidence').get().n,1);}
+ finally{store.db.close();rmSync(dir,{recursive:true,force:true});}
 });

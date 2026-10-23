@@ -24,6 +24,8 @@ def render(bundle: Path, source: Path | None = None, output: Path | None = None,
     digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
     title_match = re.search(r"^# (.+)$", body, re.M)
     title = title_match.group(1) if title_match else source.stem
+    updated_match = re.search(r'^updated:\s*([0-9-]+)', raw, re.M)
+    updated_label = updated_match.group(1).replace('-', '.') if updated_match else '2026.10.22'
     content = markdown.markdown(body, extensions=["tables", "fenced_code", "toc"])
     content = re.sub(
         r'<pre><code class="language-mermaid">(.*?)</code></pre>',
@@ -102,7 +104,7 @@ def render(bundle: Path, source: Path | None = None, output: Path | None = None,
 <meta name="source-sha256" content="{digest}"><title>{html.escape(title)}</title><style>{css}</style></head>
 <body><a class="skip" href="#document">본문으로 이동</a><div class="shell">
 <aside><div class="brand">INTER SESSION<br>ORCHESTRATOR</div><span class="status">{html.escape(review_label)}</span><nav aria-label="문서 목차">{nav}</nav></aside>
-<main id="document"><header class="meta"><span>{html.escape(kind)}</span><span>2026.10.22 · WINDOWS / LOCAL</span></header>
+<main id="document"><header class="meta"><span>{html.escape(kind)}</span><span>{updated_label} · WINDOWS / LOCAL</span></header>
 <article>{content}</article><footer>원본: {html.escape(source_label)}<br>본문 SHA-256: {digest}</footer></main></div>
 <!-- Mermaid third-party license: {html.escape(license_text).replace('--', '—')} -->
 {script_tag}<script>

@@ -91,3 +91,5 @@ body{background:#080d12}.app{width:100%;max-width:none;margin:0;height:100dvh;gr
 .rename-icon,.channel-label .rename-icon,.topbar .rename-icon{display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;padding:5px;margin:0;border-color:transparent;background:transparent;color:var(--muted);vertical-align:middle}
 .rename-icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 .rename-icon:hover:not(:disabled),.rename-icon:focus-visible{color:var(--teal);background:#263c46}
+
+.catalog-summary{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal}.discovery-row>strong{overflow-wrap:anywhere}.runtime-binding{min-width:0}dialog label.checkbox-row{display:flex;align-items:center;gap:8px;flex-direction:row}dialog label.checkbox-row input{margin:0;width:16px;height:16px;flex:0 0 16px}
