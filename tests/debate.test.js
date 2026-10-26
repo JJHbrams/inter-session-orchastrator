@@ -15,3 +15,18 @@ test('dedicated chair completes plan, evidence, synthesis, review, and final thr
  const answers=s.room(room.id).messages.filter(x=>x.reply_request_id&&x.sender_session_id!==chair.session_id);await d.tick(room.id);await c.tick(room.id);state=d.get(room.id,agenda.id);assert.equal(state.phase,'reviewing');const review=state.rounds.at(-1);const reviewDeliveries=s.room(room.id).deliveries.filter(x=>x.membership_id===a.membership.id||x.membership_id===b.membership.id).filter(x=>x.request_id&&x.state==='queued');for(const p of [a,b]){const delivery=reviewDeliveries.find(x=>x.membership_id===p.membership.id);d.recordReview(room.id,reg(room,p),{agendaId:agenda.id,roundId:review.id,conclusionRevision:1,stance:'agree',sourceIds:[answers[0].id],body:'agree',requestId:delivery.request_id});}
  assert.ok(s.room(room.id).messages.some(x=>x.body.includes('a argument')&&x.body.includes('b argument')));await d.tick(room.id);await c.tick(room.id);assert.equal(calls,3);assert.equal(d.get(room.id,agenda.id).outcome,'consensus');
 });
+
+test('approval notice carries the result and ACK replies to its exact delivery',async()=>{
+ const s=new Store(),room=s.createRoom('approval'),p=participant(s,room,'p');
+ const c=new ChairCoordinator(s,{runner:{initialize:async({nativeId})=>({nativeId,started:true,output:{speech:'ready'}}),resume:async()=>{throw Error('not used')}}});const d=new DebateCoordinator(s,{chairs:c});await c.create(room.id);
+ const agenda=d.create(room.id,{title:'decision',body:'body',targetMembershipIds:[p.membership.id],requestKey:'approval'});
+ s.db.prepare("UPDATE agendas SET phase='completed',outcome='consensus',current_conclusion=? WHERE id=?").run('actual final conclusion',agenda.id);
+ const approved=d.approve(room.id,agenda.id,{revision:1}),notice=approved.notices[0],message=s.room(room.id).messages.find(x=>x.id===notice.message_id),content=JSON.parse(message.body);
+ assert.equal(content.currentConclusion,'actual final conclusion');assert.equal(content.noticeId,notice.id);assert.equal(content.revision,1);assert.ok(Array.isArray(content.evidenceMessageIds));
+ const ack=d.ack(room.id,reg(room,p),notice.id,1);assert.equal(ack.status,'acknowledged');const delivery=s.room(room.id).deliveries.find(x=>x.request_id===notice.request_id);assert.equal(delivery.state,'completed');assert.equal(s.room(room.id).messages.find(x=>x.reply_request_id===notice.request_id).body,JSON.stringify({noticeId:notice.id,revision:1,acknowledged:true}));assert.deepEqual(d.ack(room.id,reg(room,p),notice.id,1),ack);
+});
+
+test('revoked approval notice rejects acknowledgement',async()=>{
+ const s=new Store(),room=s.createRoom('revoked'),p=participant(s,room,'p');
+ const c=new ChairCoordinator(s,{runner:{initialize:async({nativeId})=>({nativeId,started:true,output:{speech:'ready'}})}});const d=new DebateCoordinator(s,{chairs:c});await c.create(room.id);const agenda=d.create(room.id,{title:'x',body:'x',targetMembershipIds:[p.membership.id],requestKey:'revoked'});s.db.prepare("UPDATE agendas SET phase='completed',outcome='consensus',current_conclusion='x' WHERE id=?").run(agenda.id);const notice=d.approve(room.id,agenda.id,{revision:1}).notices[0];s.db.prepare("UPDATE approval_notices SET status='revoked',revoked_at=? WHERE id=?").run(new Date().toISOString(),notice.id);assert.throws(()=>d.ack(room.id,reg(room,p),notice.id,1),/revoked/);
+});
