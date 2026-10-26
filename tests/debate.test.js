@@ -23,7 +23,7 @@ test('approval notice carries the result and ACK replies to its exact delivery',
  s.db.prepare("UPDATE agendas SET phase='completed',outcome='consensus',current_conclusion=? WHERE id=?").run('actual final conclusion',agenda.id);
  const approved=d.approve(room.id,agenda.id,{revision:1}),notice=approved.notices[0],message=s.room(room.id).messages.find(x=>x.id===notice.message_id),content=JSON.parse(message.body);
  assert.equal(content.currentConclusion,'actual final conclusion');assert.equal(content.noticeId,notice.id);assert.equal(content.revision,1);assert.ok(Array.isArray(content.evidenceMessageIds));
- const ack=d.ack(room.id,reg(room,p),notice.id,1);assert.equal(ack.status,'acknowledged');const delivery=s.room(room.id).deliveries.find(x=>x.request_id===notice.request_id);assert.equal(delivery.state,'completed');assert.equal(s.room(room.id).messages.find(x=>x.reply_request_id===notice.request_id).body,JSON.stringify({noticeId:notice.id,revision:1,acknowledged:true}));assert.deepEqual(d.ack(room.id,reg(room,p),notice.id,1),ack);
+ assert.throws(()=>d.ack(room.id,reg(room,p),notice.id,1),/unavailable/);s.inbox(reg(room,p),notice.request_id);const ack=d.ack(room.id,reg(room,p),notice.id,1);assert.equal(ack.status,'acknowledged');const delivery=s.room(room.id).deliveries.find(x=>x.request_id===notice.request_id);assert.equal(delivery.state,'completed');assert.equal(s.room(room.id).messages.find(x=>x.reply_request_id===notice.request_id).body,JSON.stringify({noticeId:notice.id,revision:1,acknowledged:true}));assert.deepEqual(d.ack(room.id,reg(room,p),notice.id,1),ack);
 });
 
 test('revoked approval notice rejects acknowledgement',async()=>{

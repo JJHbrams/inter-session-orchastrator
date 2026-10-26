@@ -14,6 +14,13 @@ const target=new URL(url);
 if(target.protocol!=='http:'||target.hostname!=='127.0.0.1'||target.username||target.password)throw Error('Participant configuration must point to loopback HTTP');
 let body={},route=action;
 if(action==='context')route='room_context';
+if(action==='knowledge'){route='room_knowledge_list';body={query:rest.join(' ')};}
+if(action==='knowledge-read'){route='room_knowledge_read';body={itemId:rest[0],...(rest[1]?{revision:Number(rest[1])}:{})};}
+if(action==='ack'){route='room_acknowledge_approval';body={noticeId:rest[0],revision:Number(rest[1])};}
+if(action==='review'||action==='knowledge-add'){
+ const raw=rest[0]?.startsWith('{')?rest.join(' '):await readFile(rest[0],'utf8');
+ body=JSON.parse(raw);route=action==='review'?'room_review':'room_knowledge_add';
+}
 if(action==='inbox'){route='room_inbox';if(requestedId)body={requestId:requestedId};}
 if(action==='post'){route='room_post';body={body:rest.join(' '),attachmentIds:attachmentIds||[]};}
 if(action==='reply'){route='room_reply';body={requestId:rest[0],body:bodyFile?await readFile(bodyFile,'utf8'):rest.slice(1).join(' '),attachmentIds:attachmentIds||[]};}

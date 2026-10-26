@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-26",
+  "runtime": "http://127.0.0.1:4318",
+  "automatedTests": {
+    "passed": 147,
+    "failed": 0
+  },
+  "nativeValidation": {
+    "providers": [
+      "codex",
+      "claude"
+    ],
+    "roomId": "97bfc254-9524-4449-afbb-138852386d84",
+    "agendaId": "5c65ed3e-b724-4d27-a754-f30a868c309c",
+    "outcome": "qualified",
+    "revision": 1,
+    "peerReviews": 2,
+    "approvalAcknowledgements": 2,
+    "toolEvidence": {
+      "codex": [
+        {
+          "tool": "exec",
+          "files": [
+            "latency-evidence.txt"
+          ],
+          "resultObserved": true,
+          "fixtureContentObserved": true
+        },
+        {
+          "tool": "exec",
+          "files": [
+            "review-criteria.txt"
+          ],
+          "resultObserved": true,
+          "fixtureContentObserved": true
+        }
+      ],
+      "claude": [
+        {
+          "tool": "Read",
+          "files": [
+            "latency-evidence.txt"
+          ],
+          "resultObserved": true,
+          "fixtureContentObserved": true
+        },
+        {
+          "tool": "Read",
+          "files": [
+            "review-criteria.txt"
+          ],
+          "resultObserved": true,
+          "fixtureContentObserved": true
+        }
+      ]
+    },
+    "unattendedEndToEnd": "NOT VERIFIED: Orca placeholder draft false positive and Codex pasted-input submission required manual recovery"
+  },
+  "preservation": {
+    "channels": {
+      "before": 1,
+      "unchanged": 1
+    },
+    "rooms": {
+      "before": 5,
+      "unchanged": 5
+    },
+    "sessions": {
+      "before": 5,
+      "unchanged": 5
+    },
+    "messages": {
+      "before": 44,
+      "unchanged": 44
+    },
+    "decisions": {
+      "before": 3,
+      "unchanged": 3
+    },
+    "sources": {
+      "before": 17,
+      "unchanged": 17
+    }
+  },
+  "independentCodeReview": "PASS: no P1/P2 under active-agenda feedback and immutable completed-result contract",
+  "nativeObjectionRefinement": "UNVERIFIED; automated fixture passed",
+  "nativeReactionDrivenRevision": "UNVERIFIED; automated fixture passed",
+  "uiScreenshotArtifact": "Capture unavailable: browser screenshot API failed; actual result and knowledge UI states were inspected"
+}

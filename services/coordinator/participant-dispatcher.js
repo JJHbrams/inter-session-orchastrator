@@ -31,7 +31,7 @@ export class ParticipantDispatcher {
       JOIN sessions s ON s.id=mb.session_id JOIN bindings b ON b.id=d.binding_id JOIN rooms r ON r.id=m.room_id
       WHERE d.state='queued' AND d.kind IN ('followup','steer') AND mb.left_at IS NULL AND mb.read_only=0
       AND mb.role<>'chair' AND r.archived_at IS NULL AND r.paused_at IS NULL AND b.active=1`).all()
-      .filter(row => { try { return !!JSON.parse(row.capabilities || '{}').automaticInput; } catch { return false; } });
+      .filter(row => (!this.debates||this.debates.canDispatch(row.message_id))).filter(row => { try { return !!JSON.parse(row.capabilities || '{}').automaticInput; } catch { return false; } });
   }
 
   config(row) {
@@ -56,8 +56,9 @@ export class ParticipantDispatcher {
   }
 
   prompt(row, configPath, hostRequestId) {
+    const knowledgeChanges=this.knowledge?.sync(row.room_id,{room_id:row.room_id,session_id:row.session_id,membership_id:row.membership_id});
     const q = value => `'${String(value).replaceAll("'", "''")}'`;
-    return `You are a room participant in room ${row.room_id}. If room_inbox and room_reply MCP tools are available, first use room_context to confirm that its room ID is ${row.room_id}. Only in that matching room use room_inbox with requestId ${hostRequestId} and room_reply with that exact requestId; no shell commands are needed in that case. If native tools are absent, fail, or belong to a different room, use this room's helper instead; never post to the other room. Run in PowerShell: & ${q(process.execPath)} ${q(helperPath)} --config ${q(configPath)} inbox --request-id ${q(hostRequestId)}. Then use the helper context action for room context, materials, and reactions. Reply only through authenticated room_reply: & ${q(process.execPath)} ${q(helperPath)} --config ${q(configPath)} reply ${q(hostRequestId)} '<your answer; double any single quotes>'. Do not create files merely to submit a reply; --body-file is optional for an existing answer file. Room working directory: ${row.room_cwd || row.cwd}.`;
+    return `You are a room participant in room ${row.room_id}. If room_inbox and room_reply MCP tools are available, first use room_context to confirm that its room ID is ${row.room_id}. Only in that matching room use room_inbox with requestId ${hostRequestId} and room_reply with that exact requestId; no shell commands are needed in that case. If native tools are absent, fail, or belong to a different room, use this room's helper instead; never post to the other room. Run in PowerShell: & ${q(process.execPath)} ${q(helperPath)} --config ${q(configPath)} inbox --request-id ${q(hostRequestId)}. Then use the helper context action for room context, materials, and reactions. Reply only through authenticated room_reply: & ${q(process.execPath)} ${q(helperPath)} --config ${q(configPath)} reply ${q(hostRequestId)} '<your answer; double any single quotes>'. Do not create files merely to submit a reply; --body-file is optional for an existing answer file. Shared knowledge changes: ${JSON.stringify(knowledgeChanges||null)}. You may respond naturally to peer arguments and use room_react on their exact message IDs (👍 quality, 👎 objection needing a reason, ❓ clarification, ✅ receipt, 💡 your idea). Explain substantive objections or ideas in a reply; reactions are feedback, never formal consensus or user approval. For agenda evidence requests, use your available tools to inspect the cited materials, report source IDs and uncertainty, and do not implement follow-up work. For a request with type agenda_review, submit the exact agendaId, roundId, conclusionRevision, stance (agree/qualified/disagree/insufficient_evidence), sourceIds, body, and requestId using room_review. If unavailable, send that JSON object as the body of room_reply for the exact request. For an approval notice use room_acknowledge_approval with noticeId and revision; helper fallback: & ${q(process.execPath)} ${q(helperPath)} --config ${q(configPath)} ack '<noticeId>' <revision>. An approval is a receipt request, never execution authorization. Shared knowledge is available through room_knowledge_list/read/add; helper actions knowledge, knowledge-read '<itemId>', knowledge-add '<JSON>' use this exact config. Do not print the config or token. Room working directory: ${row.room_cwd || row.cwd}.`;
   }
 
   persist(row, attempt, hostRequestId, prompt, configPath) {
@@ -114,6 +115,7 @@ export class ParticipantDispatcher {
     this.store.db.prepare('UPDATE participant_dispatches SET status=?,receipt_json=?,error=?,updated_at=? WHERE delivery_id=?').run(status, receipt ? JSON.stringify(receipt) : null, error, now(), record.delivery_id);
     if (error) this.store.db.prepare("UPDATE deliveries SET blocked_reason=? WHERE id=? AND state NOT IN ('completed','cancelled')").run(error,record.delivery_id);
     if (status === 'unknown') this.store.db.prepare("UPDATE deliveries SET state='unknown',blocked_reason=? WHERE id=? AND state NOT IN ('completed','cancelled')").run(error || 'host receipt requires reconciliation', record.delivery_id);
+    if(this.debates&&['accepted','running'].includes(status))this.store.db.prepare("UPDATE approval_notices SET status='delivered',delivered_at=COALESCE(delivered_at,?) WHERE request_id=? AND status='queued'").run(now(),row.request_id);
     return { deliveryId: row.id, state: status, message: error || (status === 'accepted' ? 'input accepted; awaiting authenticated reply' : status) };
   }
 

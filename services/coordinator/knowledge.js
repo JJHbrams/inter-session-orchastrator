@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, parse, win32 } from 'node:path';
+import { dirname, isAbsolute, join, parse, relative, win32 } from 'node:path';
 
 const DEFAULT_ROOT = 'D:\\inter_session_debate';
 const EXPORT_OWNER = 'inter-session-rooms-knowledge/v1';
@@ -46,6 +46,8 @@ export class KnowledgeStore {
         links TEXT NOT NULL,citations TEXT NOT NULL,provenance TEXT NOT NULL,payload_hash TEXT NOT NULL,created_at TEXT NOT NULL,
         PRIMARY KEY(item_id,revision)
       );
+      CREATE TABLE IF NOT EXISTS session_knowledge_cursors(membership_id TEXT PRIMARY KEY,provided_revision INTEGER NOT NULL DEFAULT 0,last_read_revision INTEGER NOT NULL DEFAULT 0,updated_at TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS session_knowledge_reads(membership_id TEXT NOT NULL,item_id TEXT NOT NULL,item_revision INTEGER NOT NULL,change_revision INTEGER NOT NULL,read_at TEXT NOT NULL,PRIMARY KEY(membership_id,item_id));
       CREATE TABLE IF NOT EXISTS knowledge_clock(id INTEGER PRIMARY KEY CHECK(id=1),revision INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS knowledge_items_room_revision ON knowledge_items(room_id,revision);
       CREATE INDEX IF NOT EXISTS knowledge_items_channel_status ON knowledge_items(channel_id,status);
@@ -57,6 +59,19 @@ export class KnowledgeStore {
     }
   }
 
+  sync(roomId, registration) {
+    this.registrationFor(roomId,registration);
+    const cursor=this.db.prepare('SELECT * FROM session_knowledge_cursors WHERE membership_id=?').get(registration.membership_id)||{provided_revision:0,last_read_revision:0};
+    const changes=this.list(roomId,{since:cursor.provided_revision},registration);
+    this.db.prepare('INSERT INTO session_knowledge_cursors VALUES(?,?,?,?) ON CONFLICT(membership_id) DO UPDATE SET provided_revision=excluded.provided_revision,updated_at=excluded.updated_at').run(registration.membership_id,changes.revision,cursor.last_read_revision,now());
+    return {providedRevision:changes.revision,lastReadRevision:cursor.last_read_revision,changes:changes.items.map(x=>({id:x.id,title:x.title,kind:x.kind,revision:x.revision,changeRevision:x.changeRevision,excerpt:x.body.slice(0,1200)})),instruction:'Provided references are not read acknowledgements. Use room_knowledge_read for complete content and exact revisions.'};
+  }
+  recordRead(registration,item){
+    if(!registration)return item;
+    this.db.prepare('INSERT INTO session_knowledge_reads VALUES(?,?,?,?,?) ON CONFLICT(membership_id,item_id) DO UPDATE SET item_revision=excluded.item_revision,change_revision=excluded.change_revision,read_at=excluded.read_at').run(registration.membership_id,item.id,item.revision,item.changeRevision,now());
+    this.db.prepare('INSERT INTO session_knowledge_cursors VALUES(?,?,?,?) ON CONFLICT(membership_id) DO UPDATE SET last_read_revision=MAX(last_read_revision,excluded.last_read_revision),updated_at=excluded.updated_at').run(registration.membership_id,0,item.changeRevision,now());
+    return item;
+  }
   getSettings() { return { storageRoot: this.db.prepare("SELECT value FROM knowledge_settings WHERE key='storageRoot'").get()?.value || this.defaultRoot }; }
   setSettings({ storageRoot }) {
     const root = this.validateRoot(storageRoot, true);
@@ -146,7 +161,7 @@ export class KnowledgeStore {
     const where = this.visibleWhere(room);
     const clauses = [where.sql]; const args = [...where.args];
     if (scope === 'room') { clauses.push('room_id=?'); args.push(room.id); }
-    if (scope === 'channel') { clauses.push("channel_id=? AND status='published'"); args.push(room.channel_id || '__none__'); }
+    if (scope === 'channel') { clauses.push("channel_id=? AND status='published' AND scope='channel'"); args.push(room.channel_id || '__none__'); }
     if (kind) { clauses.push('kind=?'); args.push(kind); }
     if (query.trim()) { clauses.push('(title LIKE ? OR body LIKE ?)'); const q = `%${query.trim()}%`; args.push(q, q); }
     if (Number(since)) { clauses.push('change_revision>?'); args.push(Number(since)); }
@@ -160,12 +175,12 @@ export class KnowledgeStore {
     const where = this.visibleWhere(room);
     const item = this.db.prepare(`SELECT * FROM knowledge_items WHERE id=? AND ${where.sql}`).get(itemId, ...where.args);
     if (!item) throw Error('knowledge item is outside visible scope');
-    if (revision === null || revision === undefined) return this.normalize(item);
+    if (revision === null || revision === undefined) return this.recordRead(registration,this.normalize(item));
     if (!Number.isInteger(revision) || revision < 1) throw Error('invalid knowledge revision');
-    if (item.room_id !== room.id) throw Error('historical private revisions are outside visible scope');
+    if (item.room_id !== room.id && revision!==item.revision) throw Error('historical private revisions are outside visible scope');
     const old = this.db.prepare('SELECT * FROM knowledge_revisions WHERE item_id=? AND revision=?').get(itemId, revision);
     if (!old) throw Error('knowledge revision not found');
-    return this.normalize({ ...item, ...old, id: item.id, room_id: item.room_id, channel_id: item.channel_id, revision: old.revision, updated_at: old.created_at });
+    return this.recordRead(registration,this.normalize({ ...item, ...old, id: item.id, room_id: item.room_id, channel_id: item.channel_id, revision: old.revision, updated_at: old.created_at }));
   }
   add(roomId, input, registration = null) {
     const room = this.registrationFor(roomId, registration, true);
@@ -234,14 +249,16 @@ export class KnowledgeStore {
     const temp = `${file}.${randomUUID()}.tmp`; writeFileSync(temp, bytes); renameSync(temp, file);
   }
   exportRoom(root, roomId) {
-    const room = this.roomInfo(roomId), items = this.list(roomId).items.filter(item => item.sourceRoomId === roomId);
+    const room = this.roomInfo(roomId), roomName=this.store.room(roomId).name,items = this.list(roomId).items.filter(item => item.sourceRoomId === roomId);
     const channelBase = room.channel_id ? this.ensureDirectory(root, ['channels', room.channel_id], true) : null;
     const base = channelBase ? this.ensureDirectory(channelBase, ['rooms', roomId], true) : this.ensureDirectory(root, ['rooms', roomId], true);
     const materials = this.ensureDirectory(base, ['materials']), attachments = this.ensureDirectory(base, ['attachments']);
     const materialFiles = [];
     for (const item of items) {
       const name = `${safeFile(item.id)}-${safeFile(item.title)}.md`, file = join(materials, name);
-      const text = `# ${item.title}\n\n- id: ${item.id}\n- kind: ${item.kind}\n- status: ${item.status}\n- scope: ${item.scope}\n- revision: ${item.revision}\n- hash: ${item.hash}\n\n${item.body}\n\n## Links\n${item.links.map(x => `- ${x}`).join('\n') || '- none'}\n`;
+      const linked=this.list(roomId).items;const linkTo=target=>{const folder=target.channelId?join(root,'channels',target.channelId,'rooms',target.sourceRoomId,'materials'):join(root,'rooms',target.sourceRoomId,'materials');return relative(materials,join(folder,`${safeFile(target.id)}-${safeFile(target.title)}.md`)).replaceAll('\\','/');};
+      const backlinks=linked.filter(x=>x.links.includes(item.id));
+      const text = `---\nid: ${item.id}\nkind: ${item.kind}\nstatus: ${item.status}\nscope: ${item.scope}\nrevision: ${item.revision}\nsource_room: ${roomId}\nupdated: ${item.updatedAt}\n---\n\n# ${item.title}\n\n- id: ${item.id}\n- kind: ${item.kind}\n- status: ${item.status}\n- scope: ${item.scope}\n- revision: ${item.revision}\n- hash: ${item.hash}\n\n${item.body}\n\n## Links\n${item.links.map(x=>{const target=linked.find(t=>t.id===x);return target?`- [${target.title}](${linkTo(target)}) · ${target.id} v${target.revision}`:`- ${x}`}).join('\n')||'- none'}\n\n## Backlinks\n${backlinks.map(x=>`- [${x.title}](${linkTo(x)})`).join('\n')||'- none'}\n\n## Citations\n${item.citations.map(x=>typeof x==='string'?x:JSON.stringify(x)).join('\n')||'- none'}\n\n## Provenance\n\n\`\`\`json\n${JSON.stringify(item.provenance,null,2)}\n\`\`\`\n`;
       this.atomicWrite(file, text); materialFiles.push({ id: item.id, revision: item.revision, hash: item.hash, file: `materials/${name}` });
     }
     const attachmentFiles = [], seenAttachments = new Set();
@@ -250,13 +267,29 @@ export class KnowledgeStore {
       this.atomicWrite(join(attachments, name), Buffer.from(source.base64, 'base64'));
       attachmentFiles.push({ id: source.id, filename: source.filename, sha256: source.sha256, size: source.size, file: `attachments/${name}` });
     }
-    const index = `# Knowledge: ${roomId}\n\n${items.map(item => `- [${item.title}](materials/${safeFile(item.id)}-${safeFile(item.title)}.md) (${item.kind}, r${item.revision}, ${item.status})`).join('\n') || '_No knowledge items._'}\n`;
+    const conversation=this.store.room(roomId);
+    this.atomicWrite(join(base,'transcript.md'),`# ${roomName} · 대화 원문\n\n${conversation.messages.map(m=>`<a id="message-${m.id}"></a>\n\n## ${conversation.members.find(x=>x.session_id===m.sender_session_id)?.alias||(m.provenance==='coordinator'?'진행 기록':'사용자')} · ${m.created_at}\n\n${m.body}\n`).join('\n')}`);
+    let agendaLinks='';
+    if(this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='agendas'").get()){
+      const agendas=this.db.prepare('SELECT * FROM agendas WHERE room_id=? ORDER BY created_at').all(roomId),agendaDir=this.ensureDirectory(base,['agendas']);
+      for(const agenda of agendas){
+        const reviews=this.db.prepare('SELECT * FROM debate_reviews WHERE agenda_id=? ORDER BY created_at').all(agenda.id),linked=items.filter(item=>item.provenance.some(p=>p.agendaId===agenda.id));
+        const content=`# ${agenda.title}\n\n- id: ${agenda.id}\n- 상태: ${agenda.phase} / ${agenda.outcome||'진행 중'}\n- 결론 revision: ${agenda.revision}\n- 목표: ${agenda.goal||''}\n\n## 안건\n\n${agenda.body}\n\n## 현재 결론\n\n${agenda.current_conclusion||'_아직 없음_'}\n\n## 논거·자료·합의\n\n${linked.map(x=>`- [${x.title}](../materials/${safeFile(x.id)}-${safeFile(x.title)}.md) · ${x.kind} v${x.revision}`).join('\n')}\n\n## 검토 기록\n\n${reviews.map(r=>`### ${conversation.members.find(m=>m.id===r.membership_id)?.alias||r.membership_id} · ${r.stance} · 결론 v${r.conclusion_revision}\n\n${r.body}\n\n[대화 원문](../transcript.md#message-${r.reply_message_id})`).join('\n\n')}\n`;
+        this.atomicWrite(join(agendaDir,agenda.id+'.md'),content);
+      }
+      agendaLinks=agendas.map(a=>`- [${a.title}](agendas/${a.id}.md) · ${a.phase} / ${a.outcome||'진행 중'}`).join('\n');
+    }
+    const index = `# ${roomName}\n\n토론장 ID: ${roomId}\n\n[대화 원문](transcript.md)\n\n## 안건별 토론\n\n${agendaLinks||'_아직 없음_'}\n\n## 자료·논거·합의\n\n${items.map(item => `- [${item.title}](materials/${safeFile(item.id)}-${safeFile(item.title)}.md) (${item.kind}, r${item.revision}, ${item.status})`).join('\n') || '_No knowledge items._'}\n`;
     this.atomicWrite(join(base, 'index.md'), index);
     this.atomicWrite(join(base, 'manifest.json'), JSON.stringify({ owner: EXPORT_OWNER, roomId, channelId: room.channel_id, materials: materialFiles, attachments: attachmentFiles }, null, 2) + '\n');
     if (room.channel_id) {
-      const rooms = this.db.prepare('SELECT id FROM rooms WHERE channel_id=? ORDER BY created_at').all(room.channel_id);
-      this.atomicWrite(join(channelBase, 'index.md'), `# Channel knowledge: ${room.channel_id}\n\n${rooms.map(value => `- [${value.id}](rooms/${value.id}/index.md)`).join('\n') || '_No rooms._'}\n`);
+      const rooms = this.db.prepare('SELECT id,name FROM rooms WHERE channel_id=? ORDER BY created_at').all(room.channel_id);
+      this.atomicWrite(join(channelBase, 'index.md'), `# ${this.store.channels().find(c=>c.id===room.channel_id)?.name||room.channel_id} · 지식 목차\n\n${rooms.map(value => `- [${value.name}](rooms/${value.id}/index.md)`).join('\n') || '_No rooms._'}\n`);
     }
+    const wiki=this.ensureDirectory(root,['wiki'],true),channels=this.store.channels(),allRooms=this.db.prepare('SELECT id,name,channel_id FROM rooms ORDER BY created_at').all();
+    const sections=channels.map(channel=>`## ${channel.name}\n\n[채널 목차](../channels/${channel.id}/index.md)\n\n${allRooms.filter(r=>r.channel_id===channel.id).map(r=>`- [${r.name}](../channels/${channel.id}/rooms/${r.id}/index.md)`).join('\n')}`);
+    const unassigned=allRooms.filter(r=>!r.channel_id).map(r=>`- [${r.name}](../rooms/${r.id}/index.md)`).join('\n');
+    this.atomicWrite(join(wiki,'index.md'),`# 토론 지식 위키\n\n채널 → 토론장 → 자료·논거·합의. 원문과 버전의 기준은 앱 DB이며 이 폴더는 읽기용 내보내기다.\n\n${sections.join('\n\n')}\n\n## 미소속 토론장\n\n${unassigned||'_없음_'}\n`);
     return { root, roomId, directory: base, files: ['index.md', 'manifest.json', ...materialFiles.map(x => x.file), ...attachmentFiles.map(x => x.file)] };
   }
 }

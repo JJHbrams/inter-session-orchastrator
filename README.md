@@ -82,7 +82,7 @@ API는 loopback·Host/Origin·CSRF·HttpOnly SameSite 쿠키와 room 등록으�
 npm test
 ```
 
-현재124개 테스트가 통과했다. 실제 opt-in Codex·Claude 자동 응답, 중단된 Claude 답변의 같은 요청 ID 재호출, 별도 좌장의 질문→두 provider 응답→출처가 있는 미확정 제안을 확인했다. Claude canary는 해당 프로세스에서만 room 전용 native MCP와 빈 도구 목록을 사용했고 프롬프트 제안을 껐다. 기존 Claude ‘수아’는 실제 입력란이 비어 있다는 사용자 확인에 따라 원래 요청3건을 같은 ID로 복구했고 인증된 답변을 모두 회수했다. Orca의 draft 보고를 실제 작성 중 입력으로 단정하지 않는다. 자동 전달 검증은 모든 CLI 버전이나 임의의 기존 세션에 대한 무조건적 지원을 뜻하지 않는다.
+현재147개 테스트가 통과했다. 안건별 좌장 계획→두 provider 실제 파일 조사→상호 검토→최종 qualified 결과→승인 ACK 2/2를 확인했다. Orca 추천문구의 draft 오탐과 Codex 붙여넣기 제출에는 복구 조작이 필요해 전체 무인 전달은 미완료다. 기존124개 검증에서는  실제 opt-in Codex·Claude 자동 응답, 중단된 Claude 답변의 같은 요청 ID 재호출, 별도 좌장의 질문→두 provider 응답→출처가 있는 미확정 제안을 확인했다. Claude canary는 해당 프로세스에서만 room 전용 native MCP와 빈 도구 목록을 사용했고 프롬프트 제안을 껐다. 기존 Claude ‘수아’는 실제 입력란이 비어 있다는 사용자 확인에 따라 원래 요청3건을 같은 ID로 복구했고 인증된 답변을 모두 회수했다. Orca의 draft 보고를 실제 작성 중 입력으로 단정하지 않는다. 자동 전달 검증은 모든 CLI 버전이나 임의의 기존 세션에 대한 무조건적 지원을 뜻하지 않는다.
 
 첨부 권한·멱등·재시작·원본 바이트, HTTP/stdio/helper, Markdown 정제와 초안 경계, 패널 호환·멘션 목록 배치를 검증했다. 실제 브라우저의 파일 선택·클립보드·drop·재시도와 새 좌장의 이미지/텍스트 판독을 확인했다. 인식된 @별칭은 입력창과 대화에서 파란 배경으로 강조한다. 멘션 목록은 패널 밖으로 펼쳐지며, 3개 CSS viewport에서 후보 노출과 재배치를 확인했다. OS 물리 드래그와 원래 V-01~V-13 전체는 별도 미검증이다.
 
@@ -90,7 +90,7 @@ npm test
 - [채널 보관·세션 선택 UX 조사와 구현](docs/catalog-archive.html) / [명세 원문](docs/design/0007-catalog-archive.md) / [검증 근거](docs/validation/catalog-archive.json)
 - [좌장 provider·모델 설정과 자동 대화 한도](docs/chair-provider-settings.html) / [명세 원문](docs/design/0008-chair-provider-settings.md) / [검증 근거](docs/validation/chair-provider-settings.json)
 - [입력란 확인 후 초안 감지 차단 복구](docs/composer-recovery.html) / [명세 원문](docs/design/0009-composer-recovery.md) / [검증 근거](docs/validation/composer-recovery.json)
-- [다음 기능: 안건별 자율 토론·채널 → 토론장 지식 관리 설계](docs/agenda-deliberation.html) / [검토 중 명세](docs/design/0010-agenda-deliberation.md) — 승인 결과 공유·세션별 수신 확인 포함, 구현 전.
+- [안건별 자율 토론·채널 → 토론장 지식 위키](docs/agenda-deliberation.html) / [명세](docs/design/0010-agenda-deliberation.md) — 핵심 구현·실제 두 provider 검증, 자동 입력 제한은 [검증 근거](docs/validation/agenda-deliberation.json) 참조. 기본 자료 루트는 `D:\inter_session_debate`, 앱 설정에서 변경 가능. 로컬 위키 진입점은 해당 루트의 `wiki/index.md`다.
 
 - [별도 좌장·인증 복구·메신저 명세](docs/dedicated-chair.html) / [원문](docs/design/0003-dedicated-chair.md) / [실제 검증 근거](docs/validation/dedicated-chair.json)
 - [패널 조절·이름 변경 명세](docs/resizable-panels.html) / [원문](docs/design/0004-resizable-panels.md)

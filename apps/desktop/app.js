@@ -8,7 +8,7 @@ import {createRenderer,createMentionInput} from '/rich-text.js';
 import {createAttachmentComposer} from '/attachments.js';
 import {deliveryPresentation} from '/delivery-status.js';
 import {chairSettingsFields,dialoguePresets,dialogueLimitSummary} from '/chair-settings.js';
-import {createAgendaUI} from '/agenda-ui.js';
+import {createAgendaUI,agendaMessagePresentation} from '/agenda-ui.js';
 let current, rooms=[], channels=[], pendingSend, selectedRoomId,showArchived=false;const draftBodies=new Map(); const $=s=>document.querySelector(s);
 const connection=document.createElement('div');connection.id='connection';connection.setAttribute('role','status');connection.hidden=true;$('#error').before(connection);
 const api=createApiClient({onConnection:state=>{connection.hidden=state==='online';connection.textContent=state==='offline'?'연결 끊김 · 입력은 보존돼. 로컬 서버가 돌아오면 자동으로 다시 연결할게.':state==='reconnecting'?'로컬 서버에 다시 연결하는 중…':'';}});
@@ -128,9 +128,11 @@ function renderTimeline() {
   const view=$('#timeline'); view.replaceChildren();
   if(!current.messages.length) {view.append(text('div','@별칭으로 질문하거나, 게시로 대화의 맥락을 남겨보세요.','empty'));return;}
   for(const m of current.messages) {
+    const presentation=agendaMessagePresentation(m,current.chair);
+    if(presentation?.internal){const activity=document.createElement('details');activity.className='agenda-activity';activity.id='message-'+m.id;activity.append(text('summary',presentation.title));const content=text('div','','rich-body');content.append(renderMarkdown(presentation.body,{roomId:current.id,mentions:[]}));activity.append(content);const ds=deliveryText(m);if(ds)activity.append(ds);view.append(activity);continue;}
     const card=document.createElement('section');card.className='message';card.id='message-'+m.id;
-    const author=current.members.find(x=>x.session_id===m.sender_session_id);
-    const speaker=m.sender_role||(!m.sender_session_id?'user':'member');
+    const author=current.members.find(x=>x.session_id===(presentation?.authorSessionId||m.sender_session_id));
+    const speaker=presentation?.authorSessionId?'chair':m.sender_role||(!m.sender_session_id?'user':'member');
     card.classList.add(speaker==='user'?'message-user':speaker==='chair'?'message-chair':'message-member');
     if(author&&speaker!=='user')applySessionColor(card,author);
     const head=text('div','','message-head');
@@ -139,8 +141,8 @@ function renderTimeline() {
     if(author)head.append(text('span',providerName(author),'provider-badge'));
     if(speaker==='chair')head.append(text('span','좌장','speaker-role'));
     const body=text('div','','rich-body');
-    body.append(renderMarkdown(m.body,{roomId:current.id,mentions:[ALL_MENTION,...current.members.map(member=>member.alias)]}));
-    card.append(head,body);
+    body.append(renderMarkdown(presentation?.body||m.body,{roomId:current.id,mentions:[ALL_MENTION,...current.members.map(member=>member.alias)]}));
+    if(presentation?.title)head.append(text('span',presentation.title,'speaker-role'));card.append(head,body);if(presentation?.details){const details=document.createElement('details');details.append(text('summary','공유된 논거 보기'),text('div',presentation.details,'agenda-peer-arguments'));card.append(details);}
     renderAttachments(m.attachments,card);
     const meta=text('div',`${m.kind} · ${new Date(m.created_at).toLocaleString('ko-KR')}`,'message-meta');
     if(m.reply_to){const a=text('a','원문 보기');a.href='#message-'+m.reply_to;meta.append(document.createTextNode(' · '),a);}
