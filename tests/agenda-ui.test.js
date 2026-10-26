@@ -4,11 +4,19 @@ import {normalizeAgenda,safeUrl} from '../apps/desktop/agenda-ui.js';
 
 test('agenda UI normalizes API naming without inventing a completion state',()=>{
  const agenda=normalizeAgenda({agenda_id:'a1',status:'reviewing',current_revision:4,current_round:2,result_summary:'검토 중',participant_ids:['p1']});
- assert.deepEqual(agenda,{agenda_id:'a1',status:'reviewing',current_revision:4,current_round:2,result_summary:'검토 중',participant_ids:['p1'],id:'a1',title:'제목 없는 안건',phase:'reviewing',outcome:undefined,revision:4,round:2,summary:'검토 중',arguments:[],reviews:[],notices:[],goal:undefined,completionCriteria:undefined,participants:['p1']});
+ assert.deepEqual(agenda,{agenda_id:'a1',status:'reviewing',current_revision:4,current_round:2,result_summary:'검토 중',participant_ids:['p1'],id:'a1',title:'제목 없는 안건',phase:'reviewing',outcome:undefined,revision:4,round:2,summary:'검토 중',arguments:[],rounds:[],reviews:[],notices:[],goal:undefined,completionCriteria:undefined,participants:['p1']});
 });
 
 test('knowledge links accept only HTTP(S) URLs',()=>{
  assert.equal(safeUrl('https://example.test/source'),'https://example.test/source');
  assert.equal(safeUrl('javascript:alert(1)'),null);
  assert.equal(safeUrl('file:///C:/secret'),null);
+});
+
+test('engine round and membership projections survive normalization',()=>{
+ const agenda=normalizeAgenda({id:'a1',targetMembershipIds:['membership-1'],rounds:[{ordinal:2,stage:'review',conclusion_revision:3}],reviews:[{membership_id:'membership-1',stance:'qualified'}]});
+ assert.equal(agenda.rounds[0].ordinal,2);
+ assert.equal(agenda.rounds[0].conclusion_revision,3);
+ assert.deepEqual(agenda.participants,['membership-1']);
+ assert.equal(agenda.reviews[0].membership_id,'membership-1');
 });
