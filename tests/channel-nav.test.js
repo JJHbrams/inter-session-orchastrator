@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
-import {CHANNEL_NAV_STORAGE_KEY,UNASSIGNED_CHANNEL_KEY,bindChannelDisclosure,createChannelNav} from '../apps/desktop/channel-nav.js';
+import {CHANNEL_NAV_STORAGE_KEY,UNASSIGNED_CHANNEL_KEY,bindChannelDisclosure,createChannelNav,expandParentForNewRoom} from '../apps/desktop/channel-nav.js';
 
 function disclosure(state,key='channel-a'){
  const dom=new JSDOM('<button type="button" aria-controls="children"><span class="channel-chevron"></span>개발</button><div id="children"></div>');
@@ -38,4 +38,13 @@ test('malformed or denied local storage falls back to in-memory default-expanded
  assert.equal(state.expanded('channel-a'),true);state.toggle('channel-a');assert.equal(state.expanded('channel-a'),false);
  const unassigned=disclosure(state,UNASSIGNED_CHANNEL_KEY);
  assert.equal(unassigned.group.hidden,false);unassigned.button.click();assert.equal(unassigned.group.hidden,true);
+});
+
+test('creating a room reopens its assigned or unassigned parent without changing another collapsed group',()=>{
+ const state=createChannelNav({getItem:()=>null,setItem:()=>{}});
+ state.setExpanded('channel-a',false);state.setExpanded(UNASSIGNED_CHANNEL_KEY,false);state.setExpanded('channel-b',false);
+ expandParentForNewRoom(state,'channel-a');
+ assert.equal(state.expanded('channel-a'),true);assert.equal(state.expanded(UNASSIGNED_CHANNEL_KEY),false);assert.equal(state.expanded('channel-b'),false);
+ expandParentForNewRoom(state,null);
+ assert.equal(state.expanded(UNASSIGNED_CHANNEL_KEY),true);assert.equal(state.expanded('channel-b'),false);
 });

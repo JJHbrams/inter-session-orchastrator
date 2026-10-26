@@ -9,7 +9,7 @@ import {createAttachmentComposer} from '/attachments.js';
 import {deliveryPresentation} from '/delivery-status.js';
 import {chairSettingsFields,dialoguePresets,dialogueLimitSummary} from '/chair-settings.js';
 import {createAgendaUI,agendaMessagePresentation} from '/agenda-ui.js';
-import {UNASSIGNED_CHANNEL_KEY,bindChannelDisclosure,createChannelNav} from '/channel-nav.js';
+import {UNASSIGNED_CHANNEL_KEY,bindChannelDisclosure,createChannelNav,expandParentForNewRoom} from '/channel-nav.js';
 let current, rooms=[], channels=[], pendingSend, selectedRoomId,showArchived=false;const draftBodies=new Map(); const $=s=>document.querySelector(s);
 const connection=document.createElement('div');connection.id='connection';connection.setAttribute('role','status');connection.hidden=true;$('#error').before(connection);
 const api=createApiClient({onConnection:state=>{connection.hidden=state==='online';connection.textContent=state==='offline'?'연결 끊김 · 입력은 보존돼. 로컬 서버가 돌아오면 자동으로 다시 연결할게.':state==='reconnecting'?'로컬 서버에 다시 연결하는 중…':'';}});
@@ -447,7 +447,7 @@ $('#composer').addEventListener('submit',async event=>{
   try{await req(`/api/rooms/${roomId}/messages`,{method:'POST',body:JSON.stringify({...payload,requestKey:sending.key})});if(pendingSend===sending)pendingSend=null;attachmentComposer.clearSent(attachments,roomId);if(draftBodies.get(roomId)===payload.body)draftBodies.set(roomId,'');if(current?.id===roomId){if($('#body').value===payload.body){$('#body').value='';mentionClosed=false;}await openRoom(roomId);error();}}
   catch(e){error(e.message);}
 });
-$('#newRoom').onclick=()=>$('#roomDialog').showModal();$('#newChannel').onclick=()=>$('#channelDialog').showModal();$('#createRoom').onclick=async e=>{e.preventDefault();try{const channelId=$('#channelChoice').value||null,r=await req('/api/rooms',{method:'POST',body:JSON.stringify({name:$('#roomName').value,channelId,cwd:$('#roomCwd').value.trim()||undefined})});if(channelId)channelNav.expand(channelId);$('#roomDialog').close();await refresh(false);await openRoom(r.id);showDiscovery()}catch(e){error(e.message)}};$('#createChannel').onclick=async e=>{e.preventDefault();try{await req('/api/channels',{method:'POST',body:JSON.stringify({name:$('#channelName').value})});$('#channelDialog').close();refresh(false)}catch(e){error(e.message)}};
+$('#newRoom').onclick=()=>$('#roomDialog').showModal();$('#newChannel').onclick=()=>$('#channelDialog').showModal();$('#createRoom').onclick=async e=>{e.preventDefault();try{const channelId=$('#channelChoice').value||null,r=await req('/api/rooms',{method:'POST',body:JSON.stringify({name:$('#roomName').value,channelId,cwd:$('#roomCwd').value.trim()||undefined})});expandParentForNewRoom(channelNav,channelId);$('#roomDialog').close();await refresh(false);await openRoom(r.id);showDiscovery()}catch(e){error(e.message)}};$('#createChannel').onclick=async e=>{e.preventDefault();try{await req('/api/channels',{method:'POST',body:JSON.stringify({name:$('#channelName').value})});$('#channelDialog').close();refresh(false)}catch(e){error(e.message)}};
 $('#pause').onclick=async()=>{try{await req(`/api/rooms/${current.id}/${current.paused_at?'resume':'pause'}`,{method:'POST',body:'{}'});openRoom(current.id)}catch(e){error(e.message)}};$('#archive').onclick=()=>{if(current)changeArchive('room',current);};
 $('#showArchived').onclick=async()=>{showArchived=!showArchived;$('#showArchived').setAttribute('aria-checked',String(showArchived));closeNavContextMenu();await refresh(false);await ensureVisibleSelection();};
 $('#kind').onchange=()=>renderPreview();
