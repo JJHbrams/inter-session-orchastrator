@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="source-sha256" content="e7250349a0be643ba52b8c9527a45295d834b848afae6b942475de8cb41d12bb"><title>채널별 토론장 접기와 펼치기</title><style>
+    :root{--ink:#202c35;--muted:#64757a;--accent:#006c62;--line:#dce4e4;--paper:#fff;--bg:#f3f6f5}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}
+    body{margin:0;color:var(--ink);background:var(--bg);font:15px/1.85 'Segoe UI','Malgun Gothic',sans-serif}
+    a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+    .shell{display:grid;grid-template-columns:222px minmax(0,1fr);max-width:1640px;margin:auto}
+    aside{position:sticky;top:0;height:100vh;padding:38px 20px;overflow:auto;border-right:1px solid var(--line)}
+    .brand{font-size:12px;letter-spacing:.1em;font-weight:800;color:var(--accent);line-height:1.6;margin-bottom:18px}
+    .status{display:inline-block;background:#f9e9c6;color:#795308;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:700}
+    nav{margin-top:25px}nav a{display:block;font-size:12px;color:var(--muted);padding:7px 0;line-height:1.5}
+    nav a:hover{color:var(--accent)}main{min-width:0;padding:40px 52px 80px;background:var(--paper)}
+    .meta{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid var(--accent);padding-bottom:17px;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.08em}
+    h1{font-size:34px;line-height:1.45;letter-spacing:-1.1px;margin:30px 0 22px;font-weight:750;max-width:900px}
+    h2{font-size:23px;line-height:1.5;margin:54px 0 20px;padding-top:20px;border-top:1px solid var(--line);letter-spacing:-.5px}
+    h3{font-size:17px;margin:28px 0 12px;color:var(--accent)}p{margin:12px 0;max-width:1060px}
+    blockquote{margin:20px 0;padding:15px 20px;border-left:4px solid var(--accent);background:#edf6f3;color:#345e58}
+    blockquote p{margin:0}ul,ol{padding-left:23px}li{margin:5px 0}
+    .table-scroll{overflow:auto;max-width:100%;margin:18px 0 26px;border:1px solid var(--line);border-radius:8px}
+    table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.75}
+    th{background:#edf3f2;color:#24463f;font-weight:700;text-align:left;white-space:nowrap}
+    td,th{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top;min-width:105px}
+    tr:last-child td{border-bottom:0}td:first-child{font-weight:600}tr:nth-child(even){background:#fafcfc}
+    code{font:12px/1.6 Consolas,'Malgun Gothic',monospace;background:#edf2f2;padding:2px 4px;border-radius:3px;overflow-wrap:anywhere}
+    pre{padding:20px;overflow:auto;border-radius:8px;background:#152c2c;color:#e7f2ef;font:12px/1.9 Consolas,'Malgun Gothic',monospace}
+    pre code{padding:0;background:none;color:inherit;font:inherit;overflow-wrap:normal}
+    pre.mermaid{background:#f7faf9;color:var(--ink);border:1px solid var(--line);text-align:center;padding:24px 12px}
+    .mermaid svg{max-width:100%!important;height:auto!important;display:block;margin:auto}
+    footer{margin-top:50px;border-top:1px solid var(--line);padding-top:18px;color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+    .skip{position:absolute;left:-9999px}.skip:focus{left:16px;top:10px;background:white;padding:8px;z-index:10}
+    @media(max-width:1000px){.shell{grid-template-columns:180px minmax(0,1fr)}main{padding:28px}aside{padding:28px 15px}h1{font-size:28px}}
+    @media(max-width:700px){.shell{display:block}aside{position:static;height:auto;padding:20px;border:0;border-bottom:1px solid var(--line)}nav{display:none}main{padding:22px 18px}h1{font-size:25px}td,th{min-width:135px}h2{font-size:21px}}
+    @media print{aside,.skip{display:none}.shell{display:block}main{padding:0}.table-scroll{overflow:visible}pre.mermaid{break-inside:avoid}body{background:white}}
+    </style></head>
+<body><a class="skip" href="#document">본문으로 이동</a><div class="shell">
+<aside><div class="brand">INTER SESSION<br>ORCHESTRATOR</div><span class="status">VERIFIED · 채널 트리</span><nav aria-label="문서 목차"><a href="research/index.html">최신 벤치마킹 조사 →</a>
+<a href="#_2">한눈에 보기</a>
+<a href="#_3">선택지</a>
+<a href="#_4">평가기준</a>
+<a href="#_5">비교</a>
+<a href="#_6">결정</a>
+<a href="#_7">결과</a>
+<a href="#_8">재검토 조건</a>
+<a href="#1">1. 의도</a>
+<a href="#2">2. 수용 기준</a>
+<a href="#3">3. 확정 사실</a>
+<a href="#4">4. 유스케이스</a>
+<a href="#5">5. 처리 흐름</a>
+<a href="#6">6. 상태 전이</a>
+<a href="#9">9. 변경 지점</a>
+<a href="#10">10. 잠재 문제</a>
+<a href="#11">11. 착수 순서</a>
+<a href="#_9">함께 검증할 공유 기능</a>
+<a href="#_10">인수 기록</a>
+<a href="#_11">참고</a></nav></aside>
+<main id="document"><header class="meta"><span>CHANNEL NAVIGATION · VALIDATION</span><span>2026.10.26 · WINDOWS / LOCAL</span></header>
+<article><!-- sr:plan
+{"document_type":"decision","reader_questions":["채널 클릭은 무엇을 바꾸나","접힌 상태와 활성 토론장은 어떻게 유지하나","기존 메뉴와 보관 기능은 유지되나"],"visual_plan":[{"kind":"flowchart","content":"채널 클릭과 표시 상태 갱신","required":true},{"kind":"state_diagram","content":"채널 접힘과 펼침","required":true}],"visual_waiver":[]}
+-->
+
+<h1 id="_1">채널별 토론장 접기와 펼치기</h1>
+<blockquote>
+<p>채널은 목록을 접고 펼치며, 선택한 토론장과 작성 중 입력은 유지한다.</p>
+</blockquote>
+<h2 id="_2">한눈에 보기</h2>
+<ul>
+<li>목적: 채널 아래 여러 토론장을 탐색하기 쉽게 만든다.</li>
+<li>현재 상태: 구현과 실제 브라우저 인수·공유 기능 회귀 검증을 완료했다.</li>
+<li>핵심 결론: 채널 ID별 펼침 상태를 브라우저에 저장하고, 접기는 하위 목록에만 적용한다.</li>
+<li>원인 또는 판단 근거: 기존 채널 제목에는 좌클릭 동작이 없고 목록이 폴링마다 다시 만들어진다.</li>
+<li>결정: 기본 펼침인 접근 가능한 버튼을 쓰며 기존 우클릭 메뉴는 유지한다.</li>
+<li>다음 행동: 검증된 실행판을 사용하며, exe 패키징은 다음 작업으로 남긴다.</li>
+<li>최종 갱신: 2026-10-26.</li>
+</ul>
+<h2 id="_3">선택지</h2>
+<p>기존 고정 목록, 채널 클릭 토글과 브라우저 영속, 서버 계정별 표시 상태 동기화를 비교했다.</p>
+<h2 id="_4">평가기준</h2>
+<p>사용자가 요청한 계층 탐색, 활성 대화 보존, 단일 PC 앱에서의 구현 비용을 기준으로 삼았다.</p>
+<h2 id="_5">비교</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>선택지</th>
+<th>계층 직접 조작</th>
+<th>대화 보존</th>
+<th>저장 범위·비용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>기존 고정 목록</td>
+<td>불가</td>
+<td>기존 동작</td>
+<td>추가 없음</td>
+</tr>
+<tr>
+<td>채널 토글·브라우저 저장</td>
+<td>가능</td>
+<td>표시 상태만 변경</td>
+<td>현재 브라우저, 낮음</td>
+</tr>
+<tr>
+<td>서버 동기화</td>
+<td>가능</td>
+<td>별도 설계 필요</td>
+<td>계정·기기 정책 추가 필요</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_6">결정</h2>
+<p>채널 토글·브라우저 저장을 채택한다. 현재 개인용 로컬 앱에서 요청한 동작을 만족하며 서버의 토론 상태와 분리할 수 있다.</p>
+<h2 id="_7">결과</h2>
+<p>실제 브라우저의 채널 조작 6개 수용 기준을 독립 검토에서 통과했다. 격리된 검증 앱에서 생성·보관 경로를 실행한 뒤, 기존 4318 앱에서도 새 모듈 로드와 채널 접기·대화 보존을 확인했다. exe 패키징은 보류한다.</p>
+<h2 id="_8">재검토 조건</h2>
+<p>여러 기기·브라우저에서 동일한 탐색 상태를 요구하면 서버 동기화 정책을 다시 정한다.</p>
+<h2 id="1">1. 의도</h2>
+<p>채널 제목을 좌클릭하면 하위 토론장 목록을 접거나 펼친다. drt-notebookLM의 프로젝트와 채팅 목록처럼 계층을 직접 조작한다. 사용자가 2026-10-26 이 기능과 공유 기능 검증을 요청했으므로 이 범위로 진행한다. exe 패키징은 이번 범위에 포함하지 않는다.</p>
+<p>불변식은 활성 토론장·대화·작성 중 입력·채널 ID를 보존하는 것이다. 접기는 표시 상태만 바꾸며 보관이나 삭제가 아니다. 새 채널은 기본 펼침이다. 상태는 현재 브라우저에 채널 ID별로 저장한다. 다른 브라우저로의 상태 동기화는 이번 범위가 아니다.</p>
+<h2 id="2">2. 수용 기준</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>사용자에게 보이는 결과</th>
+<th>intended runtime</th>
+<th>검증 방법·증거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AC-1</td>
+<td>채널 좌클릭으로 자기 하위 목록만 접고 펼친다.</td>
+<td>로컬 앱</td>
+<td>실제 클릭 전후 child visibility, 펼침 표시와 aria-expanded 확인</td>
+</tr>
+<tr>
+<td>AC-2</td>
+<td>Enter와 Space로 같은 동작을 한다.</td>
+<td>로컬 앱</td>
+<td>실제 키보드 조작 및 DOM 동작 검증</td>
+</tr>
+<tr>
+<td>AC-3</td>
+<td>우클릭·Shift+F10 이름 변경/보관 메뉴가 유지되고 메뉴 열기로 접힘이 바뀌지 않는다.</td>
+<td>로컬 앱</td>
+<td>컨텍스트 메뉴 실제 호출 및 이벤트 검증</td>
+</tr>
+<tr>
+<td>AC-4</td>
+<td>채널별 접힘 상태가 폴링·새로고침 후 유지된다.</td>
+<td>로컬 앱</td>
+<td>두 채널 독립 토글, 새로고침 및 저장 실패 fixture</td>
+</tr>
+<tr>
+<td>AC-5</td>
+<td>활성 토론장의 부모를 접어도 본문·선택·미전송 입력을 유지한다.</td>
+<td>로컬 앱</td>
+<td>선택 ID·작성란 내용·타임라인을 실제 UI에서 비교</td>
+</tr>
+<tr>
+<td>AC-6</td>
+<td>새 토론장은 부모를 펼쳐 표시하고 미소속·보관 표시도 정상 동작한다.</td>
+<td>로컬 앱</td>
+<td>생성·보관 표시·미소속 그룹 fixture와 실제 UI 경로</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="3">3. 확정 사실</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>사실</th>
+<th>확인 위치</th>
+<th>제약</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>채널 제목은 현재 div이며 클릭 이벤트가 없다.</td>
+<td>apps/desktop/app.js renderNav</td>
+<td>실제 button과 child group을 도입</td>
+</tr>
+<tr>
+<td>목록은 폴링 때 다시 렌더링한다.</td>
+<td>refresh/openRoom/renderNav</td>
+<td>폴링이 접힘 상태나 포커스를 초기화하지 않아야 함</td>
+</tr>
+<tr>
+<td>채널·토론장 메뉴는 contextmenu 및 Shift+F10으로 열린다.</td>
+<td>bindNavContextMenu</td>
+<td>키보드 토글과 메뉴 이벤트를 함께 유지</td>
+</tr>
+<tr>
+<td>보관 항목은 기본 숨김, 미소속 그룹에는 채널 ID가 없다.</td>
+<td>visibleRooms/renderNav</td>
+<td>실제 ID와 별도 미소속 key를 구분</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="4">4. 유스케이스</h2>
+<pre class="mermaid">flowchart LR
+ U[사용자] --&gt; C[채널 펼치기 또는 접기]
+ U --&gt; M[이름 변경 또는 보관 메뉴]
+ C --&gt; V[하위 토론장 목록 표시]
+ V --&gt; R[토론장 선택]
+ U --&gt; N[새 토론장 생성]
+ N --&gt; V
+</pre>
+<h2 id="5">5. 처리 흐름</h2>
+<pre class="mermaid">flowchart TD
+ A[채널 클릭 또는 Enter Space] --&gt; B[채널 ID의 접힘 상태 반전]
+ B --&gt; C[해당 child group 표시 변경]
+ C --&gt; D[aria-expanded 및 화살표 갱신]
+ D --&gt; E[브라우저에 저장]
+ E --&gt; F[본문과 작성란 유지]
+</pre>
+<h2 id="6">6. 상태 전이</h2>
+<pre class="mermaid">stateDiagram-v2
+ [*] --&gt; Expanded: 저장 상태 없음
+ Expanded --&gt; Collapsed: 클릭 또는 키보드
+ Collapsed --&gt; Expanded: 클릭 또는 키보드
+ Collapsed --&gt; Expanded: 하위 토론장 새로 생성
+ Expanded --&gt; Expanded: 폴링
+ Collapsed --&gt; Collapsed: 폴링 또는 새로고침
+</pre>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>상태/상황</th>
+<th>저장</th>
+<th>UI 반응</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>펼침</td>
+<td>channel ID = expanded</td>
+<td>목록과 아래 방향 화살표</td>
+</tr>
+<tr>
+<td>접힘</td>
+<td>channel ID = collapsed</td>
+<td>목록 숨김과 오른쪽 방향 화살표</td>
+</tr>
+<tr>
+<td>저장소 실패 또는 손상</td>
+<td>기본값 사용</td>
+<td>앱 사용 가능, 동작은 메모리에 유지</td>
+</tr>
+<tr>
+<td>활성 부모 접기</td>
+<td>선택 ID 불변</td>
+<td>본문과 초안 불변</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="9">9. 변경 지점</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>파일</th>
+<th>변경</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apps/desktop/app.js</code></td>
+<td>채널 버튼·토론장 group·생성 시 펼침</td>
+</tr>
+<tr>
+<td><code>apps/desktop/style.css</code></td>
+<td>트리 버튼과 표시 스타일</td>
+</tr>
+<tr>
+<td><code>apps/desktop/channel-nav.js</code> (신규)</td>
+<td>ID 기반 표시 상태와 안전한 영속</td>
+</tr>
+<tr>
+<td><code>tests/channel-nav.test.js</code> (신규)</td>
+<td>토글·상태 보존·메뉴 회귀</td>
+</tr>
+<tr>
+<td><code>services/coordinator/server.js</code></td>
+<td>정적 module 제공</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="10">10. 잠재 문제</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>위험</th>
+<th>대응</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>폴링이 선택/접힘을 초기화</td>
+<td>ID 상태를 렌더와 분리</td>
+</tr>
+<tr>
+<td>메뉴용 key handler가 토글을 덮음</td>
+<td>native button click과 메뉴 이벤트를 분리</td>
+</tr>
+<tr>
+<td>접힌 부모에 만든 방이 보이지 않음</td>
+<td>명시적 생성 시 부모 펼침</td>
+</tr>
+<tr>
+<td>저장소 접근 불가</td>
+<td>try/catch와 메모리 상태</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="11">11. 착수 순서</h2>
+<ul>
+<li>[x] 채널 토글·접근성·메뉴 보존 — AC-1, AC-2, AC-3.</li>
+<li>[x] 상태 영속과 활성 토론장·새 방 보존 — AC-4, AC-5, AC-6.</li>
+<li>[x] 실제 앱 인수 검증 및 공유 기능 회귀 — AC-1, AC-2, AC-3, AC-4, AC-5, AC-6.</li>
+</ul>
+<h2 id="_9">함께 검증할 공유 기능</h2>
+<p>기존 0010 명세의 조사·상호 검토·자료 보존 기준에 따라 agent A가 올린 논거 파일을 agent B가 같은 원본 바이트로 읽고, B의 이모지가 B 신원으로 기록되며 A와 좌장에게 피드백되는지 실제 HTTP로 검증한다. 안건 질문과 검토 요청에서 첨부 ID·파일명·hash·원문 메시지 연결을 유지한다. 여러 논거의 첨부가 메시지당5개를 넘더라도 나머지 참조를 조용히 버리지 않는다. 공유 전 비공개 업로드·다른 방·철회된 등록·읽기 전용 쓰기를 거부한다. 실제 native CLI 실행과 인증 HTTP 시뮬레이션은 결과에서 구분한다.</p>
+<h2 id="_10">인수 기록</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>기준</th>
+<th>결과</th>
+<th>직접 관찰한 근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AC-1</td>
+<td>PASS</td>
+<td>자료 채널 접힘 시 자기 목록만 숨김, 다른 채널은 펼침 유지, aria-controls·aria-expanded 일치</td>
+</tr>
+<tr>
+<td>AC-2</td>
+<td>PASS</td>
+<td>Enter 펼침 → Space 접힘</td>
+</tr>
+<tr>
+<td>AC-3</td>
+<td>PASS</td>
+<td>우클릭·Shift+F10 메뉴 동일, 접힘 유지, 이름 변경 저장 성공</td>
+</tr>
+<tr>
+<td>AC-4</td>
+<td>PASS</td>
+<td>폴링·이름 변경·새로고침 후 접힘 유지, 잘못된 JSON·저장 거부 단위 fixture 통과</td>
+</tr>
+<tr>
+<td>AC-5</td>
+<td>PASS</td>
+<td>활성 토론장의 제목·원문·선택·미전송 초안 유지</td>
+</tr>
+<tr>
+<td>AC-6</td>
+<td>PASS</td>
+<td>접힌 채널·미소속에 생성한 방 즉시 노출, 보관 목록 접기와 기본 숨김 정상</td>
+</tr>
+</tbody>
+</table></div>
+<p>브라우저 관찰 13개는 <code>docs/validation/channel-tree.json</code>, 실제 화면은 <code>docs/screenshots/channel-tree.png</code>에 보관한다. 기존 앱 데이터의 원래 컬럼은 채널 3개·토론장 6개·세션 8개·메시지 63개·결정 3개·출처 17개에서 보존했다. (직접 실행·측정, 2026-10-26)</p>
+<h2 id="_11">참고</h2>
+<p><a href="research/index.html">inter-session-index</a>, [[agenda-deliberation]]. 실제 Codex·Claude의 자동 입력과 무인 진행 제한은 0010의 별도 검증 범위를 따른다. 이번 채널 UI 검증에서 외부 provider를 다시 실행하지 않았다.</p></article><footer>원본: docs/design/0011-channel-tree.md<br>본문 SHA-256: e7250349a0be643ba52b8c9527a45295d834b848afae6b942475de8cb41d12bb</footer></main></div>
+<!-- Mermaid third-party license: The MIT License (MIT)
+
+Copyright (c) 2014 - 2022 Knut Sveidqvist
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the &quot;Software&quot;), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+ -->
+<script src="research/assets/mermaid.min.js"></script><script>
+window.designRenderDone=false;
+mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'base',themeVariables:{fontFamily:'Segoe UI, Malgun Gothic, sans-serif',primaryColor:'#e6f2ee',primaryTextColor:'#202c35',lineColor:'#4c7972',primaryBorderColor:'#76a69b'}});
+mermaid.run({querySelector:'.mermaid'}).then(()=>{window.designRenderDone=true}).catch(e=>{window.designRenderError=String(e);console.error(e)});
+</script></body></html>

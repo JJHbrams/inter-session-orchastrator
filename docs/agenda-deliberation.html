@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="source-sha256" content="e49bf9acd77babd688ae194b5ef38da8bde23d751f88d2eccb8b6432316801bd"><title>안건별 자율 토론과 근거 기반 합의</title><style>
+<meta name="source-sha256" content="770e86560275f98999bfd0e738bc078f13c84a45dc88f8f0cdc92d458bb6fa2b"><title>안건별 자율 토론과 근거 기반 합의</title><style>
     :root{--ink:#202c35;--muted:#64757a;--accent:#006c62;--line:#dce4e4;--paper:#fff;--bg:#f3f6f5}
     *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}
     body{margin:0;color:var(--ink);background:var(--bg);font:15px/1.85 'Segoe UI','Malgun Gothic',sans-serif}
@@ -34,7 +34,7 @@
     @media print{aside,.skip{display:none}.shell{display:block}main{padding:0}.table-scroll{overflow:visible}pre.mermaid{break-inside:avoid}body{background:white}}
     </style></head>
 <body><a class="skip" href="#document">본문으로 이동</a><div class="shell">
-<aside><div class="brand">INTER SESSION<br>ORCHESTRATOR</div><span class="status">BUILDING · 핵심 실행 검증 / Orca 자동 입력 제한</span><nav aria-label="문서 목차"><a href="research/index.html">최신 벤치마킹 조사 →</a>
+<aside><div class="brand">INTER SESSION<br>ORCHESTRATOR</div><span class="status">BUILDING · 무인 입력 검증 남음</span><nav aria-label="문서 목차"><a href="research/index.html">최신 벤치마킹 조사 →</a>
 <a href="#_2">한눈에 보기</a>
 <a href="#_3">맥락</a>
 <a href="#_4">선택지</a>
@@ -56,8 +56,9 @@
 <a href="#_11">결과</a>
 <a href="#_14">재검토 조건</a>
 <a href="#_15">참고</a>
-<a href="#_16">변경 이력</a></nav></aside>
-<main id="document"><header class="meta"><span>AGENDA · KNOWLEDGE WIKI</span><span>2026.10.26 · WINDOWS / LOCAL</span></header>
+<a href="#_16">변경 이력</a>
+<a href="#2026-10-26">2026-10-26 첨부 전달 보완 범위</a></nav></aside>
+<main id="document"><header class="meta"><span>AGENDA DELIBERATION · VALIDATION</span><span>2026.10.26 · WINDOWS / LOCAL</span></header>
 <article><!-- sr:plan
 {"document_type":"decision","reader_questions":["단발 응답과 무엇이 다른가","어떤 조건으로 토론을 이어가고 마치는가","기존 세션의 도구와 자료는 어떻게 쓰는가","합의와 사용자 확정은 어떻게 구분하는가"],"visual_plan":[{"kind":"decision_matrix","content":"토론 실행 방식 비교","required":true},{"kind":"flowchart","content":"근거 수집과 상호 검토","required":true},{"kind":"state_diagram","content":"안건 상태와 중단 복구","required":true}],"visual_waiver":[]}
 -->
@@ -869,7 +870,46 @@
 <td>사용자 계층 정정 및 과정·결과의 세션 인지 요구 반영</td>
 </tr>
 </tbody>
-</table></div></article><footer>원본: docs/design/0010-agenda-deliberation.md<br>본문 SHA-256: e49bf9acd77babd688ae194b5ef38da8bde23d751f88d2eccb8b6432316801bd</footer></main></div>
+</table></div>
+<h2 id="2026-10-26">2026-10-26 첨부 전달 보완 범위</h2>
+<p>질문의 attachmentIds, 논거 원문과 첨부 metadata, 상호 검토·최종 결과의 공유 파일을 연결했다. 인증된 두 참여자의 실제 HTTP 공유·원본 바이트와 SHA-256 동일성·정확한 반응자·피드백을 검증했다. 모델을 대체한 좌장 runner로 실제 조율 흐름을 실행해 6개 논거 파일이 생성된 검토 요청과 최종 정리까지 이어지는 것도 확인했다. 5개를 넘는 참조는 추가 공유 자료로 보존하며, 비공개 업로드·다른 방·철회된 등록·읽기 전용 쓰기는 거부한다. (직접 실행·측정, 2026-10-26)</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>항목</th>
+<th>결과</th>
+<th>증거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>질문 → 논거 → 상호 검토 → 결과</td>
+<td>PASS</td>
+<td>실제 coordinator 흐름, 6개 참조·검토 첨부·지식 provenance 보존</td>
+</tr>
+<tr>
+<td>참여자 인증·파일 원본·반응자</td>
+<td>PASS</td>
+<td>별도 HTTP 서버와 두 참여자 토큰, 원본·hash·신원 일치</td>
+</tr>
+<tr>
+<td>기존 DB와 응답 길이</td>
+<td>PASS</td>
+<td>기존 11컬럼 검토 테이블에 실제 저장, 8000자 좌장 응답 보존</td>
+</tr>
+<tr>
+<td>회귀 검사</td>
+<td>PASS</td>
+<td>전체 테스트 155/155, 실패·건너뜀 0</td>
+</tr>
+<tr>
+<td>native CLI 무인 실행</td>
+<td>UNVERIFIED</td>
+<td>이번 검증에서 provider 재실행 없음, 기존 Orca 입력 제한 유지</td>
+</tr>
+</tbody>
+</table></div>
+<p>검증 근거는 <code>docs/validation/attachment-sharing.json</code>이다. 기존 한도·승인 실행 분리·5개/10MiB 제한을 유지한다. native 자동 조작의 외부 제한은 이 HTTP 검증으로 해결됐다고 주장하지 않는다.</p></article><footer>원본: docs/design/0010-agenda-deliberation.md<br>본문 SHA-256: 770e86560275f98999bfd0e738bc078f13c84a45dc88f8f0cdc92d458bb6fa2b</footer></main></div>
 <!-- Mermaid third-party license: The MIT License (MIT)
 
 Copyright (c) 2014 - 2022 Knut Sveidqvist

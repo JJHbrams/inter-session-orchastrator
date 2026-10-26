@@ -1,0 +1,183 @@
+{
+  "date": "2026-10-26",
+  "runtime": "real IAB browser on isolated loopback HTTP port4319",
+  "database": "isolated validation fixture; existing discussion data untouched",
+  "observations": [
+    {
+      "step": "collapse-active-parent",
+      "result": {
+        "draft": "미전송 초안 · 채널을 접어도 유지",
+        "groups": [
+          {
+            "controls": "channel-children-81319a56-bef7-4a51-a666-67c379863fb6",
+            "expanded": "false",
+            "hidden": true,
+            "name": "▸# 검증 · 자료 토론"
+          },
+          {
+            "controls": "channel-children-4df6c032-103b-42df-8ff1-b76c122688d2",
+            "expanded": "true",
+            "hidden": false,
+            "name": "▾# 검증 · 설계 토론"
+          },
+          {
+            "controls": "channel-children-__unassigned__",
+            "expanded": "true",
+            "hidden": false,
+            "name": "▾채널 없음"
+          }
+        ],
+        "selected": "근거 확인",
+        "timeline": "나사용자채널을 접어도 이 대화와 작성 중 입력은 유지됩니다.\npost · 2026. 10. 26. 오전 11:36:21👍👎❓✅💡",
+        "title": "근거 확인"
+      }
+    },
+    {
+      "step": "poll-preserves-collapsed-draft",
+      "result": {
+        "draft": "미전송 초안 · 채널을 접어도 유지",
+        "expanded": "false",
+        "title": "근거 확인"
+      }
+    },
+    {
+      "step": "keyboard-enter",
+      "expanded": "true"
+    },
+    {
+      "step": "keyboard-space",
+      "expanded": "false"
+    },
+    {
+      "step": "right-menu-preserves-collapse",
+      "expanded": "false",
+      "menu": "이름 변경\n채널 보관\n\n하위 토론장 2개를 먼저 보관해줘."
+    },
+    {
+      "step": "shift-F10-menu",
+      "expanded": "false",
+      "menu": "이름 변경\n채널 보관\n\n하위 토론장 2개를 먼저 보관해줘."
+    },
+    {
+      "step": "rename-keeps-ID-state",
+      "expanded": "false"
+    },
+    {
+      "step": "reload-persists-collapse",
+      "expanded": "false"
+    },
+    {
+      "step": "newroom-expands-channel",
+      "expanded": "true",
+      "roomVisible": true
+    },
+    {
+      "step": "new-unassigned-room-expands",
+      "expanded": "true",
+      "roomVisible": true
+    },
+    {
+      "step": "archived-group-collapse",
+      "expanded": "false",
+      "roomHidden": true
+    },
+    {
+      "step": "archived-default-hidden",
+      "archiveGroupCount": 0
+    },
+    {
+      "step": "independent-second-toggle",
+      "result": [
+        {
+          "expanded": "true",
+          "name": "▾# 검증 · 자료 토론 수정"
+        },
+        {
+          "expanded": "false",
+          "name": "▸# 검증 · 설계 토론"
+        },
+        {
+          "expanded": "true",
+          "name": "▾채널 없음"
+        }
+      ]
+    }
+  ],
+  "screenshot": "docs/screenshots/channel-tree.png",
+  "nativeProviderExecution": "not rerun for this UI change",
+  "exe": "not built",
+  "uiAudit": {
+    "reviewer": "independent planner, evidence packet review",
+    "criteria": {
+      "AC-1": "PASS",
+      "AC-2": "PASS",
+      "AC-3": "PASS",
+      "AC-4": "PASS",
+      "AC-5": "PASS",
+      "AC-6": "PASS"
+    }
+  },
+  "mainRuntime": {
+    "port": 4318,
+    "channelButtons": 4,
+    "refreshVerified": true,
+    "observations": {
+      "before": {
+        "draft": "",
+        "messages": 19,
+        "title": "근거 조사 → 상호 검토 → 합의"
+      },
+      "collapsed": {
+        "draft": "",
+        "expanded": "false",
+        "messages": 19,
+        "title": "근거 조사 → 상호 검토 → 합의"
+      },
+      "restoredExpanded": true
+    },
+    "finalHttpSmoke": {
+      "roomsStatus": 200,
+      "rooms": 6,
+      "channelModuleStatus": 200,
+      "connectionAlertVisible": false
+    }
+  },
+  "dataPreservation": [
+    {
+      "table": "channels",
+      "originalRows": 3,
+      "allOriginalColumnsPreserved": true
+    },
+    {
+      "table": "rooms",
+      "originalRows": 6,
+      "allOriginalColumnsPreserved": true
+    },
+    {
+      "table": "sessions",
+      "originalRows": 8,
+      "allOriginalColumnsPreserved": true
+    },
+    {
+      "table": "messages",
+      "originalRows": 63,
+      "allOriginalColumnsPreserved": true
+    },
+    {
+      "table": "decisions",
+      "originalRows": 3,
+      "allOriginalColumnsPreserved": true
+    },
+    {
+      "table": "sources",
+      "originalRows": 17,
+      "allOriginalColumnsPreserved": true
+    }
+  ],
+  "tests": {
+    "command": "npm test",
+    "passed": 155,
+    "failed": 0,
+    "skipped": 0
+  }
+}

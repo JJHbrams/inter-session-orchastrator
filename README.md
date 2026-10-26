@@ -92,6 +92,7 @@ npm test
 - [입력란 확인 후 초안 감지 차단 복구](docs/composer-recovery.html) / [명세 원문](docs/design/0009-composer-recovery.md) / [검증 근거](docs/validation/composer-recovery.json)
 - [안건별 자율 토론·채널 → 토론장 지식 위키](docs/agenda-deliberation.html) / [명세](docs/design/0010-agenda-deliberation.md) — 핵심 구현·실제 두 provider 검증, 자동 입력 제한은 [검증 근거](docs/validation/agenda-deliberation.json) 참조. 기본 자료 루트는 `D:\inter_session_debate`, 앱 설정에서 변경 가능. 로컬 위키 진입점은 해당 루트의 `wiki/index.md`다.
 
+- [채널별 토론장 접기·펼치기](docs/channel-tree.html) / [명세](docs/design/0011-channel-tree.md) / [실제 UI 검증](docs/validation/channel-tree.json) — 채널 제목 클릭 또는 Enter·Space로 목록을 접고 펼친다. 펼침 상태는 현재 브라우저에 저장되며 열린 대화와 초안은 유지한다.
 - [별도 좌장·인증 복구·메신저 명세](docs/dedicated-chair.html) / [원문](docs/design/0003-dedicated-chair.md) / [실제 검증 근거](docs/validation/dedicated-chair.json)
 - [패널 조절·이름 변경 명세](docs/resizable-panels.html) / [원문](docs/design/0004-resizable-panels.md)
 - [서식 있는 대화·공유 첨부 명세](docs/rich-attachments.html) / [원문](docs/design/0005-rich-attachments.md) / [검증 근거](docs/validation/rich-attachments.json)

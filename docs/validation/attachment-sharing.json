@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-26",
+  "runtime": ["authenticated loopback HTTP server with isolated database", "real coordinator queues with deterministic fake chair model"],
+  "tests": {"command": "npm test", "passed": 155, "failed": 0, "skipped": 0},
+  "criteria": {
+    "B1": "PASS: planned question attachment arrives on target delivery",
+    "B2": "PASS: six evidence files, generated review references, attached review, final file links and knowledge provenance",
+    "B3": "PASS: A shares bytes, B reads identical base64 and SHA-256, exact B actor/message reaction feedback reaches A and chair",
+    "B4": "PASS: staged private and wrong-room reads rejected; anonymous, read-only writes and revoked access denied; shared read-only read allowed",
+    "B5": "PASS: six aggregate references retain metadata while actual message attachment count stays at five; review idempotency enforced"
+  },
+  "regressions": ["original 11-column review table migrated and used in full lifecycle", "8000-character chair speech remains intact with overflow reference reply", "unshared overflow reference rejected"],
+  "sources": ["tests/debate-attachments.test.js", "tests/sharing-http.test.js", "tests/attachments.test.js", "tests/reaction-feedback.test.js"],
+  "review": "independent planner acceptance PASS for scoped HTTP/coordinator behavior",
+  "nativeProviderExecution": "not rerun in this change; automatic Orca draft/paste handling remains unverified",
+  "exe": "not built"
+}

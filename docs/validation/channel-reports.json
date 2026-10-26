@@ -1,0 +1,18 @@
+[
+  {
+    "slug": "channel-tree",
+    "wikiBodyMatch": true,
+    "htmlDigestMatch": true,
+    "diagramsParsed": 3,
+    "resourcesExist": true,
+    "visualInspection": "app screenshot verified separately; report HTML not visually inspected due browser local-file restriction"
+  },
+  {
+    "slug": "agenda-deliberation",
+    "wikiBodyMatch": true,
+    "htmlDigestMatch": true,
+    "diagramsParsed": 6,
+    "resourcesExist": true,
+    "visualInspection": "app screenshot verified separately; report HTML not visually inspected due browser local-file restriction"
+  }
+]
