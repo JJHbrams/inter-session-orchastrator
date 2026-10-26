@@ -9,12 +9,14 @@ import {createAttachmentComposer} from '/attachments.js';
 import {deliveryPresentation} from '/delivery-status.js';
 import {chairSettingsFields,dialoguePresets,dialogueLimitSummary} from '/chair-settings.js';
 import {createAgendaUI,agendaMessagePresentation} from '/agenda-ui.js';
+import {UNASSIGNED_CHANNEL_KEY,bindChannelDisclosure,createChannelNav} from '/channel-nav.js';
 let current, rooms=[], channels=[], pendingSend, selectedRoomId,showArchived=false;const draftBodies=new Map(); const $=s=>document.querySelector(s);
 const connection=document.createElement('div');connection.id='connection';connection.setAttribute('role','status');connection.hidden=true;$('#error').before(connection);
 const api=createApiClient({onConnection:state=>{connection.hidden=state==='online';connection.textContent=state==='offline'?'연결 끊김 · 입력은 보존돼. 로컬 서버가 돌아오면 자동으로 다시 연결할게.':state==='reconnecting'?'로컬 서버에 다시 연결하는 중…':'';}});
 const req=api.request;
 const renderMarkdown=createRenderer({parse:source=>marked.parse(source,{gfm:true,breaks:true}),sanitize:DOMPurify.sanitize.bind(DOMPurify)});
 let agendaUI;
+const channelNav=createChannelNav();
 const text=(tag,value,cls)=>{const x=document.createElement(tag);x.textContent=value;if(cls)x.className=cls;return x};
 function actionIcon(name){
  const paths={search:'m21 21-5-5 M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0',invite:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M20 8v6 M17 11h6',workspace:'M3 7h7l2 2h9v11H3Z M3 7V4h7l2 3',chair:'M5 12h14v8H5Z M7 12V4h10v8 M3 16h18',detail:'M4 4h16v16H4Z M14 4v16',more:'M5 12h.01 M12 12h.01 M19 12h.01',archive:'M3 4h18v4H3Z M5 8v12h14V8 M10 12h4',pause:'M8 5v14 M16 5v14',settings:'M4 7h16 M4 17h16 M8 4v6 M16 14v6',reset:'M4 11a8 8 0 1 1 2 7 M4 4v7h7'};
@@ -85,14 +87,19 @@ function renderNav(){
  const visible=visibleRooms(),groups=[...channels.filter(c=>showArchived||!c.archived_at).map(c=>[c,visible.filter(r=>r.channel_id===c.id)]),[{name:'채널 없음'},visible.filter(r=>!r.channel_id)]];
  for(const [channel,list] of groups){
   if(!list.length&&!channel.id)continue;
-  const heading=text('div','','channel-label'+(channel.archived_at?' archived':''));heading.append(text('span',(channel.id?'# ':'')+channel.name,'nav-label'));if(channel.archived_at)heading.append(text('small','보관','nav-archive-badge'));
-  if(channel.id){heading.dataset.channelId=channel.id;heading.tabIndex=0;bindNavContextMenu(heading,'channel',channel);}
-  nav.append(heading);
+  const key=channel.id||UNASSIGNED_CHANNEL_KEY,heading=text('div','','channel-label'+(channel.archived_at?' archived':''));
+  const toggle=text('button','','channel-toggle');toggle.type='button';toggle.dataset.channelId=key;
+  const chevron=text('span','','channel-chevron');chevron.setAttribute('aria-hidden','true');toggle.append(chevron,text('span',(channel.id?'# ':'')+channel.name,'nav-label'));if(channel.archived_at)toggle.append(text('small','보관','nav-archive-badge'));
+  const childGroup=text('div','','channel-child-group');childGroup.id='channel-children-'+encodeURIComponent(key);
+  toggle.setAttribute('aria-controls',childGroup.id);heading.append(toggle);
+  if(channel.id)bindNavContextMenu(toggle,'channel',channel);
+  bindChannelDisclosure({button:toggle,group:childGroup,state:channelNav,key});
+  nav.append(heading,childGroup);
   for(const room of list){
    const selected=current?.id===room.id,row=text('div','','room-nav-row'+(selected?' active':''));row.dataset.roomId=room.id;
    const button=text('button',room.name,'room-link'+(selected?' active':'')+(room.archived_at?' archived':''));if(room.archived_at)button.append(text('small','보관','nav-archive-badge'));button.type='button';button.onclick=()=>{closeNavContextMenu();openRoom(room.id);};bindNavContextMenu(button,'room',room);
    if(selected)button.setAttribute('aria-current','page');
-   row.append(button);nav.append(row);
+   row.append(button);childGroup.append(row);
   }
  }
  if(focusId?.roomId)nav.querySelector(`[data-room-id="${CSS.escape(focusId.roomId)}"] .room-link`)?.focus();
@@ -440,7 +447,7 @@ $('#composer').addEventListener('submit',async event=>{
   try{await req(`/api/rooms/${roomId}/messages`,{method:'POST',body:JSON.stringify({...payload,requestKey:sending.key})});if(pendingSend===sending)pendingSend=null;attachmentComposer.clearSent(attachments,roomId);if(draftBodies.get(roomId)===payload.body)draftBodies.set(roomId,'');if(current?.id===roomId){if($('#body').value===payload.body){$('#body').value='';mentionClosed=false;}await openRoom(roomId);error();}}
   catch(e){error(e.message);}
 });
-$('#newRoom').onclick=()=>$('#roomDialog').showModal();$('#newChannel').onclick=()=>$('#channelDialog').showModal();$('#createRoom').onclick=async e=>{e.preventDefault();try{const r=await req('/api/rooms',{method:'POST',body:JSON.stringify({name:$('#roomName').value,channelId:$('#channelChoice').value||null,cwd:$('#roomCwd').value.trim()||undefined})});$('#roomDialog').close();await refresh(false);await openRoom(r.id);showDiscovery()}catch(e){error(e.message)}};$('#createChannel').onclick=async e=>{e.preventDefault();try{await req('/api/channels',{method:'POST',body:JSON.stringify({name:$('#channelName').value})});$('#channelDialog').close();refresh(false)}catch(e){error(e.message)}};
+$('#newRoom').onclick=()=>$('#roomDialog').showModal();$('#newChannel').onclick=()=>$('#channelDialog').showModal();$('#createRoom').onclick=async e=>{e.preventDefault();try{const channelId=$('#channelChoice').value||null,r=await req('/api/rooms',{method:'POST',body:JSON.stringify({name:$('#roomName').value,channelId,cwd:$('#roomCwd').value.trim()||undefined})});if(channelId)channelNav.expand(channelId);$('#roomDialog').close();await refresh(false);await openRoom(r.id);showDiscovery()}catch(e){error(e.message)}};$('#createChannel').onclick=async e=>{e.preventDefault();try{await req('/api/channels',{method:'POST',body:JSON.stringify({name:$('#channelName').value})});$('#channelDialog').close();refresh(false)}catch(e){error(e.message)}};
 $('#pause').onclick=async()=>{try{await req(`/api/rooms/${current.id}/${current.paused_at?'resume':'pause'}`,{method:'POST',body:'{}'});openRoom(current.id)}catch(e){error(e.message)}};$('#archive').onclick=()=>{if(current)changeArchive('room',current);};
 $('#showArchived').onclick=async()=>{showArchived=!showArchived;$('#showArchived').setAttribute('aria-checked',String(showArchived));closeNavContextMenu();await refresh(false);await ensureVisibleSelection();};
 $('#kind').onchange=()=>renderPreview();
