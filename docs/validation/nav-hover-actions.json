@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-26",
+  "runtime": "real IAB browser, isolated 4319 validation server",
+  "tests": {
+    "command": "node --test tests/channel-nav.test.js tests/layout.test.js",
+    "passed": 10,
+    "failed": 0
+  },
+  "observations": [
+    {
+      "step": "not-hovered",
+      "result": {
+        "opacity": "0",
+        "pointerEvents": "none"
+      }
+    },
+    {
+      "step": "pointer-over-channel",
+      "result": {
+        "expanded": "true",
+        "focus": false,
+        "hover": true,
+        "opacity": "1"
+      }
+    },
+    {
+      "step": "channel-rename-icon",
+      "expanded": "false"
+    },
+    {
+      "step": "inactive-room-rename-keeps-selection-draft",
+      "result": {
+        "draft": "hover 검증 미전송 초안",
+        "selected": "미소속도 생성하면 펼침",
+        "title": "미소속도 생성하면 펼침"
+      }
+    },
+    {
+      "step": "room-archive-icon",
+      "remaining": 0,
+      "draft": "hover 검증 미전송 초안"
+    },
+    {
+      "step": "channel-with-live-children-disabled",
+      "disabled": true,
+      "title": "하위 토론장 1개를 먼저 보관해줘."
+    },
+    {
+      "step": "channel-archive-enabled-after-children",
+      "enabled": true
+    },
+    {
+      "step": "channel-archived",
+      "count": 0
+    },
+    {
+      "step": "channel-and-rooms-restore-icons",
+      "channelArchiveLabel": "하위 토론장 1개를 먼저 보관해줘.",
+      "roomVisible": true
+    },
+    {
+      "step": "keyboard-action-focus",
+      "result": {
+        "action": "rename",
+        "id": "81319a56-bef7-4a51-a666-67c379863fb6",
+        "kind": "channel",
+        "opacity": "1"
+      }
+    },
+    {
+      "step": "poll-preserves-action-focus",
+      "result": {
+        "action": "rename",
+        "id": "81319a56-bef7-4a51-a666-67c379863fb6",
+        "kind": "channel",
+        "opacity": "1"
+      }
+    },
+    {
+      "step": "context-menu-retained",
+      "menu": "이름 변경\n채널 보관\n\n하위 토론장 3개를 먼저 보관해줘."
+    }
+  ],
+  "screenshot": "docs/screenshots/nav-hover-actions.png",
+  "mainData": "rename/archive executed only in isolated fixture"
+}

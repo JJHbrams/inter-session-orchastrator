@@ -20,6 +20,7 @@ const channelNav=createChannelNav();
 const text=(tag,value,cls)=>{const x=document.createElement(tag);x.textContent=value;if(cls)x.className=cls;return x};
 function actionIcon(name){
  const paths={search:'m21 21-5-5 M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0',invite:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M20 8v6 M17 11h6',workspace:'M3 7h7l2 2h9v11H3Z M3 7V4h7l2 3',chair:'M5 12h14v8H5Z M7 12V4h10v8 M3 16h18',detail:'M4 4h16v16H4Z M14 4v16',more:'M5 12h.01 M12 12h.01 M19 12h.01',archive:'M3 4h18v4H3Z M5 8v12h14V8 M10 12h4',pause:'M8 5v14 M16 5v14',settings:'M4 7h16 M4 17h16 M8 4v6 M16 14v6',reset:'M4 11a8 8 0 1 1 2 7 M4 4v7h7'};
+ paths.restore='M3 4h18v4H3Z M5 8v12h14V8 M12 17v-6 M9 14l3-3 3 3';
  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS('http://www.w3.org/2000/svg','path');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.classList.add('action-icon');path.setAttribute('d',paths[name]||paths.more);svg.append(path);return svg;
 }
 function decorateAction(button,name){if(!button)return;const label=button.textContent;button.replaceChildren(actionIcon(name),text('span',label,'tool-label'));button.setAttribute('aria-label',label);button.title=label;}
@@ -44,6 +45,16 @@ function renameButton(label,onClick){
  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS('http://www.w3.org/2000/svg','path');
  svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.setAttribute('focusable','false');
  path.setAttribute('d','m16 4 4 4M4 16 16 4a2.8 2.8 0 0 1 4 4L8 20l-5 1 1-5Z');svg.append(path);button.append(svg);return button;
+}
+function navRowActions(kind,item){
+ const actions=text('span','','nav-row-actions'),label=kind==='channel'?'채널':'토론장';
+ const rename=renameButton(item.name+' '+label+' 이름 변경',event=>{event.stopPropagation();closeNavContextMenu();renameDialog(kind,(kind==='channel'?channels:rooms).find(value=>value.id===item.id)||item);});rename.title='이름 변경';
+ const archiveLabel=item.archived_at?'보관 해제':'보관',archive=text('button','','nav-row-action');archive.type='button';archive.append(actionIcon(item.archived_at?'restore':'archive'));archive.setAttribute('aria-label',item.name+' '+label+' '+archiveLabel);
+ const remaining=kind==='channel'?rooms.filter(room=>room.channel_id===item.id&&!room.archived_at).length:0;
+ archive.disabled=!item.archived_at&&remaining>0;archive.title=archive.disabled?`하위 토론장 ${remaining}개를 먼저 보관해줘.`:archiveLabel;
+ archive.onclick=event=>{event.stopPropagation();changeArchive(kind,(kind==='channel'?channels:rooms).find(value=>value.id===item.id)||item);};
+ for(const [button,action] of [[rename,'rename'],[archive,'archive']]){button.classList.add('nav-row-action');button.dataset.navAction=action;button.dataset.navKind=kind;button.dataset.navId=item.id;}
+ actions.append(rename,archive);return actions;
 }
 let navContextMenu;
 function closeNavContextMenu(restoreFocus=false){
@@ -83,6 +94,7 @@ document.addEventListener('scroll',event=>{if(navContextMenu&&!navContextMenu.el
 function renderNav(){
  const nav=$('#rooms'),focused=document.activeElement;
  const focusId=focused.closest?.('[data-room-id],[data-channel-id]')?.dataset;
+ const focusedAction=focused.dataset.navAction?{...focused.dataset}:null;
  nav.replaceChildren();
  const visible=visibleRooms(),groups=[...channels.filter(c=>showArchived||!c.archived_at).map(c=>[c,visible.filter(r=>r.channel_id===c.id)]),[{name:'채널 없음'},visible.filter(r=>!r.channel_id)]];
  for(const [channel,list] of groups){
@@ -92,17 +104,19 @@ function renderNav(){
   const chevron=text('span','','channel-chevron');chevron.setAttribute('aria-hidden','true');toggle.append(chevron,text('span',(channel.id?'# ':'')+channel.name,'nav-label'));if(channel.archived_at)toggle.append(text('small','보관','nav-archive-badge'));
   const childGroup=text('div','','channel-child-group');childGroup.id='channel-children-'+encodeURIComponent(key);
   toggle.setAttribute('aria-controls',childGroup.id);heading.append(toggle);
-  if(channel.id)bindNavContextMenu(toggle,'channel',channel);
+  toggle.title=channel.name;
+  if(channel.id){bindNavContextMenu(toggle,'channel',channel);heading.append(navRowActions('channel',channel));}
   bindChannelDisclosure({button:toggle,group:childGroup,state:channelNav,key});
   nav.append(heading,childGroup);
   for(const room of list){
    const selected=current?.id===room.id,row=text('div','','room-nav-row'+(selected?' active':''));row.dataset.roomId=room.id;
    const button=text('button',room.name,'room-link'+(selected?' active':'')+(room.archived_at?' archived':''));if(room.archived_at)button.append(text('small','보관','nav-archive-badge'));button.type='button';button.onclick=()=>{closeNavContextMenu();openRoom(room.id);};bindNavContextMenu(button,'room',room);
    if(selected)button.setAttribute('aria-current','page');
-   row.append(button);childGroup.append(row);
+   button.title=room.name;row.append(button,navRowActions('room',room));childGroup.append(row);
   }
  }
- if(focusId?.roomId)nav.querySelector(`[data-room-id="${CSS.escape(focusId.roomId)}"] .room-link`)?.focus();
+ if(focusedAction)nav.querySelector(`[data-nav-kind="${focusedAction.navKind}"][data-nav-id="${CSS.escape(focusedAction.navId)}"][data-nav-action="${focusedAction.navAction}"]`)?.focus();
+ else if(focusId?.roomId)nav.querySelector(`[data-room-id="${CSS.escape(focusId.roomId)}"] .room-link`)?.focus();
  else if(focusId?.channelId)nav.querySelector(`[data-channel-id="${CSS.escape(focusId.channelId)}"]`)?.focus();
  const select=$('#channelChoice'),empty=text('option','채널 없음');empty.value='';select.replaceChildren(empty);
  for(const c of channels.filter(c=>!c.archived_at)){const option=text('option',c.name);option.value=c.id;select.append(option);}

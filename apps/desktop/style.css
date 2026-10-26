@@ -91,6 +91,18 @@ body{background:#080d12}.app{width:100%;max-width:none;margin:0;height:100dvh;gr
 .room-nav-row.active{background:#1a3b3c}
 .room-nav-row .room-link{flex:1;min-width:0;width:auto;overflow-wrap:anywhere}
 .room-nav-row .room-link.active{background:transparent}
+.channel-label,.room-nav-row{position:relative}
+.channel-toggle{min-height:28px}.channel-toggle .nav-label,.room-nav-row .room-link{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;overflow-wrap:normal}
+.nav-row-actions{position:absolute;right:3px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:2px;opacity:0;pointer-events:none;background:var(--panel,#111c27);border-radius:6px;box-shadow:-5px 0 8px var(--panel,#111c27)}
+.room-nav-row.active .nav-row-actions{background:#1a3b3c;box-shadow:-5px 0 8px #1a3b3c}
+.nav-row-actions button.nav-row-action{display:inline-flex;align-items:center;justify-content:center;flex:none;width:24px;height:24px;margin:0;padding:4px;border:0;border-radius:5px;background:transparent;color:var(--muted)}
+.nav-row-actions .nav-row-action svg{width:15px;height:15px}
+.nav-row-actions .nav-row-action:hover:not(:disabled),.nav-row-actions .nav-row-action:focus-visible{color:var(--teal);background:#29434e;outline:1px solid #46716e}
+.nav-row-actions .nav-row-action:disabled{opacity:.35;cursor:not-allowed}
+.channel-label:hover>.nav-row-actions,.channel-label:focus-within>.nav-row-actions,.room-nav-row:hover>.nav-row-actions,.room-nav-row:focus-within>.nav-row-actions{opacity:1;pointer-events:auto}
+.channel-label:hover>.channel-toggle,.channel-label:focus-within>.channel-toggle{padding-right:55px}
+.room-nav-row:hover>.room-link,.room-nav-row:focus-within>.room-link{padding-right:58px}
+@media(pointer:coarse){.nav-row-actions{opacity:1;pointer-events:auto}.channel-toggle{padding-right:55px}.room-nav-row .room-link{padding-right:58px}}
 .nav-context-menu{position:fixed;z-index:100;min-width:180px;max-width:calc(100vw - 16px);padding:5px;background:#1a2631;border:1px solid #41515e;border-radius:9px;box-shadow:0 10px 32px #0008}
 .nav-context-menu [role="menuitem"]{display:block;width:100%;border:0;background:transparent;text-align:left;padding:9px 12px;border-radius:5px;color:var(--text)}
 .nav-context-menu [role="menuitem"]:hover,.nav-context-menu [role="menuitem"]:focus-visible{background:#29434e;color:#b5f5e9;outline:0}

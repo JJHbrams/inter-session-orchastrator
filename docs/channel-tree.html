@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="source-sha256" content="e7250349a0be643ba52b8c9527a45295d834b848afae6b942475de8cb41d12bb"><title>채널별 토론장 접기와 펼치기</title><style>
+<meta name="source-sha256" content="d634b06fc0af3bd795681ad32d472b3b140c23a560144e1e8c3a199e37a8b1a7"><title>채널별 토론장 접기와 펼치기</title><style>
     :root{--ink:#202c35;--muted:#64757a;--accent:#006c62;--line:#dce4e4;--paper:#fff;--bg:#f3f6f5}
     *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}
     body{margin:0;color:var(--ink);background:var(--bg);font:15px/1.85 'Segoe UI','Malgun Gothic',sans-serif}
@@ -53,7 +53,8 @@
 <a href="#11">11. 착수 순서</a>
 <a href="#_9">함께 검증할 공유 기능</a>
 <a href="#_10">인수 기록</a>
-<a href="#_11">참고</a></nav></aside>
+<a href="#_11">참고</a>
+<a href="#2026-10-26">2026-10-26 행 빠른 작업</a></nav></aside>
 <main id="document"><header class="meta"><span>CHANNEL NAVIGATION · VALIDATION</span><span>2026.10.26 · WINDOWS / LOCAL</span></header>
 <article><!-- sr:plan
 {"document_type":"decision","reader_questions":["채널 클릭은 무엇을 바꾸나","접힌 상태와 활성 토론장은 어떻게 유지하나","기존 메뉴와 보관 기능은 유지되나"],"visual_plan":[{"kind":"flowchart","content":"채널 클릭과 표시 상태 갱신","required":true},{"kind":"state_diagram","content":"채널 접힘과 펼침","required":true}],"visual_waiver":[]}
@@ -177,9 +178,9 @@
 </thead>
 <tbody>
 <tr>
-<td>채널 제목은 현재 div이며 클릭 이벤트가 없다.</td>
+<td>도입 전 채널 제목은 div이며 클릭 이벤트가 없었다.</td>
 <td>apps/desktop/app.js renderNav</td>
-<td>실제 button과 child group을 도입</td>
+<td>실제 button과 child group으로 교체 완료</td>
 </tr>
 <tr>
 <td>목록은 폴링 때 다시 렌더링한다.</td>
@@ -365,7 +366,37 @@
 </table></div>
 <p>브라우저 관찰 13개는 <code>docs/validation/channel-tree.json</code>, 실제 화면은 <code>docs/screenshots/channel-tree.png</code>에 보관한다. 기존 앱 데이터의 원래 컬럼은 채널 3개·토론장 6개·세션 8개·메시지 63개·결정 3개·출처 17개에서 보존했다. (직접 실행·측정, 2026-10-26)</p>
 <h2 id="_11">참고</h2>
-<p><a href="research/index.html">inter-session-index</a>, [[agenda-deliberation]]. 실제 Codex·Claude의 자동 입력과 무인 진행 제한은 0010의 별도 검증 범위를 따른다. 이번 채널 UI 검증에서 외부 provider를 다시 실행하지 않았다.</p></article><footer>원본: docs/design/0011-channel-tree.md<br>본문 SHA-256: e7250349a0be643ba52b8c9527a45295d834b848afae6b942475de8cb41d12bb</footer></main></div>
+<p><a href="research/index.html">inter-session-index</a>, [[agenda-deliberation]]. 실제 Codex·Claude의 자동 입력과 무인 진행 제한은 0010의 별도 검증 범위를 따른다. 이번 채널 UI 검증에서 외부 provider를 다시 실행하지 않았다.</p>
+<h2 id="2026-10-26">2026-10-26 행 빠른 작업</h2>
+<p>채널·토론장 행에 마우스를 올리거나 키보드 포커스를 두면 연필·보관 아이콘을 표시한다. 기존 우클릭 메뉴와 같은 이름 변경·보관 경로를 사용한다. 보관된 항목은 보관 해제 아이콘으로 바뀐다. <code>채널 없음</code>에는 수정할 채널 객체가 없으므로 채널용 아이콘을 두지 않는다.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>확인 항목</th>
+<th>동작·검증</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>마우스·키보드 노출</td>
+<td>일반 상태는 숨김, 실제 포인터 hover와 키보드 focus에서 표시. 터치 포인터에서는 접근을 위해 상시 표시</td>
+</tr>
+<tr>
+<td>이름 변경</td>
+<td>채널 펼침 상태와 활성 토론장·미전송 초안을 보존</td>
+</tr>
+<tr>
+<td>보관·복원</td>
+<td>하위 미보관 토론장이 있으면 채널 보관 비활성 및 사유 툴팁, 모두 보관한 뒤 허용. 보관 목록에서 채널·토론장 복원</td>
+</tr>
+<tr>
+<td>탐색·포커스</td>
+<td>아이콘은 제목 버튼의 형제이며 클릭 전파를 차단. 폴링 후 같은 ID·동작의 버튼에 포커스 복원</td>
+</tr>
+</tbody>
+</table></div>
+<p>로컬 NotebookLM의 <code>frontend/src/components/ChatPanel/index.tsx</code>에서 hover 연필·보관과 클릭 전파 차단을 확인했다. <code>frontend/src/app/globals.css</code>의 Windows WebView hover 제약을 참고해 기본 데스크톱 hover 규칙에 미디어 조건을 두지 않았다. (로컬 소스 직접 확인, 2026-10-26)</p>
+<p>변경은 <code>apps/desktop/app.js</code>, <code>apps/desktop/style.css</code>에 국한한다. 기존 컨텍스트 메뉴·보관 API·채널 접힘 상태 저장 규칙은 유지한다. 검증 근거는 <code>docs/validation/nav-hover-actions.json</code>에 기록한다.</p></article><footer>원본: docs/design/0011-channel-tree.md<br>본문 SHA-256: d634b06fc0af3bd795681ad32d472b3b140c23a560144e1e8c3a199e37a8b1a7</footer></main></div>
 <!-- Mermaid third-party license: The MIT License (MIT)
 
 Copyright (c) 2014 - 2022 Knut Sveidqvist

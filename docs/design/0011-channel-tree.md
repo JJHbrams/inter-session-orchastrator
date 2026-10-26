@@ -75,7 +75,7 @@ updated: 2026-10-26
 
 | 사실 | 확인 위치 | 제약 |
 |---|---|---|
-| 채널 제목은 현재 div이며 클릭 이벤트가 없다. | apps/desktop/app.js renderNav | 실제 button과 child group을 도입 |
+| 도입 전 채널 제목은 div이며 클릭 이벤트가 없었다. | apps/desktop/app.js renderNav | 실제 button과 child group으로 교체 완료 |
 | 목록은 폴링 때 다시 렌더링한다. | refresh/openRoom/renderNav | 폴링이 접힘 상태나 포커스를 초기화하지 않아야 함 |
 | 채널·토론장 메뉴는 contextmenu 및 Shift+F10으로 열린다. | bindNavContextMenu | 키보드 토글과 메뉴 이벤트를 함께 유지 |
 | 보관 항목은 기본 숨김, 미소속 그룹에는 채널 ID가 없다. | visibleRooms/renderNav | 실제 ID와 별도 미소속 key를 구분 |
@@ -167,3 +167,18 @@ stateDiagram-v2
 ## 참고
 
 [[inter-session-index]], [[agenda-deliberation]]. 실제 Codex·Claude의 자동 입력과 무인 진행 제한은 0010의 별도 검증 범위를 따른다. 이번 채널 UI 검증에서 외부 provider를 다시 실행하지 않았다.
+
+## 2026-10-26 행 빠른 작업
+
+채널·토론장 행에 마우스를 올리거나 키보드 포커스를 두면 연필·보관 아이콘을 표시한다. 기존 우클릭 메뉴와 같은 이름 변경·보관 경로를 사용한다. 보관된 항목은 보관 해제 아이콘으로 바뀐다. `채널 없음`에는 수정할 채널 객체가 없으므로 채널용 아이콘을 두지 않는다.
+
+| 확인 항목 | 동작·검증 |
+|---|---|
+| 마우스·키보드 노출 | 일반 상태는 숨김, 실제 포인터 hover와 키보드 focus에서 표시. 터치 포인터에서는 접근을 위해 상시 표시 |
+| 이름 변경 | 채널 펼침 상태와 활성 토론장·미전송 초안을 보존 |
+| 보관·복원 | 하위 미보관 토론장이 있으면 채널 보관 비활성 및 사유 툴팁, 모두 보관한 뒤 허용. 보관 목록에서 채널·토론장 복원 |
+| 탐색·포커스 | 아이콘은 제목 버튼의 형제이며 클릭 전파를 차단. 폴링 후 같은 ID·동작의 버튼에 포커스 복원 |
+
+로컬 NotebookLM의 `frontend/src/components/ChatPanel/index.tsx`에서 hover 연필·보관과 클릭 전파 차단을 확인했다. `frontend/src/app/globals.css`의 Windows WebView hover 제약을 참고해 기본 데스크톱 hover 규칙에 미디어 조건을 두지 않았다. (로컬 소스 직접 확인, 2026-10-26)
+
+변경은 `apps/desktop/app.js`, `apps/desktop/style.css`에 국한한다. 기존 컨텍스트 메뉴·보관 API·채널 접힘 상태 저장 규칙은 유지한다. 검증 근거는 `docs/validation/nav-hover-actions.json`에 기록한다.
