@@ -113,11 +113,12 @@ export class ChairCoordinator {
         const questions=limited?[]:output.questions;
         const notice=limited?'\n\n[자동 대화 한도] 이 요청의 추가 질문 전달은 중단했어. 다음 사용자 입력은 새로운 대화 루프로 진행돼.':'';
         const response=s.post({roomId,senderSessionId:chair.session_id,body:output.speech,kind:'post',replyTo:delivery.message_id,requestKey:'chair-response:'+delivery.request_id,allowArchivedReply:true,attachmentIds:output.attachmentIds||[]});
+        const agendaHandled=this.debates?.applyChairOutput(roomId,chair,delivery,output,response.message)===true;
         if(limited){s.post({roomId,body:notice.trim(),kind:'post',replyTo:response.message.id,requestKey:'chair-limit:'+delivery.request_id,coordinator:true,allowArchivedReply:true});s.event(roomId,'dialogue.limit_reached',{rootId:budget.rootId,round:budget.round,requestsUsed:budget.requestsUsed,suppressedQuestions:output.questions.length});}
-        for(const [index,q] of questions.entries())s.post({roomId,senderSessionId:chair.session_id,body:q.body,kind:'followup',targets:q.targetMembershipIds,requestKey:`chair-question:${delivery.request_id}:${index}`,replyTo:delivery.message_id,attachmentIds:q.attachmentIds||[]});
+        if(!agendaHandled)for(const [index,q] of questions.entries())s.post({roomId,senderSessionId:chair.session_id,body:q.body,kind:'followup',targets:q.targetMembershipIds,requestKey:`chair-question:${delivery.request_id}:${index}`,replyTo:delivery.message_id,attachmentIds:q.attachmentIds||[]});
         for(const reaction of output.reactions||[])s.setReaction(roomId,reaction.messageId,reaction.emoji,reaction.active,`session:${chair.session_id}`);
-        if(output.proposal)s.resultForChair(roomId,chair.session_id,output.proposal.body,output.proposal.sourceIds,output.proposal.attachmentIds||[]);
-        if(output.debate)this.debates?.handleChairOutput(roomId,output);
+        if(output.proposal&&!agendaHandled)s.resultForChair(roomId,chair.session_id,output.proposal.body,output.proposal.sourceIds,output.proposal.attachmentIds||[]);
+        if(output.debate&&!agendaHandled)this.debates?.handleChairOutput(roomId,output);
         s.db.prepare('UPDATE messages SET reply_request_id=? WHERE id=?').run(delivery.request_id,response.message.id);
         s.evidence(attempt.id,'reply',`${run.provider||chair.provider}-chair`,response.message.id);s.updateChairRun(run.id,'completed');
       });
