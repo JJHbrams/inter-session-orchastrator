@@ -26,6 +26,10 @@ export function createChannelNav(storage){
  };
 }
 
+export function expandParentForNewRoom(state,channelId){
+ return state.expand(channelId||UNASSIGNED_CHANNEL_KEY);
+}
+
 export function bindChannelDisclosure({button,group,state,key}){
  const update=()=>{
   const expanded=state.expanded(key);
