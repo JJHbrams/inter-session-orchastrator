@@ -23,7 +23,7 @@
       <div class="content">
         <article class="conversation">
           <div id="error" role="alert"></div>
-          <div id="timeline" class="timeline" aria-live="polite"><div class="empty"><h2>공유 대화를 시작하세요</h2><p>토론장을 만들고 정확히 등록된 세션을 초대하면, 원문·수신자·전달 증거를 한곳에서 확인할 수 있습니다.</p></div></div>
+          <div id="agendaCard" class="agenda-card" hidden></div><div id="timeline" class="timeline" aria-live="polite"><div class="empty"><h2>공유 대화를 시작하세요</h2><p>토론장을 만들고 정확히 등록된 세션을 초대하면, 원문·수신자·전달 증거를 한곳에서 확인할 수 있습니다.</p></div></div>
           <form id="composer" class="composer"><label>전달 방식<select id="kind"><option value="post">게시</option><option value="notify">알림</option><option value="followup" selected>질문 / 실행 요청</option><option value="steer">명시적 steer</option></select></label><label class="message-label">메시지<textarea id="body" required maxlength="8000" placeholder="@이름으로 지정하거나 좌장에게 맡겨보세요" aria-controls="mentionMenu" aria-expanded="false" aria-autocomplete="list"></textarea><div id="mentionMenu" class="mention-menu" role="listbox" aria-label="참여자 멘션 후보" hidden></div></label><div id="recipientPreview" class="recipient-preview" aria-live="polite"></div><div class="composer-footer"><span id="composeNote">@이름으로 지정 · 멘션이 없으면 좌장이 내용을 보고 필요한 참여자에게 전달해요</span><button class="accent" type="submit">보내기</button></div></form>
         </article>
         <aside class="inspector"><section><h2>선택한 참여자</h2><div id="memberDetail" class="detail">카드를 선택하면 신원·모드·권한·관측 상태를 보여줍니다.</div></section><section><h2>작업 공간과 자료</h2><div id="workspaceDetail" class="detail">토론장의 작업 폴더와 내보낸 자료를 확인할 수 있습니다.</div></section><section><h2>연결 안내</h2><p class="muted">읽기 전용 세션은 대화와 상태를 볼 수 있지만 실행 요청을 받지 않습니다. 토큰은 초대한 세션에만 별도 전달하세요.</p></section></aside>

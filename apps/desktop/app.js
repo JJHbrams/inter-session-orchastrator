@@ -8,11 +8,13 @@ import {createRenderer,createMentionInput} from '/rich-text.js';
 import {createAttachmentComposer} from '/attachments.js';
 import {deliveryPresentation} from '/delivery-status.js';
 import {chairSettingsFields,dialoguePresets,dialogueLimitSummary} from '/chair-settings.js';
+import {createAgendaUI} from '/agenda-ui.js';
 let current, rooms=[], channels=[], pendingSend, selectedRoomId,showArchived=false;const draftBodies=new Map(); const $=s=>document.querySelector(s);
 const connection=document.createElement('div');connection.id='connection';connection.setAttribute('role','status');connection.hidden=true;$('#error').before(connection);
 const api=createApiClient({onConnection:state=>{connection.hidden=state==='online';connection.textContent=state==='offline'?'연결 끊김 · 입력은 보존돼. 로컬 서버가 돌아오면 자동으로 다시 연결할게.':state==='reconnecting'?'로컬 서버에 다시 연결하는 중…':'';}});
 const req=api.request;
 const renderMarkdown=createRenderer({parse:source=>marked.parse(source,{gfm:true,breaks:true}),sanitize:DOMPurify.sanitize.bind(DOMPurify)});
+let agendaUI;
 const text=(tag,value,cls)=>{const x=document.createElement(tag);x.textContent=value;if(cls)x.className=cls;return x};
 function actionIcon(name){
  const paths={search:'m21 21-5-5 M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0',invite:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M20 8v6 M17 11h6',workspace:'M3 7h7l2 2h9v11H3Z M3 7V4h7l2 3',chair:'M5 12h14v8H5Z M7 12V4h10v8 M3 16h18',detail:'M4 4h16v16H4Z M14 4v16',more:'M5 12h.01 M12 12h.01 M19 12h.01',archive:'M3 4h18v4H3Z M5 8v12h14V8 M10 12h4',pause:'M8 5v14 M16 5v14',settings:'M4 7h16 M4 17h16 M8 4v6 M16 14v6',reset:'M4 11a8 8 0 1 1 2 7 M4 4v7h7'};
@@ -213,7 +215,7 @@ async function openRoom(id,scroll=true){
   if(previousId&&previousId!==id)draftBodies.set(previousId,$('#body').value);
   current=view;attachmentComposer.setRoom(current.id);
   if(previousId!==current.id)$('#body').value=draftBodies.get(current.id)||'';
-  $('#title').textContent=current.name+(current.archived_at?' · 보관됨':current.paused_at?' · 중지됨':'');$('.eyebrow').textContent=(channels.find(c=>c.id===current.channel_id)?.name||'채널 없음')+' / 토론장';$('#pause').textContent=current.paused_at?'재개':'중지';$('#pause').disabled=!active();$('#archive').textContent=current.archived_at?'보관 해제':'토론장 보관';$('#archive').disabled=false;renderNav();renderParticipants();renderTimeline();renderDecisions();renderMentionMenu();updateRoomControls();renderChairControl();renderToolbar();loadWorkspace(current.id);if(scroll||follow)$('#timeline').scrollTop=$('#timeline').scrollHeight;
+  $('#title').textContent=current.name+(current.archived_at?' · 보관됨':current.paused_at?' · 중지됨':'');$('.eyebrow').textContent=(channels.find(c=>c.id===current.channel_id)?.name||'채널 없음')+' / 토론장';$('#pause').textContent=current.paused_at?'재개':'중지';$('#pause').disabled=!active();$('#archive').textContent=current.archived_at?'보관 해제':'토론장 보관';$('#archive').disabled=false;renderNav();renderParticipants();renderTimeline();renderDecisions();renderMentionMenu();updateRoomControls();renderChairControl();renderToolbar();loadWorkspace(current.id);await agendaUI?.setRoom(current.id);if(scroll||follow)$('#timeline').scrollTop=$('#timeline').scrollHeight;
  }catch(e){if(e.code!=='NETWORK_UNCERTAIN')error(e.message)}
 }
 
@@ -544,6 +546,12 @@ async function editLimits(){
 }
 function updateRoomControls(){for(const id of ['invite','limits','workspaceButton'])$('#'+id).disabled=!active();$('#composer button[type=submit]').disabled=!active()||attachmentComposer?.pending();const steer=$('#kind option[value=steer]');steer.disabled=true;steer.textContent='방향 수정 · 연결 미지원';}
 const inviteButton=memberButton('세션 초대',()=>showDiscovery());inviteButton.id='invite';const limitButton=memberButton('자동 대화 설정',editLimits);limitButton.id='limits';$('.room-actions').prepend(inviteButton,limitButton);$('#discover').onclick=showDiscovery;
+agendaUI=createAgendaUI({document,request:req,renderMarkdown,error,getRoom:()=>current,getChannels:()=>channels,onChange:()=>openRoom(current?.id,false)});
+const agendaButton=memberButton('안건으로 토론',()=>agendaUI.start());agendaButton.id='agendaStart';agendaButton.classList.add('toolbar-primary');
+const knowledgeButton=memberButton('자료·지식',()=>agendaUI.knowledge());knowledgeButton.id='knowledge';
+const settingsButton=memberButton('앱 설정',()=>agendaUI.settings());settingsButton.id='appSettings';
+$('.room-actions').prepend(agendaButton,knowledgeButton,settingsButton);
+decorateAction(knowledgeButton,'workspace');decorateAction(settingsButton,'settings');
 $('#workspaceButton').onclick=workspaceDialog;
 
 $('#kind').value='followup';$('#kind').dispatchEvent(new Event('change'));
