@@ -69,7 +69,8 @@ test('fake-chair lifecycle carries six evidence files into generated review and 
  await chairs.tick(room.id);
  state=debates.get(room.id,agenda.id);assert.equal(state.outcome,'consensus');
  const final=store.room(room.id).messages.find(m=>m.sender_session_id===chair.session_id&&m.body.startsWith('final'));
- assert.deepEqual(final.attachments.map(x=>x.id),files.slice(0,5).map(x=>x.id));assert.match(final.body,/추가 공유 자료/);assert.match(final.body,new RegExp(files[5].sha256));assert.match(final.body,new RegExp(`/api/rooms/${room.id}/attachments/${files[5].id}`));
+ const refs=store.room(room.id).messages.find(m=>m.reply_to===final.id&&m.body.includes('추가 공유 자료'));
+ assert.deepEqual(final.attachments.map(x=>x.id),files.slice(0,5).map(x=>x.id));assert.match(refs.body,new RegExp(files[5].sha256));assert.match(refs.body,new RegExp(`/api/rooms/${room.id}/attachments/${files[5].id}`));
  assert.deepEqual(state.reviews.find(x=>x.membership_id===b.membership.id).attachments.map(x=>x.id),[reviewFile.id]);
  assert.match(contexts.at(-1),new RegExp(b.session.id));assert.match(contexts.at(-1),new RegExp(candidate.id));
  assert.ok(knowledge.list(room.id,{kind:'argument'}).items.some(item=>item.provenance.some(p=>p.attachments?.some(x=>x.sha256===files[0].sha256))));
