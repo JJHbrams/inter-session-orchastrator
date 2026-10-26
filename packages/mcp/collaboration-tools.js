@@ -4,7 +4,7 @@ export const collaborationSchemas={
   room_knowledge_list:object({scope:{enum:['all','room','channel']},query:text,kind:{enum:['source','argument','consensus','']},since:{type:'integer',minimum:0}}),
   room_knowledge_read:{...object({itemId:text,revision:{type:'integer',minimum:1}}),required:['itemId']},
   room_knowledge_add:{...object({kind:{enum:['source','argument']},title:text,body:text,url:text,sourceIds:strings,requestKey:text}),required:['kind','title','body']},
-  room_review:{...object({agendaId:text,roundId:text,conclusionRevision:{type:'integer',minimum:1},stance:{enum:['agree','qualified','disagree','insufficient_evidence']},sourceIds:strings,body:text,requestId:text}),required:['agendaId','roundId','conclusionRevision','stance','body','requestId']},
+  room_review:{...object({agendaId:text,roundId:text,conclusionRevision:{type:'integer',minimum:1},stance:{enum:['agree','qualified','disagree','insufficient_evidence']},sourceIds:strings,attachmentIds:{type:'array',items:text,maxItems:5},body:text,requestId:text}),required:['agendaId','roundId','conclusionRevision','stance','body','requestId']},
   room_acknowledge_approval:{...object({noticeId:text,revision:{type:'integer',minimum:1}}),required:['noticeId','revision']}
 };
 export const collaborationDescriptions={
