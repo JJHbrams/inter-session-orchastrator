@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CHAIR_SEAT,WORK_STATIONS,TABLE_SLOTS,floorPath,floorPoint,isAtMeeting,meetingLayout,spot} from '../apps/desktop/office-pixi-model.js';
+import {CHAIR_SEAT,stationSpot,OFFICE_ANCHORS,WORK_STATIONS,TABLE_SLOTS,floorPath,floorPoint,isAtMeeting,meetingLayout,spot} from '../apps/desktop/office-pixi-model.js';
 
 test('table anchors are the approved floor slots and never on the table',()=>{for(let i=0;i<TABLE_SLOTS.length;i++){const p=spot({id:`a${i}`,zone:'table',state:'queued'},i);assert.deepEqual([p.x,p.y],TABLE_SLOTS[i]);assert.equal(floorPoint(p),true)}});
 test('floor routing has only safe sampled segments',()=>{const path=floorPath({x:40,y:79},{x:58,y:50}),all=[{x:40,y:79},...path];assert.ok(path.length);for(let i=1;i<all.length;i++)for(let s=0;s<=24;s++)assert.equal(floorPoint({x:all[i-1].x+(all[i].x-all[i-1].x)*s/24,y:all[i-1].y+(all[i].y-all[i-1].y)*s/24}),true)});
@@ -10,3 +10,5 @@ test('meeting participants occupy unique seats facing the chair with safe approa
 test('only eligible session participants attend and agent state is not changed',()=>{const active={id:'active',kind:'session',state:'failed',zone:'library'},moving={id:'moving',kind:'session',state:'running',zone:'development'},child={id:'child',kind:'subagent',state:'idle',zone:'table'},left={id:'left',kind:'session',state:'left',zone:'table'};assert.equal(isAtMeeting(active),true);assert.equal(isAtMeeting(moving),false);assert.equal(isAtMeeting(child),false);assert.equal(isAtMeeting(left),false);assert.equal(meetingLayout([active,moving,child,left]).has('active'),true);assert.equal(active.state,'failed');assert.equal(moving.zone,'development')});
 
 test('each workstation can be reached from the doorway and meeting-floor approaches without crossing furniture',()=>{for(const station of Object.values(WORK_STATIONS))for(const from of[{x:15,y:80},{x:40,y:87},{x:72,y:90}]){const path=floorPath(from,station.approach);assert.ok(path.length);const nodes=[from,...path];for(let i=1;i<nodes.length;i++)for(let t=0;t<=24;t++)assert.equal(floorPoint({x:nodes[i-1].x+(nodes[i].x-nodes[i-1].x)*t/24,y:nodes[i-1].y+(nodes[i].y-nodes[i-1].y)*t/24}),true)}});
+
+test('overflow workstation approaches remain connected floor points and custom anchors affect seated workers',()=>{for(const zone of Object.keys(WORK_STATIONS))for(let i=0;i<25;i++){const p=stationSpot({zone},i);assert.equal(floorPoint(p.approach),true);assert.ok(floorPath({x:15,y:80},p.approach).length)}const shifted=stationSpot({zone:'library'},0,{...OFFICE_ANCHORS,library:[31,48]});assert.equal(shifted.x,31);assert.equal(shifted.y,48);assert.equal(floorPoint(shifted.approach),true);assert.ok(floorPath({x:15,y:80},shifted.approach).length)});

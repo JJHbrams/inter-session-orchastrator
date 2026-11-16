@@ -23,7 +23,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
  const overlay=document.createElement('div');overlay.className='office-sprite-layer';board.replaceChildren(overlay);
  const disposeApp=()=>{if(!appInitialized||appDisposed||!app)return;appDisposed=true;app.destroy?.(true,{children:true,texture:false,textureSource:false})};
  const moving=()=>!destroyed&&online&&visible&&presentation.visible!==false&&!presentation.collapsed&&!presentation.reducedMotion;
- const status=e=>{if(!destroyed)onStatus?.({visibleCount:records.size,workingCount:[...records.values()].filter(r=>r.agent.state==='running').length,ready:started,error:e?.message})};
+ const status=e=>{if(!destroyed)onStatus?.({visibleCount:records.size,workingCount:[...records.values()].filter(r=>r.agent.state==='running'&&!trips.get(r.agent.id)?.removeAfter).length,ready:started,error:e?.message})};
  const logical=()=>({w:app?.screen?.width||board.clientWidth||800,h:app?.screen?.height||Math.round((board.clientWidth||800)/2.6)});
  const doorSpot=()=>({x:OFFICE_ANCHORS.door[0],y:OFFICE_ANCHORS.door[1],zone:'door'});
  const foot=r=>({x:+r.node.dataset.currentFootx,y:+r.node.dataset.currentFooty,zone:r.node.dataset.zone||'floor'});
@@ -32,7 +32,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   if(!r.container)return;
   const {w,h}=logical(),p=visualFoot(r);
   r.container.x=p.x*w/100;r.container.y=p.y*h/100;r.container.zIndex=r.seated&&r.station?.station==='library'?560:Math.round(p.y*10);
-  const size=Math.max(r.agent.kind==='subagent'?20:28,Math.min(r.agent.kind==='subagent'?50:72,w*.06));
+  const size=Math.max(r.agent.kind==='subagent'?20:28,Math.min(r.agent.kind==='subagent'?50:72,w*.06*(r.agent.kind==='subagent'?.82:1)));
   r.container.scale?.set?.(size/r.size);
   r.node.style.width=`${size+12}px`;r.node.style.height=`${size}px`;
   r.node.style.left=`${p.x}%`;r.node.style.top=`${p.y}%`;r.node.style.zIndex=String(10+Math.round(p.y*10));
@@ -69,7 +69,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
  const graphic=draw=>{const g=new P.Graphics();draw(g);return g};
  const parts=r=>{
   if(r.container)return;
-  const {w}=logical(),s=Math.max(r.agent.kind==='subagent'?20:28,Math.min(r.agent.kind==='subagent'?50:72,w*.06));
+  const {w}=logical(),s=Math.max(r.agent.kind==='subagent'?20:28,Math.min(r.agent.kind==='subagent'?50:72,w*.06*(r.agent.kind==='subagent'?.82:1)));
   r.size=s;r.container=new P.Container();r.container.label='office-agent:'+r.agent.id;r.container.sortableChildren=true;
   r.chairSprite=new P.Sprite(seatTexture(4,'front'));r.chairSprite.label=`office-chair:${r.agent.id}`;r.chairSprite.visible=false;r.chairSprite.zIndex=0;
   r.chairFront=new P.Sprite(seatTexture(4,'back'));r.chairFront.label=`office-chair-front:${r.agent.id}`;r.chairFront.visible=false;r.chairFront.zIndex=2;
@@ -115,7 +115,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   r.node.dataset.facing=r.seated?(seat.facing||'front'):'';
   r.node.dataset.station=r.seated&&r.station?r.station.station:'';
   r.node.dataset.seatX=seat?String(seat.x):'';r.node.dataset.seatY=seat?String(seat.y):'';
-  const trip=trips.get(r.agent.id);r.node.dataset.action=trip?(trip.mode||'walking'):r.seated?(r.agent.state==='running'&&['responding','synthesis','delegating'].includes(r.agent.activity)?'talking':actionFor(r.agent)):actionFor(r.agent);
+  const trip=trips.get(r.agent.id);r.detail.textContent=trip?.mode==='entering'?'입장 중':trip?.mode==='exiting'?'퇴장 중':brief(r.agent);r.node.setAttribute('aria-label',`${r.agent.label||'이름 없는 세션'} · ${r.detail.textContent}`);r.node.dataset.action=trip?(trip.mode||'walking'):r.seated?(r.agent.state==='running'&&['responding','synthesis','delegating'].includes(r.agent.activity)?'talking':actionFor(r.agent)):actionFor(r.agent);
   r.node.disabled=!!trip?.removeAfter;
   r.node.dataset.crown=String(!!r.crown?.visible);
   place(r);
@@ -249,7 +249,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
  return {
   readyPromise,
   setSnapshot(next={}){if(!destroyed){if(!started)snapshotBeforeReady=true;snapshot=next;revision++;if(started)void paint(revision)}},
-  setRoom(){if(destroyed)return;revision++;trips.clear();retired.clear();for(const id of[...records.keys()])remove(id);snapshot={agents:[]};if(started)void paint(revision)},
+  setRoom(){if(destroyed)return;revision++;trips.clear();for(const id of[...records.keys()])remove(id);retired.clear();snapshot={agents:[]};if(started)void paint(revision)},
   setConnection(next){if(destroyed)return;online=!!next;sync();status()},
   setPresentation(next={}){
    if(destroyed)return;presentation={...presentation,...next};
