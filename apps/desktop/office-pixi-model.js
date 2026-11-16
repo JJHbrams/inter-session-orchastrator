@@ -1,5 +1,6 @@
 export const OFFICE_ANCHORS={door:[15,80],library:[27,60],development:[58,50],server:[72,48],table:[55,67]};
 export const TABLE_SLOTS=[[40,79],[69,75],[55,88],[33,76],[73,85],[41,90],[66,90],[31,68]];
+export const CHAIR_SEAT=Object.freeze({x:42,y:76,zone:'table',seat:true,facing:'right',chair:true,approach:{x:37,y:70,zone:'table'}});
 export const ATTENTION=new Set(['waiting','unknown','failed']);
 export const TERMINAL=new Set(['completed','left']);
 const FLOOR_NODES=[{x:37,y:70},{x:40,y:87},{x:42,y:53},{x:73,y:53},{x:72,y:90},{x:88,y:90}];
@@ -8,6 +9,13 @@ const limit=(n,a,b)=>Math.min(b,Math.max(a,n));
 const hash=s=>[...String(s)].reduce((n,c)=>((n*31)+c.charCodeAt(0))>>>0,7);
 export const distance=(a,b)=>Math.hypot((b.x-a.x)*2.6,b.y-a.y);
 export const selection=a=>({sessionId:a.parentId?null:a.sessionId,membershipId:a.parentId?null:a.membershipId,parentId:a.parentId||null,id:a.parentId||a.id});
+const MEETING_STATES=new Set(['idle','queued','waiting','unknown','failed','completed']);
+const MEETING_APPROACHES=[{x:37,y:70},{x:40,y:87},{x:42,y:53},{x:73,y:53},{x:72,y:90}];
+const meetingApproach=seat=>MEETING_APPROACHES.reduce((best,node)=>distance(node,seat)<distance(best,seat)?node:best);
+const participantSeat=(index,count)=>{const inner=count<=12||index<12,slot=inner?index:index-12,total=inner?Math.min(count,12):Math.max(count-12,1),rx=inner?8.5:11.5,ry=inner?7.5:10,angle=(-Math.PI/2)+(Math.PI*2*slot/total);return{x:53.4+Math.cos(angle)*rx,y:68.8+Math.sin(angle)*ry};};
+const facingChair=seat=>seat.y>74?'back':seat.y<63?'front':seat.x>CHAIR_SEAT.x?'left':'right';
+export function isAtMeeting(agent={}){if(agent.state==='left')return false;if(agent.role==='chair')return true;return agent.kind==='session'&&(agent.zone==='table'||MEETING_STATES.has(agent.state));}
+export function meetingLayout(agents=[]){const seated=agents.filter(isAtMeeting).sort((a,b)=>String(a.id).localeCompare(String(b.id))),layout=new Map(),chair=seated.find(a=>a.role==='chair');if(chair)layout.set(chair.id,{...CHAIR_SEAT,approach:{...CHAIR_SEAT.approach}});const participants=seated.filter(a=>a!==chair);for(let i=0;i<participants.length;i++){const point=participantSeat(i,participants.length),approach=meetingApproach(point);layout.set(participants[i].id,{...point,zone:'table',seat:true,facing:facingChair(point),chair:false,approach:{...approach,zone:'table'}})}return layout;}
 export function brief(a){if(a.state==='queued')return '요청 대기';if(ATTENTION.has(a.state))return({waiting:'확인 대기',unknown:'상태 확인',failed:'연결 확인'})[a.state];if(TERMINAL.has(a.state))return '자리로 돌아옴';return({reading:'책 읽는 중',research:'자료 보는 중',coding:'파일 편집 중',terminal:'터미널 보는 중',synthesis:'생각 중',delegating:'정리 중',responding:'생각 중',none:'대기 중'})[a.activity]||'대기 중'}
 export function spot(a,index,anchors=OFFICE_ANCHORS){const zone=TERMINAL.has(a.state)&&a.kind==='subagent'?'door':ATTENTION.has(a.state)?'table':a.zone||'table';if(zone==='table'){const[x,y]=TABLE_SLOTS[index%TABLE_SLOTS.length];return{x,y,zone}}const[x,y]=anchors[zone]||OFFICE_ANCHORS[zone],h=hash(a.id),col=index%5,row=Math.floor(index/5),offset=zone==='door'?0:[0,-1,1,-2,2][col];return{x:limit(x+offset*5.6+((h%7)-3)*.2,5,95),y:limit(y+row*6+((h>>3)%5)*.4,7,92),zone}}
 export function floorPoint(p){return !(((p.x-TABLE.x)/TABLE.rx)**2+((p.y-TABLE.y)/TABLE.ry)**2<1||SURFACES.some(([l,r,t,b])=>p.x>l&&p.x<r&&p.y>t&&p.y<b));}
