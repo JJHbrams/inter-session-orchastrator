@@ -34,3 +34,4 @@ export function exactIdentity(value) {
 // remain ordinary text. The resolver supplies the currently valid alias allowlist.
 export { parseAliases, mentionSpans, resolveMentionTargets } from './mentions.js';
 export { CHAIR_PROVIDERS, EFFORTS, normalizeChairSettings } from './chair-settings.js';
+export { OFFICE_STATES, OFFICE_ACTIVITIES, OFFICE_ZONES, officeAgent } from './office-state.js';
