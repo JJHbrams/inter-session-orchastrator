@@ -62,7 +62,7 @@ export async function buildElectronRelease({ sourceRoot = root } = {}) {
   const output = join(sourceRoot, 'dist', id), snapshotZip = join(output, 'source.zip'), snapshot = join(output, 'source'); await mustNotExist(output); await mkdir(output, { recursive: true });
   validationLog = join(output, 'validation.log');
   try {
-    await run('git', ['archive', '--format=zip', `--output=${snapshotZip}`, sha], { cwd: sourceRoot });
+    await run('git', ['-c', 'core.autocrlf=false', 'archive', '--format=zip', `--output=${snapshotZip}`, sha], { cwd: sourceRoot });
     await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `${WINDOWS_ARCHIVE_MODULE} Expand-Archive -LiteralPath '${quotedPowerShell(snapshotZip)}' -DestinationPath '${quotedPowerShell(snapshot)}' -ErrorAction Stop`]);
     const tools = await prepareToolchains({ destination: join(sourceRoot, '.local', 'toolchains') });
     const node = tools.node.path;
