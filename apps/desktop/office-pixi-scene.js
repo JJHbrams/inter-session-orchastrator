@@ -61,7 +61,8 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   r.body=new P.Sprite(crop(provider(r.agent),r.texture,r.pose));r.body.anchor?.set?.(.5,.85);r.body.width=s;r.body.height=s;
   r.eyes=graphic(g=>{g.rect(-s*.045,-s*.4,s*.075,s*.08).fill({color:0xf49b6a});g.rect(s*.095,-s*.41,s*.075,s*.08).fill({color:0xf49b6a});g.rect(-s*.04,-s*.355,s*.065,s*.015).fill({color:0x302523});g.rect(s*.10,-s*.365,s*.065,s*.015).fill({color:0x302523})});
   r.eyes.visible=false;r.prop=graphic(()=>{});r.prop.visible=false;
-  add(r.container,r.body);add(r.container,r.eyes);add(r.container,r.prop);add(actors,r.container);
+  r.crown=graphic(g=>{g.poly([-s*.26,-s*.08,-s*.21,-s*.32,-s*.08,-s*.18,0,-s*.40,s*.09,-s*.18,s*.22,-s*.32,s*.27,-s*.08]).fill({color:0x382818});g.poly([-s*.20,-s*.10,-s*.17,-s*.26,-s*.07,-s*.14,0,-s*.33,s*.07,-s*.14,s*.18,-s*.26,s*.21,-s*.10]).fill({color:0xf6c744});g.rect(-s*.13,-s*.12,s*.06,s*.045).rect(s*.07,-s*.12,s*.06,s*.045).fill({color:0xd9435f});});r.crown.visible=false;
+  add(r.container,r.body);add(r.container,r.eyes);add(r.container,r.prop);add(r.container,r.crown);add(actors,r.container);
  };
  const remove=id=>{const r=records.get(id);if(!r)return;trips.delete(id);retired.set(id,r.agent.updatedAt||'');gone(r.container,{children:true});r.node.remove();records.delete(id);status()};
  const create=(agent,target)=>{
@@ -99,6 +100,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   r.node.dataset.facing=r.seated?r.seat.facing:'';
   r.node.dataset.seatX=r.seat?String(r.seat.x):'';r.node.dataset.seatY=r.seat?String(r.seat.y):'';
   r.node.dataset.action=trips.has(r.agent.id)?'walking':r.seated?(r.agent.state==='running'&&['responding','synthesis','delegating'].includes(r.agent.activity)?'talking':actionFor(r.agent)):actionFor(r.agent);
+  r.node.dataset.crown=String(!!r.crown?.visible);
   place(r);
  };
  const animate=r=>{
@@ -113,6 +115,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
    r.body.width=s*1.2*ratio;r.body.height=s*1.2;
   }else{r.body.texture=crop(provider(r.agent),r.texture,r.pose);r.body.anchor?.set?.(.5,.85);r.body.width=s;r.body.height=s}
   r.body.scale.x=Math.abs(r.body.scale.x);r.body.rotation=0;r.body.x=0;r.body.y=0;
+  r.crown.x=0;r.crown.y=-s*.92;r.crown.visible=!!(r.agent.kind==='session'&&!r.agent.parentId&&r.agent.role==='chair'&&r.seated);r.node.dataset.crown=String(r.crown.visible);
   r.eyes.visible=false;r.eyes.scale?.set?.(1,1);r.prop.visible=false;r.prop.alpha=1;r.prop.rotation=0;r.prop.x=0;r.prop.y=0;r.prop.scale?.set?.(1,1);
   if(r.propAction!==a){
    r.prop.clear();
