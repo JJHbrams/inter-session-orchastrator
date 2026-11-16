@@ -2,7 +2,7 @@
 export async function pixiSmokeInPage(){
  const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  const until=async test=>{const end=Date.now()+10000;while(Date.now()<end){if(test())return true;await wait(40)}return false};
- const result={officePixiReady:false,officeIdleAnimated:false,officePixiFrames:false,officeChairCrowned:false,officeChairFacingParticipants:false,officeSeatedParticipants:false,officeSceneTransitions:false,officeEntryAnimated:false,officeExitAnimated:false,officeWorkSeated:false};
+ const result={officePixiReady:false,officeIdleAnimated:false,officePixiFrames:false,officeChairCrowned:false,officeChairFacingParticipants:false,officeSeatedParticipants:false,officeSceneTransitions:false,officeEntryAnimated:false,officeExitAnimated:false,officeWorkSeated:false,officeIdleRegistrationStable:false,officeWorkHeadScaleStable:false};
  result.officePixiReady=await until(()=>{const c=document.querySelector('#agentOffice canvas[data-renderer="pixi"]');return c?.dataset.ready==='true'&&c.width>0&&c.height>0});
  if(!result.officePixiReady)return result;
  let probe,host;
@@ -22,6 +22,11 @@ export async function pixiSmokeInPage(){
    const idle=node('smoke-idle'),canvas=host.querySelector('canvas'),offset=Number(idle.dataset.idleOffset||0),startFrame=Number(canvas.dataset.frame||0);
    result.officeIdleAnimated=await until(()=>idle.dataset.action==='idle'&&idle.dataset.state==='idle'&&Math.abs(Number(idle.dataset.idleOffset||0)-offset)>.03);
    result.officePixiFrames=Number(canvas.dataset.frame||0)>startFrame;
+   const geometry=n=>({pose:Number(n.dataset.pose),width:Number(n.dataset.registeredHeadWidth),height:Number(n.dataset.registeredHeadHeight),y:Number(n.dataset.registeredHeadY),scaleX:Number(n.dataset.bodyScaleX),scaleY:Number(n.dataset.bodyScaleY),frame:[n.dataset.frameX,n.dataset.frameY,n.dataset.frameWidth,n.dataset.frameHeight].map(Number)});
+   const collect=async(id,ms)=>{const samples=[],end=Date.now()+ms;while(Date.now()<end){samples.push(geometry(node(id)));await wait(40)}return samples};
+   const idleGeometry=await collect('smoke-peer',3200);
+   const span=(samples,key)=>Math.max(...samples.map(s=>s[key]))-Math.min(...samples.map(s=>s[key]));
+   result.officeIdleRegistrationStable=new Set(idleGeometry.map(s=>s.pose)).size>=2&&idleGeometry.every(s=>s.width>0&&s.height>0&&s.scaleX>0&&s.scaleY>0)&&span(idleGeometry,'width')<=1.5&&span(idleGeometry,'height')<=2&&span(idleGeometry,'y')<=2;
    const chair=node('smoke-chair');result.officeChairCrowned=chair.dataset.crown==='true'&&chair.dataset.chair==='true';
    result.officeChairFacingParticipants=chair.dataset.seated==='true'&&chair.dataset.facing==='front'&&Number(chair.dataset.seatX)>38&&Number(chair.dataset.seatX)<49&&Number(chair.dataset.seatY)>64&&Number(chair.dataset.seatY)<71;
    result.officeSeatedParticipants=members().every(n=>atMeeting(n)&&n.dataset.crown==='false');
@@ -30,6 +35,9 @@ export async function pixiSmokeInPage(){
    const walked=await until(()=>node('smoke-peer')?.dataset.action==='walking');
    const worked=await until(()=>node('smoke-peer')?.dataset.action==='coding'&&node('smoke-idle')?.dataset.action==='reading');
    result.officeWorkSeated=node('smoke-idle')?.dataset.seated==='true'&&node('smoke-idle').dataset.station==='library'&&node('smoke-peer')?.dataset.seated==='true'&&node('smoke-peer').dataset.station==='development';
+   const workGeometry=await collect('smoke-peer',900);
+   result.officeWorkHeadScaleStable=new Set(workGeometry.map(s=>s.pose)).size>=2&&workGeometry.every(s=>s.width>0&&Math.abs(s.width-idleGeometry[0].width)<=2)&&span(workGeometry,'width')<=1.5;
+   result.officeRegistrationDetails={idlePoses:[...new Set(idleGeometry.map(s=>s.pose))],workPoses:[...new Set(workGeometry.map(s=>s.pose))],idleWidthSpan:span(idleGeometry,'width'),idleHeightSpan:span(idleGeometry,'height'),idleYSpan:span(idleGeometry,'y'),idle:idleGeometry.filter((s,i,a)=>a.findIndex(v=>v.pose===s.pose)===i),work:workGeometry.filter((s,i,a)=>a.findIndex(v=>v.pose===s.pose)===i)};
    const atWork=trace();
    probe.setSnapshot({agents});
    const returned=await until(()=>members().every(atMeeting));

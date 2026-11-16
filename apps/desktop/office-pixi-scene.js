@@ -1,6 +1,6 @@
 import {ATTENTION, TERMINAL, OFFICE_ANCHORS, brief, floorPath, spot, stationSpot, selection, distance, floorPoint, meetingLayout, CHAIR_SEAT} from './office-pixi-model.js';
 import {MEETING_SEAT_FRAMES} from './office-seat-frames.js';
-import {OFFICE_ACTION_ASSETS, OFFICE_ACTION_REGISTRATION, OFFICE_ACTION_SAFE_FRAMES} from './office-action-frames.js';
+import {OFFICE_ACTION_ASSETS, OFFICE_ACTION_GEOMETRY} from './office-action-frames.js';
 
 const poseFor = a => a.state === 'completed' ? 7 : ({reading:3,research:3,coding:4,terminal:5,responding:6,synthesis:6,delegating:6}[a.activity] ?? 0);
 const provider = a => a.provider === 'claude' ? 'claude' : 'codex';
@@ -53,7 +53,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
  };
  const actionTexture=(key,base,col,row)=>{
   const asset=OFFICE_ACTION_ASSETS[key],index=row*asset.columns+col,id=`action:${key}:${index}`;
-  if(!views.has(id)){const specified=OFFICE_ACTION_SAFE_FRAMES[key]?.[index]||asset.frames?.[index],fw=base.frame.width/asset.columns,fh=base.frame.height/asset.rows,[x,y,w,h]=specified||[col*fw,row*fh,fw,fh];views.set(id,new P.Texture({source:base.source,frame:new P.Rectangle(x,y,w,h)}))}
+  if(!views.has(id)){const specified=OFFICE_ACTION_GEOMETRY[key]?.[index]?.frame||asset.frames?.[index],fw=base.frame.width/asset.columns,fh=base.frame.height/asset.rows,[x,y,w,h]=specified||[col*fw,row*fh,fw,fh];views.set(id,new P.Texture({source:base.source,frame:new P.Rectangle(x,y,w,h)}))}
   return views.get(id);
  };
  const crop=(key,base,p)=>{
@@ -130,7 +130,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   r.chairSprite.texture=seatTexture(4,r.node.dataset.facing||'front');
   r.chairSprite.anchor?.set?.(.5,1);r.chairSprite.height=s*.8;r.chairSprite.width=r.chairSprite.height*(r.chairSprite.texture.frame.width/r.chairSprite.texture.frame.height);
   r.chairFront.visible=!!atMeeting&&r.node.dataset.facing==='back';
-  if(r.chairFront.visible){const id='meeting-chair-front:back',base=r.chairSprite.texture,rect=base.frame;if(!views.has(id))views.set(id,new P.Texture({source:base.source,frame:new P.Rectangle(rect.x,rect.y+rect.height*.35,rect.width,rect.height*.65)}));r.chairFront.texture=views.get(id);r.chairFront.anchor?.set?.(.5,1);r.chairFront.height=r.chairSprite.height*.65;r.chairFront.width=r.chairSprite.width;}
+  if(r.chairFront.visible){const id='meeting-chair-front:back',base=r.chairSprite.texture,rect=base.frame;if(!views.has(id))views.set(id,new P.Texture({source:base.source,frame:new P.Rectangle(rect.x,rect.y+rect.height*.55,rect.width,rect.height*.45)}));r.chairFront.texture=views.get(id);r.chairFront.anchor?.set?.(.5,1);r.chairFront.height=r.chairSprite.height*.45;r.chairFront.width=r.chairSprite.width;}
 
   if(atStation){
    key='work-torsos';row={library:0,development:1,server:2}[r.station.station]??0;col=(isClaude?0:2)+(Math.floor(p*2.5)%2);
@@ -144,23 +144,36 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
    r.body.texture=actionTexture(key,r.texture.travel,col,row);
    if(inTransit)bodyY=Math.abs(Math.sin((r.walkDistance||0)*Math.PI/3.5))*s*.025;
   }
-  const registration=OFFICE_ACTION_REGISTRATION[key],scale=s*(key==='work-torsos'?1.411765:1.2)/registration.units;
-  r.body.anchor?.set?.(.5,registration.baseline);r.body.scale.set?.(scale,scale);r.body.rotation=0;r.body.x=0;
+  const geometry=OFFICE_ACTION_GEOMETRY[key][row*4+col],frameRect=r.body.texture.frame;
+  const refKey=`${provider(r.agent)}-seated`,refDirection=atMeeting?direction:atStation&&r.station.station!=='library'?1:0;
+  const reference=OFFICE_ACTION_GEOMETRY[refKey][refDirection],unit=s*1.2/255;
+  const targetHeadWidth=reference.head[2]*unit,targetHeadHeight=reference.head[3]*unit;
+  const [hx,hy,hw,hh]=geometry.head;
+  r.body.anchor?.set?.((hx+hw/2-frameRect.x)/frameRect.width,(hy+hh/2-frameRect.y)/frameRect.height);
+  r.body.scale.set?.(targetHeadWidth/hw,targetHeadHeight/hh);r.body.rotation=0;r.body.x=0;
+  const idleMotion=atMeeting&&a==='idle'&&moving()?Math.sin(p*2.1)*.4:0;
+  bodyY=-(reference.frame[1]+reference.frame[3]-reference.head[1]-reference.head[3]/2)*unit;
+  if(atMeeting&&direction===1)bodyY=-(s*.8*.45+targetHeadHeight/2+1);
+  if(atStation){
+   const {h}=logical(),containerScale=Math.abs(r.container.scale?.y||1),worldHeadHeight=targetHeadHeight*containerScale;
+   const seam={library:.385,development:.37,server:.535}[r.station.station];
+   bodyY=r.station.secondary?-(s*.8+targetHeadHeight/2):(seam*h-foot(r).y*h/100-worldHeadHeight/2-2)/containerScale;
+  }
+  bodyY+=idleMotion;
+  if(inTransit&&moving())bodyY+=Math.abs(Math.sin((r.walkDistance||0)*Math.PI/3.5))*s*.025;
   if(inTransit){
    const trip=trips.get(r.agent.id),next=trip?.points[trip.index],dx=next?next.x-foot(r).x:0;
    if(Math.abs(dx)>.001)r.walkLeft=dx<0;
    const flip=a==='exiting'?!r.walkLeft:!!r.walkLeft;r.body.scale.x=(flip?-1:1)*Math.abs(r.body.scale.x);
   }
-  if(!moving())bodyY=atStation?-s*.55:0;
   r.body.y=bodyY;r.eyes.visible=false;r.prop.visible=false;
-  r.crown.x=0;r.crown.y=-s*.92+bodyY;r.crown.visible=!!(r.agent.kind==='session'&&!r.agent.parentId&&r.agent.role==='chair'&&atMeeting);r.node.dataset.crown=String(r.crown.visible);
+  r.crown.x=0;r.crown.y=bodyY-targetHeadHeight/2+s*.12;r.crown.visible=!!(r.agent.kind==='session'&&!r.agent.parentId&&r.agent.role==='chair'&&atMeeting);r.node.dataset.crown=String(r.crown.visible);
   const boundary=['entering','exiting'].includes(a)?Math.min(1,distance(foot(r),doorSpot())/7):1;
   r.container.alpha=boundary;r.node.style.opacity=String(boundary);r.node.dataset.doorOcclusion=String((1-boundary).toFixed(3));
   const {h}=logical();r.container.y=foot(r).y*h/100;
-  const [,headY,headWidth,headHeight]=registration.head;
-  const frameRect=r.body.texture.frame,containerScale=Math.abs(r.container.scale?.x??1);
+  const containerScale=Math.abs(r.container.scale?.x??1);
   r.node.dataset.bodyScaleX=String((Math.abs(r.body.scale.x)*containerScale).toFixed(6));r.node.dataset.bodyScaleY=String((Math.abs(r.body.scale.y)*Math.abs(r.container.scale?.y??1)).toFixed(6));r.node.dataset.frameX=String(frameRect.x);r.node.dataset.frameY=String(frameRect.y);r.node.dataset.frameWidth=String(frameRect.width);r.node.dataset.frameHeight=String(frameRect.height);
-  r.pose=row*4+col;r.node.dataset.pose=String(r.pose);r.node.dataset.spriteAsset=key;r.node.dataset.idleOffset=String(bodyY.toFixed(3));r.node.dataset.visualX=String(r.container.x.toFixed(2));r.node.dataset.visualY=String(r.container.y.toFixed(2));r.node.dataset.chairVisualX=String((r.container.x+(r.chairSprite.x||0)).toFixed(2));r.node.dataset.chairVisualY=String((r.container.y+(r.chairSprite.y||0)).toFixed(2));r.node.dataset.crownHeadOffset=String((r.crown.y-r.body.y).toFixed(3));r.node.dataset.registeredHeadWidth=String((headWidth*Math.abs(r.body.scale.x)).toFixed(3));r.node.dataset.registeredHeadHeight=String((headHeight*Math.abs(r.body.scale.y)).toFixed(3));r.node.dataset.registeredHeadY=String((r.body.y+(headY-r.body.anchor.y)*r.body.texture.frame.height*r.body.scale.y).toFixed(3));r.node.dataset.seatBaseline=String((r.body.y).toFixed(3));r.node.dataset.renderDepth=String(r.container.zIndex);r.node.dataset.blink=String(atMeeting&&a==='idle'&&row===1);
+  r.pose=row*4+col;r.node.dataset.pose=String(r.pose);r.node.dataset.spriteAsset=key;r.node.dataset.idleOffset=String(bodyY.toFixed(3));r.node.dataset.visualX=String(r.container.x.toFixed(2));r.node.dataset.visualY=String(r.container.y.toFixed(2));r.node.dataset.chairVisualX=String((r.container.x+(r.chairSprite.x||0)).toFixed(2));r.node.dataset.chairVisualY=String((r.container.y+(r.chairSprite.y||0)).toFixed(2));r.node.dataset.crownHeadOffset=String((r.crown.y-r.body.y).toFixed(3));r.node.dataset.registeredHeadWidth=String((hw*Math.abs(r.body.scale.x)*containerScale).toFixed(3));r.node.dataset.registeredHeadHeight=String((hh*Math.abs(r.body.scale.y)*Math.abs(r.container.scale?.y??1)).toFixed(3));r.node.dataset.registeredHeadY=String((r.body.y*Math.abs(r.container.scale?.y??1)).toFixed(3));r.node.dataset.seatBaseline=String((r.body.y).toFixed(3));r.node.dataset.renderDepth=String(r.container.zIndex);r.node.dataset.blink=String(atMeeting&&a==='idle'&&row===1);
  };
  const tick=d=>{
   if(!moving())return;
