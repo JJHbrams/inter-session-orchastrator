@@ -6,7 +6,7 @@ import {createAgentOffice} from '../apps/desktop/agent-office.js';
 function fixture(){
  const dom=new JSDOM('<body><div id="host"></div></body>',{pretendToBeVisual:true});
  const prior={raf:globalThis.requestAnimationFrame,caf:globalThis.cancelAnimationFrame,performance:globalThis.performance,CSS:globalThis.CSS};
- globalThis.requestAnimationFrame=callback=>setTimeout(()=>callback(Date.now()),0); globalThis.cancelAnimationFrame=clearTimeout; globalThis.CSS={escape:value=>String(value)};
+ globalThis.requestAnimationFrame=callback=>setTimeout(()=>callback(globalThis.performance.now()),0); globalThis.cancelAnimationFrame=clearTimeout; globalThis.CSS={escape:value=>String(value)};
  const calls=[]; const storage={value:null,getItem(){return this.value},setItem(_,value){this.value=value}};
  const office=createAgentOffice({document:dom.window.document,host:dom.window.document.querySelector('#host'),storage,onSelect:value=>calls.push(value),matchMedia:()=>({matches:true,addEventListener(){},removeEventListener(){}})});
  return {dom,office,calls,restore(){Object.assign(globalThis,{requestAnimationFrame:prior.raf,cancelAnimationFrame:prior.caf,performance:prior.performance,CSS:prior.CSS})}};
