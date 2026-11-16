@@ -1,30 +1,36 @@
 import { createHash } from 'node:crypto';
+import { createReadStream, existsSync } from 'node:fs';
 import { lstat, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
-import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, parse, relative, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 
-const jobPath = process.argv[2];
-if (!jobPath) process.exit(2);
-const resultPath = join(dirname(jobPath), 'result.json');
-let activeJob, installerExitCode = null;
-async function persist(status, message, installerExitCode = null) { if (!activeJob) return; const target = join(activeJob.profile, 'updates', 'last-install-result.json'), temporary = `${target}.${process.pid}.tmp`; await mkdir(dirname(target), { recursive: true }); await writeFile(temporary, JSON.stringify({ id: activeJob.token, version: activeJob.version, status, message, at: new Date().toISOString(), installerExitCode })); await rename(temporary, target); }
-const fail = async (code, message) => { await writeFile(resultPath, JSON.stringify({ ok: false, code, message })); await persist('failed', message, installerExitCode); if (activeJob?.appExe) spawn(activeJob.appExe, ['--profile', activeJob.profile, '--knowledge-root', activeJob.knowledgeRoot], { shell: false, detached: true, windowsHide: true, stdio: 'ignore' }).unref(); process.exitCode = 1; };
-const exists = pid => { try { process.kill(pid, 0); return true; } catch (error) { return error.code !== 'ESRCH'; } };
-const within = (root, path) => { const value = relative(resolve(root), resolve(path)); return value && !value.startsWith('..') && !isAbsolute(value); };
+const MAX_INSTALLER_BYTES = 512 * 1024 * 1024, MAX_JOB_BYTES = 64 * 1024, HANDOFF_TIMEOUT_MS = 120000, INSTALLER_TIMEOUT_MS = 120000;
+const jobPath = process.argv[2]; if (!jobPath) process.exit(2);
+const resultPath = join(dirname(jobPath), 'result.json'); let activeJob, installerExitCode = null, parentGone = false, committed = false;
+const parentMissing = pid => { try { process.kill(pid, 0); return false; } catch (error) { return error.code === 'ESRCH'; } };
+const inside = (root, path) => { const value = relative(resolve(root), resolve(path)); return value && !value.startsWith('..') && !isAbsolute(value); };
+async function boundedRead(path, limit) { const info = await stat(path); if (!info.isFile() || info.size > limit) throw Error('UPDATE_FILE_TOO_LARGE'); return readFile(path, 'utf8'); }
+async function hashFile(path, size) { if (!Number.isSafeInteger(size) || size < 1 || size > MAX_INSTALLER_BYTES) throw Error('UPDATE_INSTALLER_SIZE_INVALID'); return new Promise((resolveHash, rejectHash) => { let total = 0; const hash = createHash('sha256'), input = createReadStream(path); input.on('data', chunk => { total += chunk.length; if (total > MAX_INSTALLER_BYTES) input.destroy(Error('UPDATE_INSTALLER_SIZE_INVALID')); else hash.update(chunk); }); input.once('error', rejectHash); input.once('end', () => total === size ? resolveHash(hash.digest('hex')) : rejectHash(Error('UPDATE_INSTALLER_SIZE_INVALID'))); }); }
+async function noLinks(path, stop) { let current = resolve(path), root = resolve(stop); if (parse(current).root !== parse(root).root || (current !== root && !inside(root, current))) throw Error('UPDATE_PATH_INVALID'); for (;;) { const info = await lstat(current); if (info.isSymbolicLink()) throw Error('UPDATE_PATH_SYMLINK'); if (current.toLowerCase() === root.toLowerCase()) return; const next = dirname(current); if (next === current) throw Error('UPDATE_PATH_INVALID'); current = next; } }
+async function persist(status, message, code = installerExitCode) { if (!activeJob) return; const target = join(activeJob.profile, 'updates', 'last-install-result.json'), temporary = `${target}.${process.pid}.tmp`; await mkdir(dirname(target), { recursive: true }); await writeFile(temporary, JSON.stringify({ id: activeJob.token, version: activeJob.version, status, message, at: new Date().toISOString(), installerExitCode: code })); await rename(temporary, target); }
+function restartOld() { if (!activeJob || !parentGone || !committed) return; try { const child = spawn(activeJob.appExe, ['--profile', activeJob.profile, '--knowledge-root', activeJob.knowledgeRoot], { shell: false, detached: true, windowsHide: true, stdio: 'ignore' }); child.once('error', () => {}); child.unref(); } catch {} }
+async function fail(code, message) { await writeFile(resultPath, JSON.stringify({ ok: false, code, message })); if (activeJob && parentGone && committed) { await persist('failed', message); restartOld(); } process.exitCode = 1; }
+async function validate(raw) {
+  if (!raw || typeof raw !== 'object' || Object.keys(raw).some(key => !['token','version','installerPath','sha256','size','releaseUrl','profile','installDir','appExe','knowledgeRoot','parentPid'].includes(key))) throw Error('UPDATE_HELPER_JOB_INVALID');
+  const { token, version, installerPath, sha256, size, profile, installDir, appExe, knowledgeRoot, parentPid } = raw;
+  if (!/^[A-Za-z0-9_-]{16,128}$/.test(token) || !/^\d+\.\d+\.\d+$/.test(version) || !/^[a-f0-9]{64}$/.test(sha256) || !Number.isSafeInteger(size) || size < 1 || size > MAX_INSTALLER_BYTES || !Number.isInteger(parentPid) || parentPid < 1 || [installerPath,profile,installDir,appExe,knowledgeRoot].some(value => typeof value !== 'string' || !isAbsolute(value))) throw Error('UPDATE_HELPER_JOB_INVALID');
+  if (parse(installDir).root === resolve(installDir) || !inside(installDir, appExe) || basename(appExe) !== 'SessionRooms-Electron.exe' || !existsSync(appExe)) throw Error('UPDATE_HELPER_JOB_INVALID');
+  const expected = join(resolve(profile), 'updates', 'downloads', version, `SessionRooms-${version}-x64-setup.exe`); if (resolve(installerPath).toLowerCase() !== resolve(expected).toLowerCase() || basename(installerPath) !== basename(expected) || !inside(join(profile, 'updates', 'downloads', version), installerPath)) throw Error('UPDATE_HELPER_JOB_INVALID');
+  if (resolve(dirname(jobPath)).toLowerCase() !== resolve(profile, 'updates', 'helpers', token).toLowerCase()) throw Error('UPDATE_HELPER_JOB_INVALID');
+  await noLinks(profile, parse(profile).root); await noLinks(installerPath, profile); await noLinks(appExe, installDir); const link = await lstat(installerPath), info = await stat(installerPath); if (!link.isFile() || link.isSymbolicLink() || info.size !== size || await hashFile(installerPath, size) !== sha256) throw Error('UPDATE_INSTALLER_HASH_INVALID'); return raw;
+}
 try {
-  const job = activeJob = JSON.parse(await readFile(jobPath, 'utf8'));
-  const expected = join(resolve(job.profile), 'updates', 'downloads', job.version, `SessionRooms-${job.version}-x64-setup.exe`);
-  if (!/^\d+\.\d+\.\d+$/.test(job.version) || !/^[a-f0-9]{64}$/.test(job.sha256) || resolve(job.installerPath).toLowerCase() !== resolve(expected).toLowerCase() || !within(join(job.profile, 'updates', 'downloads', job.version), job.installerPath) || basename(job.installerPath) !== basename(expected)) throw Error('UPDATE_HELPER_JOB_INVALID');
-  const link = await lstat(job.installerPath), info = await stat(job.installerPath); if (!link.isFile() || link.isSymbolicLink() || info.size !== job.size || createHash('sha256').update(await readFile(job.installerPath)).digest('hex') !== job.sha256) throw Error('UPDATE_INSTALLER_HASH_INVALID');
-  process.send?.({ type: 'ready', token: job.token });
-  let committed = false, aborted = false; process.on('message', message => { if (message?.token !== job.token) return; if (message.type === 'commit') committed = true; if (message.type === 'abort') aborted = true; });
-  await new Promise((resolveWait, rejectWait) => { const timer = setInterval(() => { if (aborted) { clearInterval(timer); rejectWait(Error('UPDATE_HANDOFF_ABORTED')); } if (committed && !process.connected && !exists(job.parentPid)) { clearInterval(timer); resolveWait(); } }, 100); });
-  const verify = createHash('sha256').update(await readFile(job.installerPath)).digest('hex'); if (verify !== job.sha256) throw Error('UPDATE_INSTALLER_HASH_INVALID');
-  const args = ['/VERYSILENT', '/NORESTART', '/SP-', `/DIR=${job.installDir}`];
-  const installer = spawn(job.installerPath, args, { shell: false, detached: false, windowsHide: true, stdio: 'ignore' });
-  const exitCode = await new Promise((resolveExit, reject) => { const timeout = setTimeout(() => { try { installer.kill(); } catch {} reject(Error('UPDATE_INSTALLER_TIMEOUT')); }, 120000); installer.once('error', error => { clearTimeout(timeout); reject(error); }); installer.once('exit', code => { clearTimeout(timeout); resolveExit(code); }); });
-  installerExitCode = exitCode; if (exitCode !== 0) throw Error('UPDATE_INSTALLER_FAILED');
-  const versionFile = join(job.installDir, 'resources', 'runtime', 'app', 'VERSION'); if ((await readFile(versionFile, 'utf8')).trim() !== job.version) throw Error('UPDATE_INSTALL_VERSION_INVALID');
-  await writeFile(resultPath, JSON.stringify({ ok: true, version: job.version })); await persist('completed', 'Update installed.', exitCode);
-  spawn(job.appExe, ['--profile', job.profile, '--knowledge-root', job.knowledgeRoot], { shell: false, detached: true, windowsHide: true, stdio: 'ignore' }).unref();
+  const job = await validate(JSON.parse(await boundedRead(jobPath, MAX_JOB_BYTES))); activeJob = job; process.send?.({ type: 'ready', token: job.token });
+  process.on('message', message => { if (message?.token !== job.token) return; if (message.type === 'commit') committed = true; if (message.type === 'abort') process.exit(0); });
+  await new Promise((resolveWait, rejectWait) => { const started = Date.now(), timer = setInterval(() => { parentGone = parentMissing(job.parentPid); if (committed && parentGone && !process.connected) { clearInterval(timer); resolveWait(); } else if (Date.now() - started > HANDOFF_TIMEOUT_MS) { clearInterval(timer); rejectWait(Error('UPDATE_HANDOFF_TIMEOUT')); } }, 100); });
+  if (await hashFile(job.installerPath, job.size) !== job.sha256) throw Error('UPDATE_INSTALLER_HASH_INVALID');
+  const installer = spawn(job.installerPath, ['/SILENT', '/NORESTART', '/SP-', `/DIR=${job.installDir}`], { shell: false, detached: false, windowsHide: true, stdio: 'ignore' }); let timedOut = false;
+  const exitCode = await new Promise((resolveExit, rejectExit) => { const timer = setTimeout(() => { timedOut = true; }, INSTALLER_TIMEOUT_MS); installer.once('error', error => { clearTimeout(timer); rejectExit(error); }); installer.once('exit', code => { clearTimeout(timer); resolveExit(code); }); }); installerExitCode = exitCode; if (timedOut) throw Error('UPDATE_INSTALLER_TIMEOUT'); if (exitCode !== 0) throw Error('UPDATE_INSTALLER_FAILED');
+  const versionFile = join(job.installDir, 'resources', 'runtime', 'app', 'VERSION'); if ((await boundedRead(versionFile, 256)).trim() !== job.version) throw Error('UPDATE_INSTALL_VERSION_INVALID'); await persist('completed', 'Update installed.', exitCode);
+  const restarted = spawn(job.appExe, ['--profile', job.profile, '--knowledge-root', job.knowledgeRoot], { shell: false, detached: true, windowsHide: true, stdio: 'ignore' }); restarted.once('error', async () => { await persist('failed', 'UPDATE_RESTART_FAILED', exitCode); }); restarted.unref(); await writeFile(resultPath, JSON.stringify({ ok: true, version: job.version }));
 } catch (error) { await fail(String(error.message || 'UPDATE_HELPER_FAILED'), String(error.message || error)); }

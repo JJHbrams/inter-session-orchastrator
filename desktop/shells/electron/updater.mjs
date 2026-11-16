@@ -1,11 +1,13 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { createReadStream } from 'node:fs';
 import { cp, lstat, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
-import { basename, isAbsolute, join, relative, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, parse, relative, resolve } from 'node:path';
 import { spawn as nodeSpawn } from 'node:child_process';
 
 export const UPDATE_INSTALL_CHANNEL = 'session-rooms:install-update';
 const VERSION = /^\d+\.\d+\.\d+$/;
 const HASH = /^[a-f0-9]{64}$/;
+const MAX_INSTALLER_BYTES = 512 * 1024 * 1024;
 
 export function updateInstallRequest(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload) || Object.keys(payload).length !== 1 || Object.keys(payload)[0] !== 'version' || typeof payload.version !== 'string' || !VERSION.test(payload.version)) throw Object.assign(new Error('UPDATE_INSTALL_INVALID_REQUEST'), { code: 'UPDATE_INSTALL_INVALID_REQUEST' });
@@ -48,13 +50,15 @@ export async function createUpdateClient(origin, fetchImpl = fetch) {
 }
 
 function within(root, candidate) { const part = relative(resolve(root), resolve(candidate)); return part && !part.startsWith('..') && !isAbsolute(part); }
+function boundedFileHash(path, size) { if (size > MAX_INSTALLER_BYTES) return Promise.reject(Object.assign(new Error('UPDATE_INSTALLER_SIZE_INVALID'), { code: 'UPDATE_INSTALLER_SIZE_INVALID' })); return new Promise((resolveHash, rejectHash) => { let total = 0; const hash = createHash('sha256'), input = createReadStream(path); input.on('data', chunk => { total += chunk.length; if (total > MAX_INSTALLER_BYTES) input.destroy(Object.assign(new Error('UPDATE_INSTALLER_SIZE_INVALID'), { code: 'UPDATE_INSTALLER_SIZE_INVALID' })); else hash.update(chunk); }); input.once('error', rejectHash); input.once('end', () => total === size ? resolveHash(hash.digest('hex')) : rejectHash(Object.assign(new Error('UPDATE_INSTALLER_SIZE_INVALID'), { code: 'UPDATE_INSTALLER_SIZE_INVALID' }))); }); }
+async function rejectLinkedAncestors(path, root, lstatFile) { let current = resolve(path), stop = resolve(root); if (parse(current).root !== parse(stop).root || (current !== stop && !within(stop, current))) throw Object.assign(new Error('UPDATE_INSTALLER_PATH_INVALID'), { code: 'UPDATE_INSTALLER_PATH_INVALID' }); for (;;) { const info = await lstatFile(current); if (info.isSymbolicLink()) throw Object.assign(new Error('UPDATE_INSTALLER_PATH_INVALID'), { code: 'UPDATE_INSTALLER_PATH_INVALID' }); if (current.toLowerCase() === stop.toLowerCase()) return; const next = dirname(current); if (next === current) throw Object.assign(new Error('UPDATE_INSTALLER_PATH_INVALID'), { code: 'UPDATE_INSTALLER_PATH_INVALID' }); current = next; } }
 export async function validatePreparedUpdate(job, profile, fs = { stat, lstat, readFile }) {
-  if (!job || typeof job !== 'object' || Object.keys(job).some(key => !['token', 'version', 'installerPath', 'sha256', 'size', 'releaseUrl'].includes(key)) || typeof job.token !== 'string' || !/^[a-zA-Z0-9_-]{16,128}$/.test(job.token) || typeof job.version !== 'string' || !VERSION.test(job.version) || typeof job.installerPath !== 'string' || !isAbsolute(job.installerPath) || typeof job.sha256 !== 'string' || !HASH.test(job.sha256) || !Number.isSafeInteger(job.size) || job.size < 1 || typeof job.releaseUrl !== 'string') throw Object.assign(new Error('UPDATE_PREPARE_INVALID'), { code: 'UPDATE_PREPARE_INVALID' });
+  if (!job || typeof job !== 'object' || Object.keys(job).some(key => !['token', 'version', 'installerPath', 'sha256', 'size', 'releaseUrl'].includes(key)) || typeof job.token !== 'string' || !/^[a-zA-Z0-9_-]{16,128}$/.test(job.token) || typeof job.version !== 'string' || !VERSION.test(job.version) || typeof job.installerPath !== 'string' || !isAbsolute(job.installerPath) || typeof job.sha256 !== 'string' || !HASH.test(job.sha256) || !Number.isSafeInteger(job.size) || job.size < 1 || job.size > MAX_INSTALLER_BYTES || typeof job.releaseUrl !== 'string') throw Object.assign(new Error('UPDATE_PREPARE_INVALID'), { code: 'UPDATE_PREPARE_INVALID' });
   const expected = join(resolve(profile), 'updates', 'downloads', job.version, `SessionRooms-${job.version}-x64-setup.exe`);
   if (resolve(job.installerPath).toLowerCase() !== resolve(expected).toLowerCase() || basename(job.installerPath) !== basename(expected) || !within(join(profile, 'updates', 'downloads', job.version), job.installerPath)) throw Object.assign(new Error('UPDATE_INSTALLER_PATH_INVALID'), { code: 'UPDATE_INSTALLER_PATH_INVALID' });
-  const link = await fs.lstat(job.installerPath); if (!link.isFile() || link.isSymbolicLink()) throw Object.assign(new Error('UPDATE_INSTALLER_PATH_INVALID'), { code: 'UPDATE_INSTALLER_PATH_INVALID' });
+  await rejectLinkedAncestors(profile, parse(resolve(profile)).root, fs.lstat); await rejectLinkedAncestors(job.installerPath, profile, fs.lstat); const link = await fs.lstat(job.installerPath); if (!link.isFile() || link.isSymbolicLink()) throw Object.assign(new Error('UPDATE_INSTALLER_PATH_INVALID'), { code: 'UPDATE_INSTALLER_PATH_INVALID' });
   const info = await fs.stat(job.installerPath); if (info.size !== job.size) throw Object.assign(new Error('UPDATE_INSTALLER_SIZE_INVALID'), { code: 'UPDATE_INSTALLER_SIZE_INVALID' });
-  const digest = createHash('sha256').update(await fs.readFile(job.installerPath)).digest('hex'); if (digest !== job.sha256) throw Object.assign(new Error('UPDATE_INSTALLER_HASH_INVALID'), { code: 'UPDATE_INSTALLER_HASH_INVALID' });
+  const digest = await boundedFileHash(job.installerPath, job.size); if (digest !== job.sha256) throw Object.assign(new Error('UPDATE_INSTALLER_HASH_INVALID'), { code: 'UPDATE_INSTALLER_HASH_INVALID' });
   return { ...job, installerPath: expected };
 }
 
@@ -65,7 +69,7 @@ export async function startUpdateHelper(job, { profile, runtime, installDir, app
   const node = join(directory, 'node.exe'), helper = join(directory, 'update-helper.mjs'), jobFile = join(directory, 'job.json');
   await cp(join(runtime, 'node.exe'), node, { force: true }); await cp(new URL('./update-helper.mjs', import.meta.url), helper, { force: true });
   await writeFile(jobFile, JSON.stringify({ ...checked, profile, installDir, appExe, knowledgeRoot, parentPid: process.pid }, null, 2), { mode: 0o600 });
-  const child = spawn(node, [helper, jobFile], { shell: false, detached: false, windowsHide: true, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
-  await new Promise((resolveReady, reject) => { const timer = setTimeout(() => reject(Object.assign(new Error('UPDATE_HELPER_TIMEOUT'), { code: 'UPDATE_HELPER_TIMEOUT' })), timeoutMs); child.once('error', error => { clearTimeout(timer); reject(error); }); child.once('exit', () => { clearTimeout(timer); reject(Object.assign(new Error('UPDATE_HELPER_EXITED'), { code: 'UPDATE_HELPER_EXITED' })); }); child.on('message', message => { if (message?.type === 'ready' && message.token === checked.token) { clearTimeout(timer); resolveReady(); } }); });
-  return { child, job: checked, commit: () => child.connected && child.send({ type: 'commit', token: checked.token }), abort: () => child.connected && child.send({ type: 'abort', token: checked.token }) };
+  const child = spawn(node, [helper, jobFile], { shell: false, detached: true, windowsHide: true, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
+  try { await new Promise((resolveReady, reject) => { const timer = setTimeout(() => reject(Object.assign(new Error('UPDATE_HELPER_TIMEOUT'), { code: 'UPDATE_HELPER_TIMEOUT' })), timeoutMs); child.once('error', error => { clearTimeout(timer); reject(error); }); child.once('exit', () => { clearTimeout(timer); reject(Object.assign(new Error('UPDATE_HELPER_EXITED'), { code: 'UPDATE_HELPER_EXITED' })); }); child.on('message', message => { if (message?.type === 'ready' && message.token === checked.token) { clearTimeout(timer); child.unref(); resolveReady(); } }); }); } catch (error) { try { child.kill(); } catch {} throw error; }
+  return { child, job: checked, commit: () => child.connected && child.send({ type: 'commit', token: checked.token }), abort: () => { if (child.connected) child.send({ type: 'abort', token: checked.token }); } };
 }
