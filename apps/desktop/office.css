@@ -23,9 +23,9 @@
 /* Keep the atlas characters grounded as the artboard scales.  The top coordinate
    is the 85%-of-frame foot anchor, not the centre of the sprite. */
 .office-artboard{container-type:inline-size}
-.office-agent{--sprite-size:clamp(44px,6cqw,72px);width:calc(var(--sprite-size) + 12px);height:var(--sprite-size)}
+.office-agent{--sprite-size:clamp(28px,6cqw,72px);width:calc(var(--sprite-size) + 12px);height:var(--sprite-size)}
 .office-sprite-art.office-atlas{width:var(--sprite-size);height:var(--sprite-size)}
-.office-child{--sprite-size:clamp(32px,4.5cqw,50px);width:calc(var(--sprite-size) + 8px);height:var(--sprite-size)}
+.office-child{--sprite-size:clamp(20px,4.5cqw,50px);width:calc(var(--sprite-size) + 8px);height:var(--sprite-size)}
 .office-child .office-sprite-art.office-atlas{width:var(--sprite-size);height:var(--sprite-size)}
 
 /* Task motion is deliberately a small prop/hand cue over a fixed atlas frame.
@@ -45,3 +45,6 @@
 .office-walking .office-sprite-art::after{animation:none;opacity:0}
 .office-walk-left .office-sprite-art{transform:scaleX(-1)}
 .office-agent[data-motion=false] .office-sprite-art,.agent-office[data-motion=false] .office-sprite-art{animation:none}
+.agent-office[data-motion=false] .office-sprite-art::after,.agent-office[data-motion=false] .office-sprite-art::before{animation:none!important}
+@media(prefers-reduced-motion:reduce){.office-sprite-art::after,.office-sprite-art::before{animation:none!important}}
+.office-foreground-mask{position:absolute;inset:0;z-index:650;pointer-events:none;background:url('/assets/office/office-background.png') center/100% 100% no-repeat;clip-path:polygon(39% 39%,48% 35%,49% 60%,47% 64%,39% 65%,38% 61%)}
