@@ -4,7 +4,7 @@ export const TABLE_SLOTS=[[40,79],[69,75],[55,88],[33,76],[73,85],[41,90],[66,90
 export const CHAIR_SEAT=Object.freeze({x:43.8,y:67.8,zone:'table',seat:true,facing:'front',chair:true,approach:{x:37,y:70,zone:'table'}});
 export const ATTENTION=new Set(['waiting','unknown','failed']);
 export const TERMINAL=new Set(['completed','left']);
-const FLOOR_NODES=[{x:37,y:70},{x:40,y:87},{x:42,y:53},{x:73,y:53},{x:72,y:90},{x:88,y:90}];
+const FLOOR_NODES=[{x:20,y:65},{x:37,y:70},{x:40,y:87},{x:42,y:53},{x:73,y:53},{x:72,y:90},{x:88,y:90}];
 const TABLE={x:53.4,y:68.8,rx:9,ry:8.8},SURFACES=[[23,36,34,55],[48,69,23,45],[82,96,39,61],[41,46,58,72],[59,65,54,68],[47,53,71,82],[58,65,70,82],[73,87,62,85]];
 const limit=(n,a,b)=>Math.min(b,Math.max(a,n));
 const hash=s=>[...String(s)].reduce((n,c)=>((n*31)+c.charCodeAt(0))>>>0,7);
