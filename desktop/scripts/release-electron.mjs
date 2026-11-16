@@ -71,6 +71,7 @@ export async function buildElectronRelease({ sourceRoot = root } = {}) {
     await run(node, [npmCli, 'ci', '--ignore-scripts', '--no-audit', '--no-fund', '--cache', join(sourceRoot, '.local', 'npm-cache')], { cwd: snapshot });
     const cargoVersion = (await run('cargo', ['--version'], { cwd: snapshot, capture: true })).stdout.trim();
     const rustcVersion = (await run('rustc', ['--version'], { cwd: snapshot, capture: true })).stdout.trim();
+    await run(node, ['desktop/scripts/build-pixi.mjs','--check'], { cwd: snapshot });
     await run(node, ['desktop/scripts/verify-web.mjs'], { cwd: snapshot });
     await run(node, ['desktop/scripts/verify-electron.mjs'], { cwd: snapshot });
     const stageDirectory = join(output, 'runtime-stage'); await mkdir(stageDirectory, { recursive: true });

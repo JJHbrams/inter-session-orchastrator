@@ -1,0 +1,15 @@
+{
+  "pixi": "8.23.0",
+  "cspPolyfills": true,
+  "sha256": "2bc59dbd4c338db37d70b75ad6b6e38ccb44e3eefa4344525c4bf5f71908a966",
+  "packages": [
+    "@xmldom/xmldom",
+    "colord",
+    "earcut",
+    "eventemitter3",
+    "ismobilejs",
+    "parse-svg-path",
+    "pixi.js",
+    "tiny-lru"
+  ]
+}

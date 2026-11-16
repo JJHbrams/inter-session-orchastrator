@@ -12,7 +12,7 @@ async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'rooms-runtime-source-'));
   await Promise.all([
     file(join(root, 'services', 'server.mjs')), file(join(root, 'adapters', 'bridge.mjs')), file(join(root, 'packages', 'core', 'index.mjs')),
-    file(join(root, 'apps', 'desktop', 'index.html')), file(join(root, 'desktop', 'runtime', 'entry.mjs')), file(join(root, 'package.json'), '{"type":"module"}'), file(join(root, 'VERSION'), '1.2.3\n'),
+    file(join(root, 'apps', 'desktop', 'vendor', 'pixi.mjs'), 'pixi-fixture'), file(join(root, 'apps', 'desktop', 'vendor', 'PIXI-LICENSES.txt'), 'license-fixture'), file(join(root, 'apps', 'desktop', 'index.html')), file(join(root, 'desktop', 'runtime', 'entry.mjs')), file(join(root, 'package.json'), '{"type":"module"}'), file(join(root, 'VERSION'), '1.2.3\n'),
     file(join(root, 'node_modules', 'marked', 'marked.js')), file(join(root, 'node_modules', 'dompurify', 'purify.js')),
     file(join(root, 'services', '.local', 'state.json')), file(join(root, 'services', '.env')), file(join(root, 'services', 'private', 'secret.txt')),
     file(join(root, 'services', 'config', 'settings.json')), file(join(root, 'services', 'cache.sqlite')),
@@ -25,7 +25,7 @@ test('stages only runtime allowlist with checksummed assets and licenses', async
   t.after(async () => Promise.all([rm(sourceRoot, { recursive: true, force: true }), rm(destination, { recursive: true, force: true })]));
   const manifest = await stageRuntime(destination, { sourceRoot, nodeBinary, guardianBinary: join(sourceRoot, 'guardian.exe'), requireGuardian: true });
   assert.equal(manifest.guardian, 'included'); assert.equal(manifest.licenses.node, 'included');
-  for (const path of ['runtime/app/VERSION', 'runtime/guardian.exe', 'runtime/NODE_LICENSE', 'runtime/app/desktop/runtime/entry.mjs', 'runtime/app/node_modules/marked/marked.js', 'runtime/app/node_modules/dompurify/purify.js']) assert.ok(existsSync(join(destination, path)), path);
+  for (const path of ['runtime/app/apps/desktop/vendor/pixi.mjs', 'runtime/app/apps/desktop/vendor/PIXI-LICENSES.txt', 'runtime/app/VERSION', 'runtime/guardian.exe', 'runtime/NODE_LICENSE', 'runtime/app/desktop/runtime/entry.mjs', 'runtime/app/node_modules/marked/marked.js', 'runtime/app/node_modules/dompurify/purify.js']) assert.ok(existsSync(join(destination, path)), path);
   for (const path of ['runtime/app/services/.local/state.json', 'runtime/app/services/.env', 'runtime/app/services/private/secret.txt', 'runtime/app/services/config/settings.json', 'runtime/app/services/cache.sqlite']) assert.ok(!existsSync(join(destination, path)), path);
   assert.equal((await readFile(join(destination, 'runtime/app/VERSION'), 'utf8')).trim(), '1.2.3');
   assert.ok(!manifest.files.some(entry => entry.path === 'runtime-manifest.json'));
