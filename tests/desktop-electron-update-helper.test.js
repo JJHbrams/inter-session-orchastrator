@@ -19,3 +19,7 @@ test('invalid helper preflight writes no profile result and never launches the s
 test('helper retains a bounded no-commit handoff deadline', async () => {
   const source = await readFile(helper, 'utf8'); assert.match(source, /HANDOFF_TIMEOUT_MS/); assert.match(source, /UPDATE_HANDOFF_TIMEOUT/);
 });
+
+test('helper records restart failure after its pre-restart completion record', async () => {
+  const source = await readFile(helper, 'utf8'); assert.ok(source.indexOf("persist('completed'") < source.indexOf("restarted = spawn")); assert.match(source, /once\('spawn'/); assert.match(source, /UPDATE_RESTART_FAILED/); assert.match(source, /restartAttempted/);
+});
