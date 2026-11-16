@@ -1,6 +1,6 @@
 const el=(d,t,v,c)=>{const n=d.createElement(t);if(v!==undefined)n.textContent=v;if(c)n.className=c;return n};
 const labels={idle:'업데이트 확인 대기',checking:'업데이트를 확인하는 중…','up-to-date':'최신 버전입니다',available:'새 버전을 사용할 수 있습니다',downloading:'업데이트를 준비하는 중…',ready:'설치 준비가 됐습니다',error:'업데이트 확인 실패'};
-const friendly=e=>({UPDATE_INSTALL_INVALID_REQUEST:'업데이트 설치 요청을 확인할 수 없어요.',UPDATE_INSTALL_UNAVAILABLE:'이 환경에서는 앱 안에서 설치할 수 없어요.',UPDATE_INSTALL_BUSY:'현재 작업이 끝난 뒤 다시 시도해 주세요.'}[e?.code]||e?.message||'업데이트를 진행하지 못했어요.');
+const friendly=e=>({UPDATE_BUSY:'현재 요청이나 세션 작업이 끝난 뒤 다시 시도해 주세요.',UPDATE_NO_RELEASE:'아직 공개된 정식 릴리스가 없어요.',UPDATE_CHECKSUM:'설치 파일 검증에 실패했어요. 다시 확인해 주세요.',UPDATE_ASSETS:'릴리스에 설치 파일 또는 체크섬이 없어요.',UPDATE_HTTP:'업데이트 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.',UPDATE_INSTALL_INVALID_REQUEST:'업데이트 설치 요청을 확인할 수 없어요.',UPDATE_INSTALL_UNAVAILABLE:'이 환경에서는 앱 안에서 설치할 수 없어요.',UPDATE_INSTALL_BUSY:'현재 작업이 끝난 뒤 다시 시도해 주세요.'}[e?.code]||e?.message||'업데이트를 진행하지 못했어요.');
 const when=v=>{if(!v)return '아직 확인하지 않았습니다.';const d=new Date(v);return Number.isNaN(d.valueOf())?'확인 시각을 알 수 없습니다.':new Intl.DateTimeFormat('ko-KR',{dateStyle:'medium',timeStyle:'short'}).format(d)};
 export function createAppUpdatesUI({document,request,bridge,hasPendingInput=()=>false,pollMs=30000}){
  let status,host,started=false,timer,manual=false,prompting=false,promptId,installResultId,waiting=false;
