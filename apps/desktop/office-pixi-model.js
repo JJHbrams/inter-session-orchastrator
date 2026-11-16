@@ -1,6 +1,6 @@
 export const OFFICE_ANCHORS={door:[15,80],library:[27,60],development:[58,50],server:[72,48],table:[55,67]};
 export const TABLE_SLOTS=[[40,79],[69,75],[55,88],[33,76],[73,85],[41,90],[66,90],[31,68]];
-export const CHAIR_SEAT=Object.freeze({x:42,y:76,zone:'table',seat:true,facing:'right',chair:true,approach:{x:37,y:70,zone:'table'}});
+export const CHAIR_SEAT=Object.freeze({x:43.8,y:67.8,zone:'table',seat:true,facing:'front',chair:true,approach:{x:37,y:70,zone:'table'}});
 export const ATTENTION=new Set(['waiting','unknown','failed']);
 export const TERMINAL=new Set(['completed','left']);
 const FLOOR_NODES=[{x:37,y:70},{x:40,y:87},{x:42,y:53},{x:73,y:53},{x:72,y:90},{x:88,y:90}];
@@ -14,7 +14,7 @@ const MEETING_APPROACHES=[{x:37,y:70},{x:40,y:87},{x:42,y:53},{x:73,y:53},{x:72,
 const MEETING_SEATS=[{x:65,y:76},{x:54,y:88},{x:54,y:64},{x:49,y:64},{x:59,y:63},{x:66,y:72},{x:66,y:81},{x:61,y:88},{x:51,y:89}];
 const meetingApproach=seat=>MEETING_APPROACHES.reduce((best,node)=>distance(node,seat)<distance(best,seat)?node:best);
 const participantSeat=(index,count)=>{if(index<MEETING_SEATS.length)return MEETING_SEATS[index];const slot=index-MEETING_SEATS.length,total=Math.max(count-MEETING_SEATS.length,1),angle=(-Math.PI/2)+(Math.PI*2*slot/total);return{x:53.4+Math.cos(angle)*13,y:76.5+Math.sin(angle)*13};};
-const facingChair=seat=>seat.y>80?'back':seat.y<68?'front':seat.x>CHAIR_SEAT.x?'left':'right';
+const facingChair=seat=>{const dx=seat.x-CHAIR_SEAT.x,dy=seat.y-CHAIR_SEAT.y;return Math.abs(dx)>Math.abs(dy)?dx>0?'left':'right':dy>0?'back':'front'};
 export function isAtMeeting(agent={}){if(agent.state==='left')return false;if(agent.role==='chair')return true;return agent.kind==='session'&&(agent.zone==='table'||MEETING_STATES.has(agent.state));}
 export function meetingLayout(agents=[]){const seated=agents.filter(isAtMeeting).sort((a,b)=>String(a.id).localeCompare(String(b.id))),layout=new Map(),chair=seated.find(a=>a.role==='chair');if(chair)layout.set(chair.id,{...CHAIR_SEAT,approach:{...CHAIR_SEAT.approach}});const participants=seated.filter(a=>a!==chair);for(let i=0;i<participants.length;i++){const point=participantSeat(i,participants.length),approach=meetingApproach(point);layout.set(participants[i].id,{...point,zone:'table',seat:true,facing:facingChair(point),chair:false,approach:{...approach,zone:'table'}})}return layout;}
 export function brief(a){if(a.state==='queued')return '요청 대기';if(ATTENTION.has(a.state))return({waiting:'확인 대기',unknown:'상태 확인',failed:'연결 확인'})[a.state];if(TERMINAL.has(a.state))return '자리로 돌아옴';return({reading:'책 읽는 중',research:'자료 보는 중',coding:'파일 편집 중',terminal:'터미널 보는 중',synthesis:'의견 취합 중',delegating:'작업 위임 중',responding:'응답 중',none:'대기 중'})[a.activity]||'대기 중'}
