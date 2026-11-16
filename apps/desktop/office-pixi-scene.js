@@ -17,7 +17,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
  let P,app,actors,bg,fg,mask,tableFg,tableMask,doorFg,doorMask,seatAtlas,emptyChair;
  let started=false,frame=0,revision=0,appInitialized=false,appDisposed=false,snapshotBeforeReady=false;
  const textures=new Map(),actionAtlases=new Map(),views=new Map(),records=new Map(),trips=new Map(),retired=new Map();
- const decorations=[];
+ const decorations=[],stationFronts=[];
  const board=host;
  board.classList.add('office-artboard');board.dataset.renderer='pixi';board.dataset.ready='false';
  const overlay=document.createElement('div');overlay.className='office-sprite-layer';board.replaceChildren(overlay);
@@ -31,7 +31,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
  const place=r=>{
   if(!r.container)return;
   const {w,h}=logical(),p=visualFoot(r);
-  r.container.x=p.x*w/100;r.container.y=p.y*h/100;r.container.zIndex=Math.round(p.y*10);
+  r.container.x=p.x*w/100;r.container.y=p.y*h/100;r.container.zIndex=r.seated&&r.station?.station==='library'?560:Math.round(p.y*10);
   const size=Math.max(r.agent.kind==='subagent'?20:28,Math.min(r.agent.kind==='subagent'?50:72,w*.06));
   r.container.scale?.set?.(size/r.size);
   r.node.style.width=`${size+12}px`;r.node.style.height=`${size}px`;
@@ -71,12 +71,13 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   if(r.container)return;
   const {w}=logical(),s=Math.max(r.agent.kind==='subagent'?20:28,Math.min(r.agent.kind==='subagent'?50:72,w*.06));
   r.size=s;r.container=new P.Container();r.container.label='office-agent:'+r.agent.id;r.container.sortableChildren=true;
-  r.chairSprite=new P.Sprite(seatTexture(4,'front'));r.chairSprite.label=`office-chair:${r.agent.id}`;r.chairSprite.visible=false;
-  r.body=new P.Sprite(actionTexture(`${provider(r.agent)}-travel`,r.texture.travel,0,0));r.body.anchor?.set?.(.5,.85);r.body.width=s;r.body.height=s;
+  r.chairSprite=new P.Sprite(seatTexture(4,'front'));r.chairSprite.label=`office-chair:${r.agent.id}`;r.chairSprite.visible=false;r.chairSprite.zIndex=0;
+  r.chairFront=new P.Sprite(seatTexture(4,'back'));r.chairFront.label=`office-chair-front:${r.agent.id}`;r.chairFront.visible=false;r.chairFront.zIndex=2;
+  r.body=new P.Sprite(actionTexture(`${provider(r.agent)}-travel`,r.texture.travel,0,0));r.body.anchor?.set?.(.5,.85);r.body.width=s;r.body.height=s;r.body.zIndex=1;
   r.eyes=graphic(g=>{g.rect(-s*.045,-s*.4,s*.075,s*.08).fill({color:0xf49b6a});g.rect(s*.095,-s*.41,s*.075,s*.08).fill({color:0xf49b6a});g.rect(-s*.04,-s*.355,s*.065,s*.015).fill({color:0x302523});g.rect(s*.10,-s*.365,s*.065,s*.015).fill({color:0x302523})});
   r.eyes.visible=false;r.prop=graphic(()=>{});r.prop.visible=false;
-  r.crown=graphic(g=>{g.poly([-s*.26,-s*.08,-s*.21,-s*.32,-s*.08,-s*.18,0,-s*.40,s*.09,-s*.18,s*.22,-s*.32,s*.27,-s*.08]).fill({color:0x382818});g.poly([-s*.20,-s*.10,-s*.17,-s*.26,-s*.07,-s*.14,0,-s*.33,s*.07,-s*.14,s*.18,-s*.26,s*.21,-s*.10]).fill({color:0xf6c744});g.rect(-s*.13,-s*.12,s*.06,s*.045).rect(s*.07,-s*.12,s*.06,s*.045).fill({color:0xd9435f});});r.crown.visible=false;
-  add(r.container,r.chairSprite);add(r.container,r.body);add(r.container,r.eyes);add(r.container,r.prop);add(r.container,r.crown);add(actors,r.container);
+  r.crown=graphic(g=>{g.poly([-s*.26,-s*.08,-s*.21,-s*.32,-s*.08,-s*.18,0,-s*.40,s*.09,-s*.18,s*.22,-s*.32,s*.27,-s*.08]).fill({color:0x382818});g.poly([-s*.20,-s*.10,-s*.17,-s*.26,-s*.07,-s*.14,0,-s*.33,s*.07,-s*.14,s*.18,-s*.26,s*.21,-s*.10]).fill({color:0xf6c744});g.rect(-s*.13,-s*.12,s*.06,s*.045).rect(s*.07,-s*.12,s*.06,s*.045).fill({color:0xd9435f});});r.crown.visible=false;r.crown.zIndex=4;
+  add(r.container,r.chairSprite);add(r.container,r.body);add(r.container,r.eyes);add(r.container,r.prop);add(r.container,r.crown);add(r.container,r.chairFront);add(actors,r.container);
  };
  const remove=id=>{const r=records.get(id);if(!r)return;trips.delete(id);retired.set(id,r.agent.updatedAt||'');gone(r.container,{children:true});r.node.remove();records.delete(id);status()};
  const create=(agent,target,atTarget=false)=>{
@@ -128,6 +129,9 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   r.chairSprite.visible=!!(atMeeting||atStation&&r.station.secondary);
   r.chairSprite.texture=seatTexture(4,r.node.dataset.facing||'front');
   r.chairSprite.anchor?.set?.(.5,1);r.chairSprite.height=s*.8;r.chairSprite.width=r.chairSprite.height*(r.chairSprite.texture.frame.width/r.chairSprite.texture.frame.height);
+  r.chairFront.visible=!!atMeeting&&r.node.dataset.facing==='back';
+  if(r.chairFront.visible){const id='meeting-chair-front:back',base=r.chairSprite.texture,rect=base.frame;if(!views.has(id))views.set(id,new P.Texture({source:base.source,frame:new P.Rectangle(rect.x,rect.y+rect.height*.35,rect.width,rect.height*.65)}));r.chairFront.texture=views.get(id);r.chairFront.anchor?.set?.(.5,1);r.chairFront.height=r.chairSprite.height*.65;r.chairFront.width=r.chairSprite.width;}
+
   if(atStation){
    key='work-torsos';row={library:0,development:1,server:2}[r.station.station]??0;col=(isClaude?0:2)+(Math.floor(p*2.5)%2);
    r.body.texture=actionTexture(key,r.texture.work,col,row);r.body.anchor?.set?.(.5,1);r.body.height=s*.85;bodyY=-s*.4;
@@ -171,6 +175,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
  };
  const sync=()=>{if(app?.ticker)moving()?app.ticker.start?.():app.ticker.stop?.()};
  const drawMasks=(w,h)=>{
+  for(const front of stationFronts)front.mask.clear().poly(front.points.map((n,i)=>n*(i%2?h:w))).fill({color:0xffffff,alpha:1});
   doorMask?.clear?.().poly([w*.068,h*.524,w*.128,h*.597,w*.128,h*.872,w*.07,h*.796]).poly([w*.184,h*.584,w*.194,h*.59,w*.194,h*.838,w*.184,h*.834]).fill({color:0xffffff,alpha:1});
   mask?.clear?.().poly([w*.39,h*.39,w*.48,h*.35,w*.49,h*.60,w*.47,h*.64,w*.39,h*.65,w*.38,h*.61]).fill({color:0xffffff,alpha:1});
   tableMask?.clear?.().poly([w*.442,h*.70,w*.45,h*.65,w*.49,h*.61,w*.56,h*.596,w*.61,h*.62,w*.624,h*.66,w*.62,h*.72,w*.605,h*.76,w*.605,h*.825,w*.596,h*.825,w*.596,h*.765,w*.51,h*.792,w*.51,h*.845,w*.5,h*.845,w*.5,h*.79,w*.46,h*.778,w*.46,h*.81,w*.45,h*.81,w*.45,h*.764,w*.444,h*.735]).fill({color:0xffffff,alpha:1});
@@ -190,6 +195,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   if(!appInitialized||destroyed)return;
   const w=Math.max(1,board.clientWidth||800),h=Math.max(1,Math.round(w/2.6));app.renderer.resize?.(w,h,Math.min(globalThis.devicePixelRatio||1,2));
   for(const sprite of[bg,fg,tableFg,doorFg])if(sprite){sprite.width=w;sprite.height=h}
+  for(const front of stationFronts){front.sprite.width=w;front.sprite.height=h}
   drawMasks(w,h);refreshChairs(meetingLayout(snapshot.agents||[]));for(const r of records.values()){place(r);animate(r)}app.render?.();
  };
  const paint=async expected=>{
@@ -234,6 +240,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   fg=new P.Sprite(base);fg.width=app.screen.width;fg.height=app.screen.height;mask=new P.Graphics();fg.mask=mask;fg.zIndex=650;mask.zIndex=650;add(actors,mask);add(actors,fg);
   tableFg=new P.Sprite(base);tableFg.width=app.screen.width;tableFg.height=app.screen.height;tableMask=new P.Graphics();tableFg.mask=tableMask;tableFg.zIndex=770;tableMask.zIndex=770;add(actors,tableMask);add(actors,tableFg);drawMasks(app.screen.width,app.screen.height);
   doorFg=new P.Sprite(base);doorFg.width=app.screen.width;doorFg.height=app.screen.height;doorMask=new P.Graphics();doorFg.mask=doorMask;doorFg.zIndex=901;doorMask.zIndex=901;add(actors,doorMask);add(actors,doorFg);drawMasks(app.screen.width,app.screen.height);
+  for(const config of[{name:'library-desk',depth:550,points:[.228,.419,.307,.372,.357,.414,.35,.54,.335,.552,.335,.47,.275,.49,.27,.548,.255,.55,.255,.475,.229,.46]},{name:'development-chair',depth:460,points:[.537,.37,.568,.37,.577,.405,.57,.438,.55,.443,.535,.419]},{name:'server-chair',depth:620,points:[.83,.535,.863,.535,.877,.565,.866,.611,.846,.62,.83,.586]}]){const sprite=new P.Sprite(base),frontMask=new P.Graphics();sprite.width=app.screen.width;sprite.height=app.screen.height;sprite.mask=frontMask;sprite.zIndex=config.depth;frontMask.zIndex=config.depth;sprite.label=config.name;stationFronts.push({...config,sprite,mask:frontMask});add(actors,frontMask);add(actors,sprite)}drawMasks(app.screen.width,app.screen.height);
   emptyChair=new P.Sprite(seatTexture(4,CHAIR_SEAT.facing));emptyChair.label='meeting-chair-empty';add(actors,emptyChair);
   for(const seat of[{x:61.8,y:67,facing:'left'},{x:49,y:87,facing:'back'},{x:62,y:82,facing:'back'}]){const sprite=new P.Sprite(seatTexture(4,seat.facing));sprite.label='meeting-chair-decoration';decorations.push({sprite,seat});add(actors,sprite)}
   const ro=globalThis.ResizeObserver?new ResizeObserver(resize):null;ro?.observe(board);board._pixiResizeObserver=ro;

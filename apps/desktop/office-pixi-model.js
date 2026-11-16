@@ -1,5 +1,5 @@
 export const OFFICE_ANCHORS={door:[15,80],library:[25.5,50],development:[56.5,45.5],server:[85.5,61.5],table:[55,67]};
-export const WORK_STATIONS=Object.freeze({library:{x:25.5,y:50,approach:{x:27,y:60}},development:{x:56.5,y:45.5,approach:{x:58,y:50}},server:{x:85.5,y:61.5,approach:{x:89,y:65}}});
+export const WORK_STATIONS=Object.freeze({library:{x:25.5,y:50,approach:{x:22,y:50}},development:{x:56.5,y:45.5,approach:{x:58,y:50}},server:{x:85.5,y:61.5,approach:{x:89,y:65}}});
 export const TABLE_SLOTS=[[40,79],[69,75],[55,88],[33,76],[73,85],[41,90],[66,90],[31,68]];
 export const CHAIR_SEAT=Object.freeze({x:43.8,y:67.8,zone:'table',seat:true,facing:'front',chair:true,approach:{x:37,y:70,zone:'table'}});
 export const ATTENTION=new Set(['waiting','unknown','failed']);
