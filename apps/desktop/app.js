@@ -16,6 +16,8 @@ import {deliveryPresentation} from '/delivery-status.js';
 import {chairSettingsFields,dialoguePresets,dialogueLimitSummary} from '/chair-settings.js';
 import {createAgendaUI,agendaMessagePresentation} from '/agenda-ui.js';
 import {createAppUpdatesUI} from '/app-updates-ui.js';
+import {createAgentOffice} from '/agent-office.js';
+import {createOfficeController} from '/office-controller.js';
 import {UNASSIGNED_CHANNEL_KEY,bindChannelDisclosure,createChannelNav,expandParentForNewRoom,parseReferenceHash,syncRoomChannelOptions} from '/channel-nav.js';
 import {showReferenceDialog} from '/reference-links.js';
 let current, rooms=[], channels=[], pendingSend, selectedRoomId,showArchived=false;const draftBodies=new Map(); const $=s=>document.querySelector(s);
@@ -27,6 +29,8 @@ const renderMarkdown=createRenderer({parse:source=>marked.parse(source,{gfm:true
 const attachmentViewer=createAttachmentViewer({document,authenticate:()=>api.authenticate(),renderMarkdown,getContext:id=>current?.id===id?{mentions:current.members.map(m=>m.alias),references:createReferenceMap(current.members,current.messages)}:{}});
 let agendaUI;
 const appUpdatesUI=createAppUpdatesUI({document,request:req,bridge:globalThis.sessionRoomsDesktop,hasPendingInput:()=>Boolean($('#body')?.value.trim())||[...draftBodies.values()].some(body=>body.trim())||attachmentComposer?.hasDrafts?.()===true||Boolean(pendingSend)});
+const agentOffice=createAgentOffice({document,host:$('#agentOffice'),onSelect:selection=>{if(!current)return;const members=sessionMembers(current),member=members.find(m=>(selection.sessionId&&m.session_id===selection.sessionId)||(selection.membershipId&&m.id===selection.membershipId)||(selection.parentId&&m.session_id===selection.parentId))||members.find(m=>m.role==='chair'&&(selection.id?.startsWith('chair:')||selection.parentId?.startsWith('chair:')));if(member){showMemberDetail(memberKey(member));$('.inspector').classList.add('open');$('.details-toggle')?.setAttribute('aria-expanded','true');}}});
+const officeController=createOfficeController({document,office:agentOffice,request:req});
 const channelNav=createChannelNav();
 const text=(tag,value,cls)=>{const x=document.createElement(tag);x.textContent=value;if(cls)x.className=cls;return x};
 function actionIcon(name){
@@ -44,7 +48,7 @@ async function ensureVisibleSelection(){
  const visible=visibleRooms();if(current&&visible.some(room=>room.id===current.id))return openRoom(current.id,false);
  if(current)draftBodies.set(current.id,$('#body').value);
  if(visible.length)return openRoom(visible[0].id);
- current=null;selectedRoomId=null;timelineSignature=undefined;decisionSignature=undefined;attachmentComposer.setRoom(null);$('#body').value='';$('#title').textContent='토론장을 선택하세요';
+ current=null;officeController.setRoom(null);selectedRoomId=null;timelineSignature=undefined;decisionSignature=undefined;attachmentComposer.setRoom(null);$('#body').value='';$('#title').textContent='토론장을 선택하세요';
  $('#timeline').replaceChildren(text('div',showArchived?'토론장을 만들어 대화를 시작해보세요.':'표시할 토론장이 없어요. 새로 만들거나 보관 항목을 확인해보세요.','empty'));
  $('#chairProfile').replaceChildren();$('#participants').replaceChildren();$('#decisions').replaceChildren();$('#summaryStatus').textContent='';selectedSessionKey=null;memberDetailSignature='';participantRenderSignature='';$('#memberDetail').textContent='참여 세션을 선택해줘.';$('#workspaceDetail').textContent='토론장을 선택해줘.';
  renderNav();renderMentionMenu();renderPreview();updateRoomControls();renderChairControl();$('#pause').disabled=true;$('#archive').disabled=true;
@@ -275,7 +279,7 @@ async function openRoom(id,scroll=true,preserveReferenceHash=false){
   const previousId=current?.id,view=await req('/api/rooms/'+id);
   if(id!==selectedRoomId)return;
   if(previousId&&previousId!==id)draftBodies.set(previousId,$('#body').value);
-  current=view;attachmentComposer.setRoom(current.id);
+  current=view;officeController.setRoom(current.id);attachmentComposer.setRoom(current.id);
   if(previousId!==current.id){$('#body').value=draftBodies.get(current.id)||'';selectedSessionKey=null;memberDetailSignature='';}
   $('#title').textContent=current.name+(current.archived_at?' · 보관됨':current.paused_at?' · 중지됨':'');$('.eyebrow').textContent=(channels.find(c=>c.id===current.channel_id)?.name||'채널 없음')+' / 토론장';$('#pause').textContent=current.paused_at?'재개':'중지';$('#pause').disabled=!active();$('#archive').textContent=current.archived_at?'보관 해제':'토론장 보관';$('#archive').disabled=false;renderNav();renderParticipants();renderMemberDetail();renderTimeline();renderDecisions();renderMentionMenu();updateRoomControls();renderChairControl();renderToolbar();loadWorkspace(current.id);await agendaUI?.setRoom(current.id);if(scroll||follow)$('#timeline').scrollTop=$('#timeline').scrollHeight;
  }catch(e){if(e.code!=='NETWORK_UNCERTAIN')error(e.message)}
@@ -770,3 +774,5 @@ function renameDialog(kind,item){
  };
  d.showModal();field.select();
 }
+
+window.addEventListener('pagehide',()=>{officeController.destroy();agentOffice.destroy();},{once:true});
