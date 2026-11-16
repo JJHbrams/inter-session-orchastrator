@@ -4,13 +4,22 @@
   "type": "module",
   "scripts": {
     "start": "node services/coordinator/server.js",
-    "test": "node --test"
+    "test": "node desktop/scripts/verify-web.mjs --all",
+    "prepare:tools": "node desktop/scripts/prepare-toolchains.mjs",
+    "build:icons": "node desktop/scripts/build-icons.mjs",
+    "dev": "node desktop/scripts/run-with-node.mjs desktop/scripts/dev.mjs",
+    "verify:web": "node desktop/scripts/run-with-node.mjs desktop/scripts/verify-web.mjs",
+    "verify:electron": "node desktop/scripts/run-with-node.mjs desktop/scripts/verify-electron.mjs",
+    "build:electron": "node desktop/scripts/run-with-node.mjs desktop/scripts/release-electron.mjs",
+    "build:installer": "node desktop/scripts/run-with-node.mjs desktop/scripts/release-installer.mjs"
   },
   "dependencies": {
     "dompurify": "3.4.17",
     "marked": "18.1.1"
   },
   "devDependencies": {
-    "jsdom": "29.1.1"
+    "@resvg/resvg-js": "2.6.2",
+    "jsdom": "29.1.1",
+    "rcedit": "5.0.2"
   }
 }

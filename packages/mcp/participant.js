@@ -1,3 +1,4 @@
+import {participantInstructions} from '../contracts/participant-instructions.js';
 // Explicit local helper: private token config stays outside messages and argv.
 import {readFile,writeFile,stat} from 'node:fs/promises';
 import {basename} from 'node:path';
@@ -5,25 +6,43 @@ import {createHash} from 'node:crypto';
 let args=process.argv.slice(2),config={};
 function option(name){const i=args.indexOf(name);if(i<0)return;const value=args[i+1];if(value===undefined)throw Error(name+' needs a value');args.splice(i,2);return value;}
 const configPath=option('--config');if(configPath)config=JSON.parse(await readFile(configPath,'utf8'));
-const requestedId=option('--request-id'),bodyFile=option('--body-file');
-const output=option('--output'),requestedKey=option('--request-key'),attachmentOption=option('--attachments');
+const requestedId=option('--request-id'),bodyFile=option('--body-file'),evidenceFile=option('--evidence-file'),evidenceTitle=option('--evidence-title');
+const replyTo=option('--reply-to');
+const output=option('--output'),requestedKey=option('--request-key'),agendaId=option('--agenda-id'),intentId=option('--intent-id'),decision=option('--decision'),reason=option('--reason'),sourceIds=option('--source-ids')?.split(',').filter(Boolean),attachmentOption=option('--attachments');
+const reactionMessageId=option('--reaction-message'),reactionEmoji=option('--reaction-emoji'),reactionActiveOption=option('--reaction-active');
 const attachmentIds=attachmentOption===undefined?undefined:attachmentOption.split(',').filter(Boolean);
 const [action='inbox',...rest]=args,url=config.url||process.env.ROOMS_URL||'http://127.0.0.1:4318',token=config.token||process.env.ROOMS_TOKEN;
 if(!token)throw Error('ROOMS_TOKEN is required');
 const target=new URL(url);
 if(target.protocol!=='http:'||target.hostname!=='127.0.0.1'||target.username||target.password)throw Error('Participant configuration must point to loopback HTTP');
 let body={},route=action;
+const evidence=evidenceFile===undefined?null:(evidenceTitle?{title:evidenceTitle,body:await readFile(evidenceFile,'utf8')}:(()=>{throw Error('--evidence-file requires --evidence-title');})());
+if(action==='history'){route='room_history_index';body={offset:Number(rest[0]||0)};}
+if(action==='history-search'){route='room_history_search';body={query:rest.join(' ')};}
+if(action==='history-read'){route='room_history_read';body={id:rest[0],offset:Number(rest[1]||0),kind:rest[2]||'history_read'};}
 if(action==='context')route='room_context';
-if(action==='inbox'){route='room_inbox';if(requestedId)body={requestId:requestedId};}
-if(action==='post'){route='room_post';body={body:rest.join(' '),attachmentIds:attachmentIds||[]};}
-if(action==='reply'){route='room_reply';body={requestId:rest[0],body:bodyFile?await readFile(bodyFile,'utf8'):rest.slice(1).join(' '),attachmentIds:attachmentIds||[]};}
+if(action==='knowledge'){route='room_knowledge_list';body={query:rest.join(' ')};}
+if(action==='knowledge-read'){route='room_knowledge_read';body={itemId:rest[0],...(rest[1]?{revision:Number(rest[1])}:{})};}
+if(action==='ack'){route='room_acknowledge_approval';body={noticeId:rest[0],revision:Number(rest[1])};}
+if(action==='review'||action==='knowledge-add'){
+ const raw=rest[0]?.startsWith('{')?rest.join(' '):await readFile(rest[0],'utf8');
+ body=JSON.parse(raw);route=action==='review'?'room_review':'room_knowledge_add';
+}
+if(action==='inbox'||action==='wake'){route='room_inbox';if(requestedId)body={requestId:requestedId};}
+if(action==='participate'){
+ if(reactionMessageId&&reactionActiveOption!=='true'&&reactionActiveOption!=='false')throw Error('--reaction-message requires --reaction-active true or false');
+ route='room_participate';body={agendaId,intentId,decision,reason:reason||'',sourceIds:sourceIds||[],...(reactionMessageId?{reaction:{messageId:reactionMessageId,emoji:reactionEmoji,active:reactionActiveOption==='true'}}:{})};
+}
+if(action==='post'){route='room_post';body={body:bodyFile?await readFile(bodyFile,'utf8'):rest.join(' '),...(replyTo?{replyTo}:{}),attachmentIds:attachmentIds||[],...(requestedKey?{requestKey:requestedKey}:{}),...(evidence?{evidence}:{})};}
+if(action==='reply'){route='room_reply';body={requestId:rest[0],body:bodyFile?await readFile(bodyFile,'utf8'):rest.slice(1).join(' '),attachmentIds:attachmentIds||[],...(evidence?{evidence}:{})};}
 if(action==='react'){route='room_react';body={messageId:rest[0],emoji:rest[1],active:rest[2]==='true'};if(rest[2]!=='true'&&rest[2]!=='false')throw Error('react requires active true or false');}
 if(action==='result'||action==='request'){
  const data=rest[0]?.startsWith('{')?JSON.parse(rest.join(' ')):JSON.parse(await readFile(rest[0],'utf8'));
  route=action==='result'?'room_result':'room_request';
  body=action==='result'?{body:data.body,sourceIds:data.sourceIds||[],attachmentIds:attachmentIds||data.attachmentIds||[]}:
-  {body:data.body,targets:data.targets,kind:data.kind||'followup',requestKey:requestedKey||data.requestKey||createHash('sha256').update(JSON.stringify(data)).digest('hex'),expectedTurnId:data.expectedTurnId||null,attachmentIds:attachmentIds||data.attachmentIds||[]};
+  {body:data.body,targets:data.targets,kind:data.kind||'followup',requestKey:requestedKey||data.requestKey||createHash('sha256').update(JSON.stringify(data)).digest('hex'),expectedTurnId:data.expectedTurnId||null,attachmentIds:attachmentIds||data.attachmentIds||[],replyTo:data.replyTo||null,...(data.agendaId?{agendaId:data.agendaId,sourceIds:data.sourceIds||[]}:{}),...(evidence?{evidence}:{})};
 }
+if(action==='request'&&agendaId)Object.assign(body,{agendaId,sourceIds:sourceIds||body.sourceIds||[]});
 if(action==='upload'){
  if(!rest[0])throw Error('upload requires a file path');
  const info=await stat(rest[0]);if(!info.isFile()||info.size>10*1024*1024)throw Error('upload needs a regular file up to 10 MiB');
@@ -34,7 +53,10 @@ if(action==='read'){if(!rest[0])throw Error('read requires an attachment ID');ro
 const response=await fetch(url.replace(/\/$/,'')+'/mcp/'+route,{method:'POST',redirect:'error',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
 const result=await response.json();
 if(!response.ok){console.error(result.error||'request failed');process.exitCode=1;}
-else if(action==='read'&&output){
+else if(action==='wake'){
+ const first=result.inbox?.[0];
+ console.log(JSON.stringify({...result,participantInstructions:first?participantInstructions({room_id:result.roomId||first.room_id||'the authenticated room',room_cwd:result.cwd||null},configPath,first.request_id,result.knowledgeChanges||null):null},null,2));
+}else if(action==='read'&&output){
  if(typeof result.base64!=='string')throw Error('attachment bytes missing');
  await writeFile(output,Buffer.from(result.base64,'base64'));
  const {base64,...metadata}=result;console.log(JSON.stringify({...metadata,saved:true},null,2));

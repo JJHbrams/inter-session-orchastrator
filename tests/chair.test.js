@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../services/coordinator/store.js';
 import {ChairCoordinator} from '../services/coordinator/chair.js';
+import {DebateCoordinator} from '../services/coordinator/debate.js';
+import {SESSION_ADDRESSING} from '../packages/contracts/session-language.js';
 const runner={initialize:async({nativeId})=>({nativeId,started:true,output:{speech:'ready',questions:[],proposal:null}}),resume:async({nativeId,onStarted})=>{onStarted();return {nativeId,started:true,output:{speech:'chair says hi',questions:[],proposal:null}};}};
 test('dedicated chair owns a distinct session and processes its queued delivery once',async()=>{const s=new Store(),r=s.createRoom('r');const participant=s.registerSession({provider:'codex',host:'local',nativeId:'participant',cwd:'C:/p',profile:'default',mode:'live_attach',ownership:'borrowed',verified:true,capabilities:{followup:true}}).session;const p=s.join(r.id,participant.id,false),c=new ChairCoordinator(s,{runner,cwdForRoom:id=>`C:/chairs/${id}`});const chair=await c.create(r.id);assert.equal(chair.status,'ready');assert.throws(()=>s.role(r.id,chair.session_id,'member'),/dedicated chair/);assert.notEqual(chair.session_id,participant.id);const m=s.room(r.id).members.find(x=>x.session_id===chair.session_id);s.post({roomId:r.id,body:'coordinate',kind:'followup',targets:[m.id],requestKey:'one'});await c.tick(r.id);assert.equal(s.room(r.id).messages.at(-1).body,'chair says hi');assert.equal(s.room(r.id).chair_runs[0].status,'completed');assert.equal(s.room(r.id).deliveries.find(x=>x.membership_id===m.id).state,'completed');assert.equal(p.read_only,0);});
 test('chair restart recovery leaves fenced work unknown without replay',async()=>{const s=new Store(),r=s.createRoom('r'),c=new ChairCoordinator(s,{runner,cwdForRoom:id=>`C:/chairs/${id}`});const chair=await c.create(r.id),m=s.room(r.id).members.find(x=>x.session_id===chair.session_id),d=s.post({roomId:r.id,body:'x',kind:'followup',targets:[m.id]}).deliveries[0],claim=s.claim(d.id);s.fence(d.id,claim.fence);s.recover();assert.equal(s.db.prepare('SELECT state FROM deliveries WHERE id=?').get(d.id).state,'unknown');assert.equal(await c.tick(r.id),null);});
@@ -37,7 +39,7 @@ test('chair output cannot re-send a current explicit recipient and remains atomi
  assert.throws(()=>c.applyOutput(r.id,chair,{message_id:input.message.id,request_id:run.request_key,body:'mixed'},run,{id:'none'}, {speech:'will fail',questions:[{targetMembershipIds:[peer.id],body:'mixed'}],proposal:null}),/중복 전달/);
  assert.equal(s.room(r.id).messages.some(m=>m.body==='will fail'),false);
  assert.doesNotThrow(()=>c.validate(r.id,chair,{speech:'clarify',questions:[{targetMembershipIds:[peer.id],body:'Which constraint matters most?'}],proposal:null},{currentTargets:[peer.id],currentInput:'mixed'}));
- const prompt=c.context(r.id,chair,{message_id:input.message.id,body:'mixed',request_id:'context'},null),context=JSON.parse(prompt.slice(prompt.indexOf('\n')+1));
+ const prompt=c.context(r.id,chair,{message_id:input.message.id,body:'mixed',request_id:'context'},null),context=JSON.parse(prompt.slice(prompt.indexOf('\n')+1));assert.ok(prompt.includes(SESSION_ADDRESSING));
  assert.equal(context.chairIdentity.alias,chairMember.alias);assert.equal(context.chairIdentity.role,'chair');assert.equal(context.chairIdentity.membershipId,chairMember.id);assert.ok(context.currentTargets.includes(peer.id));const peerContext=context.participants.find(p=>p.membershipId===peer.id);assert.equal(peerContext.displayName,peer.session.display_name);assert.equal(peerContext.sessionId,peer.session.id);assert.equal(context.messages.find(m=>m.id===input.message.id).senderMembershipId,null);
  s.db.close();
 });
@@ -75,6 +77,24 @@ test('legacy budget-only unknown is reconciled from saved output without invokin
  assert.equal(s.db.prepare('SELECT unresolved_delivery_id FROM writers WHERE session_id=?').get(chair.session_id).unresolved_delivery_id,null);
  assert.equal(s.db.prepare('SELECT output_json FROM chair_runs WHERE id=?').get(run.id).output_json,JSON.stringify(output));
  assert.doesNotThrow(()=>s.post({roomId:r.id,body:'next user request',kind:'followup',routingMode:'auto'}));s.db.close();
+});
+
+test('ordinary saved chair outputs ignore stray debate metadata and reconcile exactly once',async()=>{
+ const s=new Store(),r=s.createRoom('ordinary recovery'),peer=participant(s,r),c=new ChairCoordinator(s,{runner:{...readyRunner,resume:async()=>{throw Error('must not invoke');}}}),chair=await c.create(r.id),chairMember=s.room(r.id).members.find(m=>m.session_id===chair.session_id),debates=new DebateCoordinator(s,{chairs:c}),agenda=debates.create(r.id,{title:'kept',body:'agenda body',targetMembershipIds:[peer.id]});
+ const before=debates.get(r.id,agenda.id);
+ for(const debate of [{agendaId:'missing',conclusionRevision:1},{agendaId:agenda.id,conclusionRevision:1},{agendaId:'foreign-agenda',conclusionRevision:99}]){
+  const input=s.post({roomId:r.id,body:'ordinary '+debate.agendaId,kind:'followup',targets:[chairMember.id],requestKey:'ordinary:'+debate.agendaId}),d=input.deliveries[0],claim=s.claim(d.id),attempt=s.fence(d.id,claim.fence),run=s.claimChairRun(s.chairRun(r.id,d.request_id).id,d.id),output={speech:'saved '+debate.agendaId,questions:[],proposal:null,debate};
+  s.updateChairRun(run.id,'unknown','saved output',d.id);s.db.prepare('UPDATE chair_runs SET output_json=? WHERE id=?').run(JSON.stringify(output),run.id);s.db.prepare("UPDATE deliveries SET state='unknown' WHERE id=?").run(d.id);
+  c.reconcile(r.id,run.id);c.reconcile(r.id,run.id);
+  assert.equal(s.room(r.id).messages.filter(m=>m.body===output.speech).length,1);assert.equal(s.db.prepare('SELECT output_json FROM chair_runs WHERE id=?').get(run.id).output_json,JSON.stringify(output));assert.equal(s.db.prepare('SELECT state FROM deliveries WHERE id=?').get(d.id).state,'completed');
+ }
+ const after=debates.get(r.id,agenda.id);assert.equal(after.revision,before.revision);assert.equal(after.phase,before.phase);assert.equal(s.db.prepare("SELECT count(*) n FROM events WHERE room_id=? AND event='chair.ordinary_debate_ignored'").get(r.id).n,3);s.db.close();
+});
+
+test('ordinary saved chair recovery refuses a stale writer fence without effects',async()=>{
+ const s=new Store(),r=s.createRoom('ordinary stale fence'),c=new ChairCoordinator(s,{runner:readyRunner}),chair=await c.create(r.id),chairMember=s.room(r.id).members.find(m=>m.session_id===chair.session_id),input=s.post({roomId:r.id,body:'ordinary',kind:'followup',targets:[chairMember.id]}),d=input.deliveries[0],claim=s.claim(d.id),attempt=s.fence(d.id,claim.fence),run=s.claimChairRun(s.chairRun(r.id,d.request_id).id,d.id),output={speech:'must not publish',questions:[],proposal:null,debate:{agendaId:'missing',conclusionRevision:1}};
+ s.updateChairRun(run.id,'unknown','saved output',d.id);s.db.prepare('UPDATE chair_runs SET output_json=? WHERE id=?').run(JSON.stringify(output),run.id);s.db.prepare("UPDATE deliveries SET state='unknown' WHERE id=?").run(d.id);s.db.prepare('UPDATE writers SET fence=fence+1 WHERE session_id=?').run(chair.session_id);
+ assert.throws(()=>c.reconcile(r.id,run.id),/fence/);assert.equal(s.db.prepare('SELECT state FROM deliveries WHERE id=?').get(d.id).state,'unknown');assert.equal(s.room(r.id).messages.some(m=>m.body===output.speech),false);s.db.close();
 });
 
 test('legacy decision publication survives a departed owner and archived room',()=>{

@@ -1,0 +1,2 @@
+'use strict';
+try { const { DatabaseSync } = require('node:sqlite'); const db = new DatabaseSync(':memory:'); db.exec("CREATE TABLE probe (value TEXT); INSERT INTO probe VALUES ('ok');"); const result = db.prepare('SELECT value FROM probe').get().value === 'ok'; db.close(); process.parentPort.postMessage({ supported: result, node: process.version }); } catch (error) { process.parentPort.postMessage({ supported: false, error: error.message }); }

@@ -24,3 +24,10 @@ test('Claude only adds model and effort when they are explicit',async()=>{
  await run.resume({nativeId:'native',cwd,body:'x',model:null,effort:null});assert.equal(args.includes('--model'),false);assert.equal(args.includes('--effort'),false);
  await run.resume({nativeId:'native',cwd,body:'x',model:'claude-test',effort:'high'});assert.equal(args[args.indexOf('--model')+1],'claude-test');assert.equal(args[args.indexOf('--effort')+1],'high');
 });
+test('Claude chair executable follows the current home and preserves overrides without a shell',async()=>{
+ const cwd=await mkdtemp(join(tmpdir(),'chair-portable-'));
+ const capture=async options=>{let call;const run=createClaudeChairRunner({...options,spawnProcess:(command,args,spawnOptions)=>{call={command,args,spawnOptions};const p=child();queueMicrotask(()=>{p.stdout.write(JSON.stringify({type:'system',session_id:'native'})+'\n');p.stdout.write(JSON.stringify({type:'stream_event',session_id:'native',event:{type:'message_start'}})+'\n');p.stdout.write(JSON.stringify({type:'result',session_id:'native',subtype:'success',structured_output:{speech:'ok',questions:[],proposal:null}})+'\n');p.emit('close',0);});return p;}});await run.resume({nativeId:'native',cwd,body:'x'});return call;};
+ const home=await capture({environment:{},homeDirectory:'D:\\Profiles\\other-user'});assert.equal(home.command,'D:\\Profiles\\other-user\\.local\\bin\\claude.exe');assert.equal(home.spawnOptions.shell,false);
+ const configured=await capture({environment:{CLAUDE_CHAIR_COMMAND:'E:\\Tools\\claude.exe'},homeDirectory:'D:\\Profiles\\other-user'});assert.equal(configured.command,'E:\\Tools\\claude.exe');assert.equal(configured.spawnOptions.shell,false);
+ const explicit=await capture({command:'F:\\Portable\\claude.exe',environment:{CLAUDE_CHAIR_COMMAND:'E:\\Tools\\claude.exe'},homeDirectory:'D:\\Profiles\\other-user'});assert.equal(explicit.command,'F:\\Portable\\claude.exe');assert.equal(explicit.spawnOptions.shell,false);
+});

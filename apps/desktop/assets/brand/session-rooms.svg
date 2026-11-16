@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <title>Session Rooms</title>
+  <defs>
+    <linearGradient id="tile" x1="56" y1="24" x2="448" y2="504" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#153F46"/>
+      <stop offset="1" stop-color="#0C202B"/>
+    </linearGradient>
+    <linearGradient id="conversation" x1="126" y1="138" x2="378" y2="390" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#91FFDF"/>
+      <stop offset="1" stop-color="#27C9B9"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="116" fill="url(#tile)"/>
+  <rect x="18" y="18" width="476" height="476" rx="114" stroke="#6FEAD2" stroke-opacity=".18" stroke-width="4"/>
+  <path d="M168 244 256 322 344 244" stroke="#35D1BC" stroke-opacity=".42" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M122 132h112a24 24 0 0 1 24 24v88a24 24 0 0 1-24 24h-48l-38 30v-30h-26a24 24 0 0 1-24-24v-88a24 24 0 0 1 24-24Z" fill="url(#conversation)"/>
+  <path d="M302 132h88a24 24 0 0 1 24 24v70a24 24 0 0 1-24 24h-16v27l-35-27h-37a24 24 0 0 1-24-24v-70a24 24 0 0 1 24-24Z" fill="#DBFFF3"/>
+  <path d="M230 302h88a24 24 0 0 1 24 24v58a24 24 0 0 1-24 24h-40l-35 27v-27h-13a24 24 0 0 1-24-24v-58a24 24 0 0 1 24-24Z" fill="#35D1BC"/>
+  <path d="M133 176h88M133 207h57" stroke="#124449" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="318" cy="190" r="8" fill="#19616A"/>
+  <circle cx="346" cy="190" r="8" fill="#19616A"/>
+  <circle cx="374" cy="190" r="8" fill="#19616A"/>
+  <path d="m246 354 19 18 34-35" stroke="#0E3F45" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

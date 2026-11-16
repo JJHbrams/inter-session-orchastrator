@@ -4,5 +4,13 @@ __pycache__/
 .local/
 node_modules/
 *.log
+SessionRooms-*-setup.exe
 
 .session-rooms/
+
+# Desktop build outputs
+dist/
+desktop/**/target/
+desktop/shells/**/bin/
+desktop/shells/**/obj/
+desktop/shells/winui/publish/

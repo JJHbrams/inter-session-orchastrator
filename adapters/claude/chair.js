@@ -1,6 +1,9 @@
 import {spawn} from 'node:child_process';
 import {mkdir} from 'node:fs/promises';
+import {homedir} from 'node:os';
+import {join} from 'node:path';
 import {chairOutputSchema,validateChairOutput} from '../chair/schema.js';
+import {stopTimedOutChair} from '../chair/timeout.js';
 const attachments={type:'array',items:{type:'string'},maxItems:5};
 const question={type:'object',additionalProperties:false,required:['targetMembershipIds','body'],properties:{targetMembershipIds:{type:'array',items:{type:'string'},minItems:1,maxItems:20},body:{type:'string',minLength:1,maxLength:8000},attachmentIds:attachments}};
 const proposal={type:'object',additionalProperties:false,required:['body','sourceIds'],properties:{body:{type:'string',minLength:1,maxLength:8000},sourceIds:{type:'array',items:{type:'string'},maxItems:100},attachmentIds:attachments}};
@@ -17,23 +20,29 @@ export function chairInput(nativeId,prompt,images=[]){
  }
  return JSON.stringify({type:'user',session_id:nativeId,parent_tool_use_id:null,message:{role:'user',content}})+'\n';
 }
-export function createClaudeChairRunner({spawnProcess=spawn,timeoutMs=150000,maxBytes=2_000_000,command=process.env.CLAUDE_CHAIR_COMMAND||'C:/Users/jhjang/.local/bin/claude.exe'}={}) {
-  const call=async({flag,nativeId,cwd,prompt,onStarted,images=[],model,effort})=>{
+export function createClaudeChairRunner({spawnProcess=spawn,timeoutMs=300000,stopGraceMs=5000,maxBytes=2_000_000,command,environment=process.env,homeDirectory=homedir()}={}) {
+ const executable=command||environment.CLAUDE_CHAIR_COMMAND||join(homeDirectory,'.local','bin','claude.exe');
+  const call=async({flag,nativeId,cwd,prompt,onStarted,images=[],model,effort,callTimeout})=>{
     const input=chairInput(nativeId,prompt,images);
     await mkdir(cwd,{recursive:true});
     return new Promise((resolve,reject)=>{
       let child,buffer='',bytes=0,started=false,confirmed=false,output,successful=false,settled=false;
       const finish=(error)=>{if(settled)return;settled=true;clearTimeout(timer);if(error){child?.kill();reject(error);}else resolve({nativeId,started,output});};
-      const timer=setTimeout(()=>finish(Error('좌장 응답 제한시간 초과 · 실행 여부 확인 필요')),timeoutMs);
+      const timer=setTimeout(()=>{if(settled)return;settled=true;stopTimedOutChair(child,nativeId,reject,{graceMs:stopGraceMs});},Math.min(timeoutMs,callTimeout??timeoutMs));
       try {
-        const args=[flag,nativeId,'--print','--input-format','stream-json','--output-format','stream-json','--verbose','--include-partial-messages','--json-schema',schema,'--safe-mode','--tools','','--strict-mcp-config','--mcp-config','{"mcpServers":{}}','--permission-mode','manual'];if(model!=null)args.push('--model',model);if(effort!=null)args.push('--effort',effort);child=spawnProcess(command,args,{cwd,windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
+        const args=[flag,nativeId,'--print','--input-format','stream-json','--output-format','stream-json','--verbose','--include-partial-messages','--json-schema',schema,'--safe-mode','--tools','','--strict-mcp-config','--mcp-config','{"mcpServers":{}}','--permission-mode','manual'];if(model!=null)args.push('--model',model);if(effort!=null)args.push('--effort',effort);child=spawnProcess(executable,args,{cwd,windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
       } catch(error){finish(error);return;}
       const consume=line=>{
         if(settled||!line.trim())return;
         let event;try{event=JSON.parse(line);}catch{return;}
         const eventId=event.session_id||event.sessionId;
         if(eventId){if(eventId!==nativeId)return finish(Error('좌장 응답의 대화 ID가 요청과 달라.'));confirmed=true;}
-        if(event.is_error)return finish(Error('Claude 좌장 실행 실패 · '+(event.subtype||'provider error')));
+        if(event.is_api_error_message||event.is_error){
+          if(event.error==='authentication_failed'||/OAuth session expired|Failed to authenticate/i.test(event.result||'')){
+            const error=Error('Claude 로그인 만료 · Claude CLI에서 다시 로그인한 뒤 새 좌장을 만들어줘.');error.code='CLAUDE_AUTH_REQUIRED';return finish(error);
+          }
+          return finish(Error('Claude 좌장 실행 실패 · '+(event.terminal_reason||event.error||event.subtype||'provider error')));
+        }
         if(!started&&(event.type==='assistant'||event.type==='stream_event'&&event.event?.type==='message_start')){
           if(!confirmed)return finish(Error('좌장 신원 확인 전에 응답이 도착했어.'));
           started=true;try{onStarted?.();}catch(error){return finish(error);}
@@ -51,5 +60,5 @@ export function createClaudeChairRunner({spawnProcess=spawn,timeoutMs=150000,max
       child.on('close',code=>{consume(buffer);if(settled)return;if(code!==0)return finish(Error('Claude 좌장이 응답 완료 전에 종료됐어 · exit '+code));if(!confirmed||!successful||!started||!output)return finish(Error('좌장 신원·모델 응답·구조화 결과를 확인하지 못했어.'));finish();});
     });
   };
-  return {initialize:({nativeId,cwd,model,effort})=>call({flag:'--session-id',nativeId,cwd,model,effort,prompt:'You are a dedicated discussion chair. Tools are disabled. Coordinate only through the supplied JSON schema. Initialize now with a short Korean greeting in speech, questions:[], proposal:null. Do not ask any questions yet.'}),resume:({nativeId,cwd,body,onStarted,images=[],model,effort})=>call({flag:'--resume',nativeId,cwd,prompt:body,onStarted,images,model,effort})};
+  return {initialize:({nativeId,cwd,model,effort})=>call({flag:'--session-id',nativeId,cwd,model,effort,prompt:'You are a dedicated discussion chair. Tools are disabled. Coordinate only through the supplied JSON schema. Initialize now with a short Korean greeting in speech, questions:[], proposal:null. Do not ask any questions yet.'}),resume:({nativeId,cwd,body,onStarted,images=[],model,effort,timeoutMs:callTimeout})=>call({flag:'--resume',nativeId,cwd,prompt:body,onStarted,images,model,effort,callTimeout})};
 }

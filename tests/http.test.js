@@ -22,7 +22,7 @@ test('real loopback HTTP and MCP enforce identity, room scope and protocol error
     const layoutModule=await fetch(base+'/layout.js');assert.equal(layoutModule.status,200);assert.match(layoutModule.headers.get('content-type'),/javascript/);
     assert.ok(cookie.startsWith(`rooms_session_${port}=`));
     const chairOptions=await call('/api/chair/options');assert.equal(chairOptions.status,200);assert.deepEqual(chairOptions.data.providers.map(p=>p.id),['claude','codex']);
-    const chairModule=await fetch(base+'/chair-settings.js');assert.equal(chairModule.status,200);assert.match(chairModule.headers.get('content-type'),/javascript/);
+    const inspectorModule=await fetch(base+'/session-inspector.js');assert.equal(inspectorModule.status,200);assert.match(inspectorModule.headers.get('content-type'),/javascript/);const participantModule=await fetch(base+'/participant-settings-ui.js');assert.equal(participantModule.status,200);assert.match(participantModule.headers.get('content-type'),/javascript/);const chairModule=await fetch(base+'/chair-settings.js');assert.equal(chairModule.status,200);assert.match(chairModule.headers.get('content-type'),/javascript/);
     const noAuth=await call('/api/rooms',null,{cookie:'rooms_session_other=foreign'});assert.equal(noAuth.status,401);assert.equal(noAuth.data.code,'AUTH_REQUIRED');
     const badCsrf=await call('/api/channels',{name:'never-create'},{'x-csrf-token':'stale'});assert.equal(badCsrf.status,403);assert.equal(badCsrf.data.code,'CSRF_INVALID');
     const foreignOrigin=await call('/api/channels',{name:'never-create'},{Origin:'https://unrelated.example'});assert.equal(foreignOrigin.status,403);assert.equal(foreignOrigin.data.code,'ORIGIN_INVALID');
@@ -45,13 +45,28 @@ test('real loopback HTTP and MCP enforce identity, room scope and protocol error
     await call(`/api/rooms/${room.id}/pause`,{});assert.equal((await call(`/api/rooms/${room.id}/chair`,{})).status,400);assert.equal((await call(`/api/rooms/${room.id}`)).data.chair,null);await call(`/api/rooms/${room.id}/resume`,{});
     const reg=(await call('/api/sessions',{provider:'codex',host:'test',nativeId:'test-id',cwd:'C:/test',profile:'test',mode:'live_attach',verified:true,capabilities:{followup:true,mcpPull:true}})).data;
     const member=(await call(`/api/rooms/${room.id}/join`,{sessionId:reg.session.id,readOnly:false})).data;
+    const settingsPath=`/api/rooms/${room.id}/sessions/${reg.session.id}/settings/inspect`;
+    assert.equal((await call(settingsPath,{}, {cookie:'foreign'})).status,401);
+    assert.equal((await call(settingsPath,{}, {'x-csrf-token':'stale'})).status,403);
+    assert.equal((await call(settingsPath,{}, {Origin:'https://unrelated.example'})).status,403);
+    assert.equal((await call(settingsPath,{})).status,400); // no exact runtime binding: no native input
     const provision=(await call(`/api/rooms/${room.id}/provision`,{sessionId:reg.session.id})).data;
     const posted=await call(`/api/rooms/${room.id}/messages`,{body:'human',senderSessionId:reg.session.id,kind:'followup',targets:[member.id],requestKey:'http-idempotent'});
     assert.equal(posted.data.message.sender_session_id,null);
     assert.equal((await call(`/api/rooms/${room.id}/messages`,{body:'human',kind:'followup',targets:['foreign-member']})).status,400);
     const mcpHeaders={Authorization:`Bearer ${provision.token}`};
+    const historyIndex=await call('/mcp/room_history_index',{},mcpHeaders);assert.equal(historyIndex.status,200);assert.equal(historyIndex.data.roomId,room.id);
+    assert.equal((await call('/mcp/room_history_search',{query:'human'},mcpHeaders)).data.total,1);
+    const historyRead=await call('/mcp/room_history_read',{id:posted.data.message.id},mcpHeaders);assert.equal(historyRead.status,200);assert.equal(historyRead.data.body,'human');
+    assert.equal((await call(`/api/rooms/${room.id}/history/reads`)).data.reads.length,1);
+    assert.equal((await call(`/api/rooms/${room.id}/history/read?id=${posted.data.message.id}`,null,{cookie:'foreign'})).status,401);
+    assert.equal((await call(`/api/rooms/${room.id}/history`,{})).status,400);
+
     assert.equal((await call(`/api/rooms/${room.id}/sessions/${reg.session.id}/output`)).status,403);
     const otherRoom=(await call('/api/rooms',{name:'other'})).data;
+    const privateMessage=(await call(`/api/rooms/${otherRoom.id}/messages`,{body:'PRIVATE_HISTORY',kind:'post'})).data.message;
+    assert.equal((await call('/mcp/room_history_read',{id:privateMessage.id},mcpHeaders)).status,400);
+    assert.equal((await call('/mcp/room_history_search',{query:'PRIVATE_HISTORY'},mcpHeaders)).data.total,0);
     const mentioned=await call(`/api/rooms/${room.id}/messages`,{body:`@${reg.session.alias} mention wire`,kind:'followup',routingMode:'mentions',requestKey:'wire-mention'});
     assert.equal(mentioned.status,201);assert.deepEqual(mentioned.data.deliveries.map(d=>d.membership_id),[member.id]);
     const allMentioned=await call(`/api/rooms/${room.id}/messages`,{body:'@to_all 전체 검토',kind:'followup',routingMode:'auto',requestKey:'wire-all'});
@@ -82,7 +97,7 @@ test('real loopback HTTP and MCP enforce identity, room scope and protocol error
     const rpc=(method,params)=>new Promise((resolve,reject)=>{const id=next++,timer=setTimeout(()=>reject(Error('MCP timeout')),5000);pending.set(id,x=>{clearTimeout(timer);resolve(x)});gateway.stdin.write(JSON.stringify({jsonrpc:'2.0',id,method,params})+'\n')});
     await rpc('initialize',{protocolVersion:'2024-11-05',capabilities:{},clientInfo:{name:'test',version:'1'}});
     gateway.stdin.write(JSON.stringify({jsonrpc:'2.0',method:'notifications/initialized'})+'\n');
-    const schemas=(await rpc('tools/list',{})).result.tools;assert.equal(schemas.length,9);assert.ok(schemas.find(x=>x.name==="room_upload_attachment"));assert.ok(schemas.find(x=>x.name==="room_read_attachment"));assert.ok(schemas.find(x=>x.name==='room_reply').inputSchema.properties.requestId);const reactSchema=schemas.find(x=>x.name==='room_react');assert.deepEqual(reactSchema.inputSchema.properties.emoji.enum,['👍','👎','❓','✅','💡','❤️','👀']);
+    const schemas=(await rpc('tools/list',{})).result.tools,names=new Set(schemas.map(x=>x.name));assert.ok(names.has('room_review')&&names.has('room_acknowledge_approval')&&names.has('room_upload_attachment')&&names.has('room_read_attachment')&&names.has('room_participate'));assert.ok(schemas.find(x=>x.name==='room_reply').inputSchema.properties.requestId);const reactSchema=schemas.find(x=>x.name==='room_react');assert.deepEqual(reactSchema.inputSchema.properties.emoji.enum,['👍','👎','❓','✅','💡','❤️','👀']);
     const reacted=await rpc('tools/call',{name:'room_react',arguments:{messageId:posted.data.message.id,emoji:'💡',active:true,actor:'forged'}});assert.equal(reacted.result.isError,undefined);const trustedReaction=(await call(`/api/rooms/${room.id}`)).data.reactions.find(x=>x.emoji==='💡');assert.equal(trustedReaction.actor,`session:${reg.session.id}`);assert.equal(trustedReaction.alias,reg.session.alias);assert.equal((await rpc('tools/call',{name:'room_react',arguments:{messageId:posted.data.message.id,emoji:'🔥',active:true}})).result.isError,true);assert.equal((await rpc('tools/call',{name:'room_react',arguments:{messageId:posted.data.message.id,emoji:'💡'}})).result.isError,true);
     const helper=spawn(process.execPath,['packages/mcp/participant.js','react',posted.data.message.id,'✅','true'],{env:{...process.env,ROOMS_URL:base,ROOMS_TOKEN:provision.token},windowsHide:true,stdio:['ignore','pipe','pipe']});const helperResult=await new Promise(resolve=>{let out='';helper.stdout.on('data',x=>out+=x);helper.on('close',code=>resolve({code,out}));});assert.equal(helperResult.code,0);assert.match(helperResult.out,/"emoji": "✅"/);assert.ok((await call(`/api/rooms/${room.id}`)).data.reactions.some(x=>x.emoji==='✅'&&x.actor===`session:${reg.session.id}`));
     const denied=await rpc('tools/call',{name:'room_reply',arguments:{requestId:'foreign-request',body:'forged'}});assert.equal(denied.result.isError,true);

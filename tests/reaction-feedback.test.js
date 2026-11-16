@@ -12,7 +12,7 @@ function member(store,room,name,readOnly=false){
 test('next offered input carries latest authored-message feedback without changing its body or scheduling work',()=>{
  const s=new Store(),room=s.createRoom('feedback'),author=member(s,room,'author'),peer=member(s,room,'peer');
  try{
-  assert.deepEqual(DEFAULT_REACTION_EMOJIS,['👍','👎','❓','✅','💡']);
+  assert.deepEqual(DEFAULT_REACTION_EMOJIS,['👍','👎','❓','✅','👀','💡']);
   const original='원문'.repeat(200),message=s.post({roomId:room.id,senderSessionId:author.session.id,body:original,kind:'post'}).message;
   s.react(peer.reg,message.id,'💡',true);s.setReaction(room.id,message.id,'✅',true);s.react(author.reg,message.id,'👍',true);
   const feedback=s.reactionFeedback(room.id,author.session.id);assert.equal(feedback.length,2);assert.equal(feedback.find(r=>r.emoji==='💡').membershipId,peer.membership.id);assert.equal(feedback[0].bodyExcerpt.length,240);

@@ -170,6 +170,34 @@ test('preflight distinguishes identity, screen, and unknown composer without sub
  for(const [code,fixture] of cases){const seen=[];const run=async(_bin,args)=>{seen.push(args);return {status:0,stdout:JSON.stringify({ok:true,result:fixture(args)})}};const adapter=createOrcaParticipantAdapter({bin:'fixture',run}),result=await adapter.send({handle:'t',incarnation:'inc'},{provider:'claude'},'must not send','req');assert.equal(result.reasonCode,code);assert.equal(seen.some(args=>args[1]==='send'),false);}
 });
 
+test('only a completed own wake prefix on a visibly blank Claude composer is stale metadata',async()=>{
+ const prefix='Room 11111111-1111-4111-8111-111111111111, request',prompt=prefix+' 22222222-2222-4222-8222-222222222222. Follow instructions.';
+ for(const condition of ['stale','unknown','typed','suggestion','changed-before-send','working']){
+  let reads=0,sends=0;const run=async(_bin,args)=>{let result;if(args[1]==='show')result={terminal:{handle:'t',incarnationId:'inc',agentIdentity:'claude',connected:true,writable:true}};else if(args[1]==='wait')result={wait:{satisfied:true}};else if(args[1]==='read'){reads++;const value=condition==='typed'||condition==='changed-before-send'&&reads===2?'❯ '+prefix:condition==='suggestion'?'❯ Try “read sources”':'❯';result={terminal:{source:'screen',draft:prefix,tail:[...(condition==='working'?['esc to interrupt']:[]),'────────────────',value,'────────────────','bypass permissions on (shift+tab to cycle)']}};}else{sends++;result={send:{handle:'t',accepted:true,prompt:{requestId:'next',provider:'claude',processIncarnation:'inc',stages:['input_accepted']}}};}return {status:0,stdout:JSON.stringify({ok:true,result})};};
+  const a=createOrcaParticipantAdapter({bin:'fixture',run}),result=await a.send({handle:'t',incarnation:'inc'},{provider:'claude'},'next prompt','next',{completedPrompts:condition==='unknown'?[]:[prompt]});assert.equal(result.ok,condition==='stale',condition);assert.equal(sends,condition==='stale'?1:0,condition);if(condition==='stale')assert.equal(reads,2);
+ }
+});
+
+test('dispatcher trusts only authenticated completed prompts from the same binding',async()=>{
+ const {store,room,member,delivery}=setup(),adapter=fakeAdapter(),{dir,value}=dispatcher(store,adapter);
+ try{await value.tick();assert.deepEqual(adapter.calls[0].options.completedPrompts,[]);const row=store.db.prepare('SELECT * FROM participant_dispatches WHERE delivery_id=?').get(delivery.id),registration=store.registration(store.db.prepare('SELECT token_hash FROM registrations WHERE room_id=?').get(room.id).token_hash);store.reply(registration,delivery.request_id,'authenticated answer');store.post({roomId:room.id,body:'next question',kind:'followup',targets:[member.id]});await value.tick();assert.deepEqual(adapter.calls[1].options.completedPrompts,[row.prompt]);const eligible={session_id:member.session_id,binding_id:'different-incarnation'};assert.deepEqual(value.completedPrompts(eligible),[]);}finally{store.db.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('shortened stale room metadata requires one completed room and two visibly empty guards',async()=>{
+ const own='Room 11111111-1111-4111-8111-111111111111, request 22222222-2222-4222-8222-222222222222. Follow instructions.',collision=own.replace('1111-4111','9999-4999');
+ for(const condition of ['unique','collision','unknown','typed','changed']){
+  let reads=0,sends=0;const run=async(_bin,args)=>{
+   let result;if(args[1]==='show')result={terminal:{handle:'t',incarnationId:'inc',agentIdentity:'claude',connected:true,writable:true}};
+   else if(args[1]==='wait')result={wait:{satisfied:true}};
+   else if(args[1]==='read'){reads++;result={terminal:{source:'screen',draft:'Room 11111111, request',tail:['────────────────',condition==='typed'||condition==='changed'&&reads===2?'❯ actual user draft':'❯','────────────────','bypass permissions on (shift+tab to cycle)']}};}
+   else{sends++;result={send:{handle:'t',accepted:true,prompt:{requestId:'next',provider:'claude',processIncarnation:'inc',stages:['input_accepted']}}};}
+   return {status:0,stdout:JSON.stringify({ok:true,result})};
+  };
+  const adapter=createOrcaParticipantAdapter({bin:'fixture',run}),result=await adapter.send({handle:'t',incarnation:'inc'},{provider:'claude'},'next','next',{completedPrompts:condition==='unknown'?[]:condition==='collision'?[own,collision]:[own]});
+  assert.equal(result.ok,condition==='unique',condition);assert.equal(sends,condition==='unique'?1:0,condition);
+ }
+});
+
 test('a draft appearing after reservation releases only the unsent fence and may be delivered later',async()=>{
  const {store,delivery}=setup(),adapter=fakeAdapter(),{dir,value}=dispatcher(store,adapter);let blocked=true;
  adapter.send=async()=>blocked?{ok:false,reason:'new draft before submit'}:{ok:true,stage:'turn_started',receipt:{}};
@@ -181,4 +209,36 @@ test('reobserving the same durable receipt reconciles restart state without dupl
  const {store,delivery}=setup(),adapter=fakeAdapter({stage:'turn_started'}),{dir,value}=dispatcher(store,adapter);
  try{await value.tick();const row=store.db.prepare('SELECT * FROM participant_dispatches WHERE delivery_id=?').get(delivery.id);store.recover();assert.equal(store.db.prepare('SELECT state FROM deliveries WHERE id=?').get(delivery.id).state,'unknown');store.evidence(row.attempt_id,'turn_started','orca',row.host_request_id);assert.equal(store.db.prepare('SELECT state FROM deliveries WHERE id=?').get(delivery.id).state,'running');assert.equal(store.db.prepare('SELECT blocked_reason FROM deliveries WHERE id=?').get(delivery.id).blocked_reason,null);assert.equal(store.db.prepare('SELECT count(*) n FROM evidence').get().n,1);}
  finally{store.db.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('actual dispatcher wires the same native identity into two distinct room invitations',()=>{
+ const f=setup(),adapter=fakeAdapter(),{dir,value}=dispatcher(f.store,adapter);
+ try{
+  const second=f.store.createRoom('second');const member=f.store.join(second.id,f.member.session_id,false);
+  f.store.post({roomId:second.id,body:'new agenda',kind:'followup',targets:[member.id]});
+  const rows=value.eligible();assert.equal(rows.length,2);
+  const prompts=rows.map(row=>value.prompt(row,'C:/private/'+row.room_id+'.json',row.request_id));
+  for(let i=0;i<2;i++){
+   assert.ok(prompts[i].startsWith('Room '+rows[i].room_id+', request '+rows[i].request_id+'.'));
+   assert.match(prompts[i],/existing codex\/native; per-room config is expected/);
+   assert.ok(prompts[i].includes('ownIdentity'));assert.doesNotMatch(prompts[i],/[\r\n]/);
+   assert.ok(prompts[i].length<900);
+  }
+  assert.notEqual(prompts[0],prompts[1]);
+ }finally{f.store.db.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('authoritative composer kinds allow styled suggestions while typed, unknown and changed input stay blocked',async()=>{
+ for(const condition of ['suggestion','typed','unknown','contradiction','legacy','changed']){
+  let reads=0,sends=0;const run=async(_bin,args)=>{let result;
+   if(args[1]==='show')result={terminal:{handle:'t',incarnationId:'inc',agentIdentity:'claude',connected:true,writable:true}};
+   else if(args[1]==='wait')result={wait:{satisfied:true}};
+   else if(args[1]==='read'){reads++;const typed=condition==='typed'||condition==='contradiction'||condition==='changed'&&reads===2;result={terminal:{source:'screen',tail:['────────','❯ generated suggestion','wrapped ghost continuation','────────','bypass permissions on (shift+tab to cycle)'],...(condition==='legacy'?{}:{composerKind:typed?'user-draft':condition==='unknown'?'unknown':'suggestion'}),...(typed?{draft:'real user input'}:{})}};}
+   else{sends++;result={send:{handle:'t',accepted:true,prompt:{requestId:'next',provider:'claude',processIncarnation:'inc',stages:['input_accepted']}}};}
+   return {status:0,stdout:JSON.stringify({ok:true,result})};
+  };
+  const result=await createOrcaParticipantAdapter({bin:'fixture',run}).send({handle:'t',incarnation:'inc'},{provider:'claude'},'a new request','next');
+  assert.equal(result.ok,condition==='suggestion',condition);assert.equal(sends,condition==='suggestion'?1:0,condition);
+  if(condition==='changed')assert.equal(reads,2);
+ }
 });

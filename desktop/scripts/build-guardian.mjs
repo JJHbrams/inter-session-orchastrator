@@ -1,0 +1,14 @@
+import { spawnSync } from 'node:child_process';
+import { copyFileSync, existsSync, mkdtempSync, mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, resolve } from 'node:path';
+const root = resolve(import.meta.dirname, '..', 'guardian');
+const target = mkdtempSync(resolve(tmpdir(), 'session-rooms-guardian-build-'));
+const result = spawnSync('cargo', ['build', '--locked', '--release'], { cwd: root, stdio: 'inherit', windowsHide: true, env: { ...process.env, CARGO_TARGET_DIR: target, RUSTFLAGS: '-C target-feature=+crt-static' } });
+if (result.status !== 0) process.exit(result.status ?? 1);
+const exe = resolve(target, 'release', 'session-rooms-guardian.exe');
+if (!existsSync(exe)) throw new Error(`guardian build did not produce ${exe}`);
+const output = resolve(root, 'target', 'release', 'guardian.exe');
+mkdirSync(dirname(output), { recursive: true });
+copyFileSync(exe, output);
+console.log(output);

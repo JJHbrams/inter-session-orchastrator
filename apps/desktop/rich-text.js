@@ -41,9 +41,37 @@ function safeHref(value,roomPath,baseURI){
   try { return ['http:','https:','mailto:'].includes(new URL(value,baseURI||'http://localhost/').protocol); } catch { return false; }
 }
 
+export function createReferenceMap(members=[],messages=[]){
+ const references=new Map(),authors=new Map(members.filter(m=>m.alias).map(m=>[m.session_id,m]));
+ const add=(id,reference)=>{if(typeof id!=='string'||!id)return;const key=id.toLowerCase(),old=references.get(key);if(references.has(key)&&(old?.id!==reference.id||old?.kind!==reference.kind))references.set(key,null);else if(!references.has(key))references.set(key,reference);};
+ for(const member of members){if(!member.alias)continue;for(const id of [member.id,member.session_id,member.native_id])add(id,{id:member.session_id,alias:member.alias,kind:'person'});}
+ for(const message of messages){const author=authors.get(message.sender_session_id);if(!author)continue;const ref={id:message.id,alias:author.alias,kind:'message'};add(message.id,ref);if(/^[a-f0-9-]{36}$/i.test(message.id))add(message.id.slice(0,8),ref);}
+ return references;
+}
+
+function decorateReferences(fragment,references,doc){
+ if(!references?.size)return;
+ const walker=doc.createTreeWalker(fragment,doc.defaultView?.NodeFilter?.SHOW_TEXT||4),nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+ for(const node of nodes){
+  if(node.parentElement?.closest('pre,code,a'))continue;
+  const value=node.nodeValue,pattern=/(?<![\p{L}\p{N}_/\\#@-])@?([a-f0-9]{8}(?:-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})?)(?![a-z0-9_-])/giu;
+  const replacement=doc.createDocumentFragment();let last=0,changed=false;
+  for(const match of value.matchAll(pattern)){
+   const ref=references.get(match[1].toLowerCase());if(!ref)continue;
+   let before=value.slice(last,match.index);const alias=ref.alias.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');before=before.replace(new RegExp('(^|[^\\p{L}\\p{N}_@])'+alias+'\\s+$','u'),'$1');replacement.append(before);
+   const label=doc.createElement(ref.kind==='message'?'a':'span');label.className='mention';label.textContent='@'+ref.alias+(ref.kind==='message'?'의 발언':'');
+   if(ref.kind==='message'){label.href='#message-'+ref.id;label.title='발언 원문 · '+ref.id;}
+   replacement.append(label);last=match.index+match[0].length;
+   if(ref.kind==='message'){const suffix=/^(를|는|가|와)(?=$|[\s,.;:!?])/u.exec(value.slice(last));if(suffix){replacement.append(({를:'을',는:'은',가:'이',와:'과'})[suffix[1]]);last+=suffix[1].length;}}
+   changed=true;
+  }
+  if(changed){replacement.append(value.slice(last));node.replaceWith(replacement);}
+ }
+}
+
 export function createRenderer({parse,sanitize,document:doc=globalThis.document}={}){
   if(!parse||!sanitize||!doc) throw Error('A parser, purifier, and document are required.');
-  return function renderMarkdown(source,{roomId,mentions=[]}={}){
+  return function renderMarkdown(source,{roomId,mentions=[],references=null}={}){
     const roomPath=roomId?`/api/rooms/${roomId}/attachments/`:'';
     const html=parse(String(source||''));
     const fragment=sanitize(html,{RETURN_DOM_FRAGMENT:true,ALLOWED_TAGS:TAGS,ALLOWED_ATTR:ATTRS,FORBID_TAGS:['style','script','form','iframe','object','svg','math'],FORBID_ATTR:['id','name','srcdoc','style']});
@@ -58,10 +86,11 @@ export function createRenderer({parse,sanitize,document:doc=globalThis.document}
         else if(!href.startsWith('#')&&!href.startsWith(roomPath)){ element.target='_blank';element.rel='noopener noreferrer'; }
       }
     }
+    decorateReferences(fragment,references,doc);
     const walker=doc.createTreeWalker(fragment,doc.defaultView?.NodeFilter?.SHOW_TEXT||4);
     const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
     for(const node of nodes){
-      if(node.parentElement?.closest('pre,code,a'))continue;
+      if(node.parentElement?.closest('pre,code,a,.mention'))continue;
       const value=node.nodeValue; const pattern=/(^|[^\p{L}\p{N}_@])@([\p{L}\p{N}_-]+)/gu;let match,last=0,changed=false;const replacement=doc.createDocumentFragment();
       
       

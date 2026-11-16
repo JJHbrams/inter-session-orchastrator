@@ -1,0 +1,71 @@
+{
+  "source": "session-rooms.svg",
+  "sourceNormalization": "LF",
+  "sourceSha256": "14bfe5913f550aa7a0d10e9da3d0aeb0619f521aed0d9a7aedf92e9eb5f4f18b",
+  "renderer": "@resvg/resvg-js@2.6.2",
+  "files": [
+    {
+      "path": "session-rooms-16.png",
+      "size": 16,
+      "sha256": "85860542cf9bffbb040fca958f69d88e52094ec5d1b14af917bb238063997145"
+    },
+    {
+      "path": "session-rooms-24.png",
+      "size": 24,
+      "sha256": "a11c077414505b171ff99cc4f2fe927cba60ba39ab321c7957a9a4baade4be34"
+    },
+    {
+      "path": "session-rooms-32.png",
+      "size": 32,
+      "sha256": "0acfdaf7547e2188caf73bdc29d83e4bfc61270e6262bc27e1505a918b5eb2da"
+    },
+    {
+      "path": "session-rooms-48.png",
+      "size": 48,
+      "sha256": "5aad428c3f5d8cd08cdd23af9679d5700f77d469890e022bb85cb2050d8a2198"
+    },
+    {
+      "path": "session-rooms-64.png",
+      "size": 64,
+      "sha256": "51675b69f66486f6a14a0d977dfa9426db6613c095d1f063d63187086db9fbce"
+    },
+    {
+      "path": "session-rooms-128.png",
+      "size": 128,
+      "sha256": "1d24f1654311bc96c1caafd40e223e0755cd2697a6733f020334e94c634550a2"
+    },
+    {
+      "path": "session-rooms-180.png",
+      "size": 180,
+      "sha256": "f4194438957534014042bfd0247acb4d429be6af240e2b187d1a19368548839e"
+    },
+    {
+      "path": "session-rooms-192.png",
+      "size": 192,
+      "sha256": "9f3a74501019928ad7209f3708fed303fe82e640d8ca527703c566edef436875"
+    },
+    {
+      "path": "session-rooms-256.png",
+      "size": 256,
+      "sha256": "1aab70c0a30240955050e7746c192bf9d685b7dfd0e59a548b5a503bdc16faa9"
+    },
+    {
+      "path": "session-rooms-512.png",
+      "size": 512,
+      "sha256": "ae0a951325856db55209e4f120067470816398120e85f8a3c080847dabe36a68"
+    },
+    {
+      "path": "session-rooms.ico",
+      "sizes": [
+        16,
+        24,
+        32,
+        48,
+        64,
+        128,
+        256
+      ],
+      "sha256": "1e534e67a0cd636871a4028a4d7c028512274f933cc911a2dc509e9a2c11f7e9"
+    }
+  ]
+}
