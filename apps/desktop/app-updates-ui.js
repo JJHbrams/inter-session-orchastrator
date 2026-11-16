@@ -4,9 +4,9 @@ const friendly=e=>({UPDATE_INSTALL_INVALID_REQUEST:'업데이트 설치 요청�
 const when=v=>{if(!v)return '아직 확인하지 않았습니다.';const d=new Date(v);return Number.isNaN(d.valueOf())?'확인 시각을 알 수 없습니다.':new Intl.DateTimeFormat('ko-KR',{dateStyle:'medium',timeStyle:'short'}).format(d)};
 export function createAppUpdatesUI({document,request,bridge,hasPendingInput=()=>false,pollMs=30000}){
  let status,host,started=false,timer,manual=false,prompting=false,promptId,installResultId,waiting=false;
- const otherDialogs=()=>[...document.querySelectorAll('dialog[open]')].filter(d=>!d.classList.contains('app-updates-prompt'));
+ const otherDialogs=()=>[...document.querySelectorAll('dialog[open]')];
  const schedule=()=>{clearTimeout(timer);if(started)timer=setTimeout(()=>refresh().catch(()=>{}),['checking','downloading'].includes(status?.state)?1000:pollMs)};
- const url=latest=>{try{const p=new URL(latest?.releaseUrl);return p.protocol==='https:'?p.href:null}catch{return null}};
+ const url=latest=>{try{const p=new URL(latest?.releaseUrl);return p.origin==='https://github.com'&&/^\/JJHbrams\/inter-session-orchastrator\/releases\/tag\/v\d+\.\d+\.\d+$/.test(p.pathname)&&!p.search&&!p.hash?p.href:null}catch{return null}};
  function paint(){if(!host)return;host.replaceChildren();const box=el(document,'section',undefined,'app-updates-settings');box.dataset.state=status?.state||'idle';box.append(el(document,'h3','앱 업데이트'),el(document,'p','현재 버전 '+(status?.currentVersion||'확인 중…'),'update-current-version'));
   const automatic=el(document,'label',undefined,'checkbox-row update-automatic'),checkBox=document.createElement('input');checkBox.type='checkbox';checkBox.checked=!!status?.automaticEnabled;checkBox.setAttribute('aria-label','자동 업데이트 확인');automatic.append(checkBox,document.createTextNode(' 매일 오전 9시(로컬 시간)에 자동으로 확인'));
   const help=el(document,'p','앱을 다시 열었을 때 9시가 지났다면 그날 한 번 확인해요. 새 버전은 설치 전에 항상 물어봅니다.','setting-help'),check=el(document,'button','업데이트 확인','update-check'),result=el(document,'p',labels[status?.state]||labels.idle,'update-result'),last=el(document,'p','마지막 확인: '+when(status?.lastCheckedAt),'update-last-check');check.type='button';check.disabled=status?.state==='checking'||status?.state==='downloading';result.setAttribute('role','status');

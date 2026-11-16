@@ -14,3 +14,8 @@ test('sixth file cannot bypass cap through retry, and removing in-flight draft d
  const c=createAttachmentComposer({upload:async()=>{calls++;return {id:String(calls)};}});c.setRoom('a');c.add(Array.from({length:6},()=>({name:'x',type:'text/plain',size:1})));await new Promise(r=>setTimeout(r));c.retry(c.items().at(-1));assert.equal(calls,5);assert.equal(c.readyIds().length,5);
  const d=createAttachmentComposer({upload:()=>new Promise(r=>finish=r),discard:async(room,id)=>discarded.push([room,id])});d.setRoom('a');d.add([{name:'x',type:'text/plain',size:1}]);d.remove(d.items()[0]);finish({id:'late'});await new Promise(r=>setTimeout(r));assert.deepEqual(discarded,[['a','late']]);assert.equal(d.items().length,0);
 });
+
+// Installation must also protect attachments in rooms other than the selected room.
+test('update input guard includes all room attachment drafts',async()=>{
+ const c=createAttachmentComposer({upload:async()=>({id:'a'})});c.setRoom('one');assert.equal(c.hasDrafts(),false);c.add([{name:'a',size:1,type:'text/plain'}]);await new Promise(r=>setTimeout(r));const item=c.items()[0];c.setRoom('two');assert.equal(c.items().length,0);assert.equal(c.hasDrafts(),true);c.clearSent([item],'one');assert.equal(c.hasDrafts(),false);
+});

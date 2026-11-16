@@ -26,7 +26,7 @@ api.authenticate().then(({version})=>{const label=$('#appVersion');label.textCon
 const renderMarkdown=createRenderer({parse:source=>marked.parse(source,{gfm:true,breaks:true}),sanitize:DOMPurify.sanitize.bind(DOMPurify)});
 const attachmentViewer=createAttachmentViewer({document,authenticate:()=>api.authenticate(),renderMarkdown,getContext:id=>current?.id===id?{mentions:current.members.map(m=>m.alias),references:createReferenceMap(current.members,current.messages)}:{}});
 let agendaUI;
-const appUpdatesUI=createAppUpdatesUI({document,request:req,bridge:globalThis.sessionRoomsDesktop,hasPendingInput:()=>Boolean($('#body')?.value.trim())||[...draftBodies.values()].some(body=>body.trim())||(attachmentComposer?.items?.()||[]).length>0});
+const appUpdatesUI=createAppUpdatesUI({document,request:req,bridge:globalThis.sessionRoomsDesktop,hasPendingInput:()=>Boolean($('#body')?.value.trim())||[...draftBodies.values()].some(body=>body.trim())||attachmentComposer?.hasDrafts?.()===true||Boolean(pendingSend)});
 const channelNav=createChannelNav();
 const text=(tag,value,cls)=>{const x=document.createElement(tag);x.textContent=value;if(cls)x.className=cls;return x};
 function actionIcon(name){
