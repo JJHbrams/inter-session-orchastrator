@@ -64,8 +64,9 @@ export async function validatePreparedUpdate(job, profile, fs = { stat, lstat, r
 
 export async function startUpdateHelper(job, { profile, runtime, installDir, appExe, knowledgeRoot, spawn = nodeSpawn, timeoutMs = 15000 } = {}) {
   const checked = await validatePreparedUpdate(job, profile);
-  const directory = join(profile, 'updates', 'helpers', checked.token);
-  await mkdir(directory, { recursive: true });
+  const helperRoot = join(profile, 'updates', 'helpers'), directory = join(helperRoot, checked.token);
+  await mkdir(helperRoot, { recursive: true }); await rejectLinkedAncestors(helperRoot, profile, lstat);
+  await mkdir(directory, { recursive: true }); await rejectLinkedAncestors(directory, profile, lstat);
   const node = join(directory, 'node.exe'), helper = join(directory, 'update-helper.mjs'), jobFile = join(directory, 'job.json');
   await cp(join(runtime, 'node.exe'), node, { force: true }); await cp(new URL('./update-helper.mjs', import.meta.url), helper, { force: true });
   await writeFile(jobFile, JSON.stringify({ ...checked, profile, installDir, appExe, knowledgeRoot, parentPid: process.pid }, null, 2), { mode: 0o600 });

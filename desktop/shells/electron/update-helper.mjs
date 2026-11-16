@@ -4,7 +4,7 @@ import { lstat, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promise
 import { basename, dirname, isAbsolute, join, parse, relative, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 
-const MAX_INSTALLER_BYTES = 512 * 1024 * 1024, MAX_JOB_BYTES = 64 * 1024, HANDOFF_TIMEOUT_MS = 120000, INSTALLER_TIMEOUT_MS = 120000;
+const MAX_INSTALLER_BYTES = 512 * 1024 * 1024, MAX_JOB_BYTES = 64 * 1024, HANDOFF_TIMEOUT_MS = Number(process.env.ROOMS_UPDATE_HELPER_HANDOFF_TIMEOUT_MS) || 120000, INSTALLER_TIMEOUT_MS = 120000;
 const jobPath = process.argv[2]; if (!jobPath) process.exit(2);
 const resultPath = join(dirname(jobPath), 'result.json'); let activeJob, installerExitCode = null, parentGone = false, committed = false;
 const parentMissing = pid => { try { process.kill(pid, 0); return false; } catch (error) { return error.code === 'ESRCH'; } };
@@ -22,13 +22,13 @@ async function validate(raw) {
   if (parse(installDir).root === resolve(installDir) || !inside(installDir, appExe) || basename(appExe) !== 'SessionRooms-Electron.exe' || !existsSync(appExe)) throw Error('UPDATE_HELPER_JOB_INVALID');
   const expected = join(resolve(profile), 'updates', 'downloads', version, `SessionRooms-${version}-x64-setup.exe`); if (resolve(installerPath).toLowerCase() !== resolve(expected).toLowerCase() || basename(installerPath) !== basename(expected) || !inside(join(profile, 'updates', 'downloads', version), installerPath)) throw Error('UPDATE_HELPER_JOB_INVALID');
   if (resolve(dirname(jobPath)).toLowerCase() !== resolve(profile, 'updates', 'helpers', token).toLowerCase()) throw Error('UPDATE_HELPER_JOB_INVALID');
-  await noLinks(profile, parse(profile).root); await noLinks(installerPath, profile); await noLinks(appExe, installDir); const link = await lstat(installerPath), info = await stat(installerPath); if (!link.isFile() || link.isSymbolicLink() || info.size !== size || await hashFile(installerPath, size) !== sha256) throw Error('UPDATE_INSTALLER_HASH_INVALID'); return raw;
+  const knowledge = await stat(knowledgeRoot); if (!knowledge.isDirectory()) throw Error('UPDATE_HELPER_JOB_INVALID'); await noLinks(profile, parse(profile).root); await noLinks(jobPath, profile); await noLinks(installerPath, profile); await noLinks(appExe, installDir); await noLinks(knowledgeRoot, parse(knowledgeRoot).root); const link = await lstat(installerPath), info = await stat(installerPath); if (!link.isFile() || link.isSymbolicLink() || info.size !== size || await hashFile(installerPath, size) !== sha256) throw Error('UPDATE_INSTALLER_HASH_INVALID'); return raw;
 }
 try {
   const job = await validate(JSON.parse(await boundedRead(jobPath, MAX_JOB_BYTES))); activeJob = job; process.send?.({ type: 'ready', token: job.token });
   process.on('message', message => { if (message?.token !== job.token) return; if (message.type === 'commit') committed = true; if (message.type === 'abort') process.exit(0); });
   await new Promise((resolveWait, rejectWait) => { const started = Date.now(), timer = setInterval(() => { parentGone = parentMissing(job.parentPid); if (committed && parentGone && !process.connected) { clearInterval(timer); resolveWait(); } else if (Date.now() - started > HANDOFF_TIMEOUT_MS) { clearInterval(timer); rejectWait(Error('UPDATE_HANDOFF_TIMEOUT')); } }, 100); });
-  if (await hashFile(job.installerPath, job.size) !== job.sha256) throw Error('UPDATE_INSTALLER_HASH_INVALID');
+  await noLinks(job.installerPath, job.profile); if (await hashFile(job.installerPath, job.size) !== job.sha256) throw Error('UPDATE_INSTALLER_HASH_INVALID');
   const installer = spawn(job.installerPath, ['/SILENT', '/NORESTART', '/SP-', `/DIR=${job.installDir}`], { shell: false, detached: false, windowsHide: true, stdio: 'ignore' }); let timedOut = false;
   const exitCode = await new Promise((resolveExit, rejectExit) => { const timer = setTimeout(() => { timedOut = true; }, INSTALLER_TIMEOUT_MS); installer.once('error', error => { clearTimeout(timer); rejectExit(error); }); installer.once('exit', code => { clearTimeout(timer); resolveExit(code); }); }); installerExitCode = exitCode; if (timedOut) throw Error('UPDATE_INSTALLER_TIMEOUT'); if (exitCode !== 0) throw Error('UPDATE_INSTALLER_FAILED');
   const versionFile = join(job.installDir, 'resources', 'runtime', 'app', 'VERSION'); if ((await boundedRead(versionFile, 256)).trim() !== job.version) throw Error('UPDATE_INSTALL_VERSION_INVALID'); await persist('completed', 'Update installed.', exitCode);
