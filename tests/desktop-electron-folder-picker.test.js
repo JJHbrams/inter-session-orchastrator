@@ -75,7 +75,9 @@ async function rendererSmokeResult(chooseDirectory) {
   assert.ok(script, 'renderer smoke script must be present');
   const evaluatedScript = Function(`return \`${script}\``)();
   return vm.runInNewContext(evaluatedScript, {
-    document: { readyState: 'complete', querySelector: () => ({}) },
+    document: { readyState: 'complete', querySelector: () => ({children:[{}]}) },
+    setTimeout, clearTimeout,
+    Image: class { constructor(){this.naturalWidth=2048;} set src(_value){queueMicrotask(()=>this.onload?.());} },
     fetch: async () => ({ ok: true }),
     window: { sessionRoomsDesktop: { chooseDirectory } }
   });
