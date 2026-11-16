@@ -15,7 +15,7 @@ test('tool preparation accepts a matching existing file without network access',
 });
 
 test('release rejects missing, duplicate, unauthenticated or abnormal smoke results', () => {
-  const record = { type: 'electron-smoke', passed: true, childPid: 123, origin: 'http://127.0.0.1:45678', renderer: { officeAvailable: true, officeArtworkLoaded: true, documentReady: true, appPresent: true, bootstrap: true, authenticatedRead: true, folderPickerAvailable: true, folderPickerGuarded: true, updateInstallerAvailable: true, updateInstallerGuarded: true }, shutdown: { normal: true, forced: false, exitCode: 0, signalCode: null } };
+  const record = { type: 'electron-smoke', passed: true, childPid: 123, origin: 'http://127.0.0.1:45678', renderer: { officeSpritesLoaded: true, officeAvailable: true, officeArtworkLoaded: true, documentReady: true, appPresent: true, bootstrap: true, authenticatedRead: true, folderPickerAvailable: true, folderPickerGuarded: true, updateInstallerAvailable: true, updateInstallerGuarded: true }, shutdown: { normal: true, forced: false, exitCode: 0, signalCode: null } };
   const output = value => JSON.stringify(value) + '\n';
   assert.equal(validateSmokeOutput(output(record)).childPid, 123);
   assert.throws(() => validateSmokeOutput(''));
