@@ -3,7 +3,7 @@ export async function pixiSmokeInPage(){
  const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  const until=async test=>{const end=Date.now()+10000;while(Date.now()<end){if(test())return true;await wait(40)}return false};
  const officePixiReady=await until(()=>{const c=document.querySelector('#agentOffice canvas[data-renderer="pixi"]');return c?.dataset.ready==='true'&&c.width>0&&c.height>0});
- let officeIdleAnimated=false,officePixiFrames=false,officeChairCrowned=false,officeChairFacingParticipants=false,officeSeatedParticipants=false,officeSceneTransitions=false,probe,host;
+ let officeIdleAnimated=false,officePixiFrames=false,officeChairCrowned=false,officeChairFacingParticipants=false,officeSeatedParticipants=false,officeSceneTransitions=false,officeTransitionDetails=null,probe,host;
  if(officePixiReady){
   try{
    const {createOfficePixiScene}=await import('/office-pixi-scene.js');
@@ -20,15 +20,18 @@ export async function pixiSmokeInPage(){
     officeChairCrowned=chair?.dataset.crown==='true'&&chair.dataset.chair==='true';
     officeChairFacingParticipants=chair?.dataset.seated==='true'&&chair.dataset.facing==='front'&&Number(chair.dataset.seatX)>38&&Number(chair.dataset.seatX)<49&&Number(chair.dataset.seatY)>64&&Number(chair.dataset.seatY)<71;
     officeSeatedParticipants=host.querySelectorAll('.office-agent[data-chair="false"][data-seated="true"][data-crown="false"]').length===2;
+    const transitionStart=Date.now(),transitionFrame=Number(canvas.dataset.frame||0);
     probe.setSnapshot({agents:smokeAgents.map(a=>a.role==='chair'?a:{...a,state:'running',activity:a.id==='smoke-peer'?'coding':'reading',zone:a.id==='smoke-peer'?'development':'library',updatedAt:'work'})});
     const walked=await until(()=>host.querySelector('[data-agent-id="smoke-peer"]')?.dataset.action==='walking');
     const worked=await until(()=>host.querySelector('[data-agent-id="smoke-peer"]')?.dataset.action==='coding'&&host.querySelector('[data-agent-id="smoke-idle"]')?.dataset.action==='reading');
+    const atWork=[...host.querySelectorAll('.office-agent')].map(n=>({id:n.dataset.id,action:n.dataset.action,seated:n.dataset.seated,x:n.dataset.currentFootx,y:n.dataset.currentFooty}));
     const away=host.querySelectorAll('.office-agent[data-chair="false"][data-seated="true"]').length===0;
     probe.setSnapshot({agents:smokeAgents});
     const returned=await until(()=>host.querySelectorAll('.office-agent[data-chair="false"][data-seated="true"]').length===2);
     officeSceneTransitions=walked&&worked&&away&&returned;
+    officeTransitionDetails={walked,worked,away,returned,elapsedMs:Date.now()-transitionStart,frames:Number(canvas.dataset.frame||0)-transitionFrame,atWork,atReturn:[...host.querySelectorAll('.office-agent')].map(n=>({id:n.dataset.id,action:n.dataset.action,seated:n.dataset.seated,x:n.dataset.currentFootx,y:n.dataset.currentFooty}))};
    }
   }finally{probe?.destroy();host?.remove()}
  }
- return {officePixiReady,officeIdleAnimated,officePixiFrames,officeChairCrowned,officeChairFacingParticipants,officeSeatedParticipants,officeSceneTransitions};
+ return {officePixiReady,officeIdleAnimated,officePixiFrames,officeChairCrowned,officeChairFacingParticipants,officeSeatedParticipants,officeSceneTransitions,officeTransitionDetails};
 }
