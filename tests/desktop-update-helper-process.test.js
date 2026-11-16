@@ -8,7 +8,7 @@ import { after, before, test } from 'node:test';
 
 const root = await mkdtemp(join(tmpdir(), 'session-rooms-update-helper-e2e-'));
 const helperSource = new URL('../desktop/shells/electron/update-helper.mjs', import.meta.url);
-const pinnedNode = join(process.cwd(), '.local', 'toolchains', 'node-24.14.1', 'node.exe');
+const pinnedNode = process.execPath;
 const token = 'abcdefghijklmnop', version = '1.2.3';
 let installerBinary, appBinary;
 
@@ -74,6 +74,7 @@ async function eventually(path, timeout = 10000) {
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 
 before(async () => {
+  assert.equal(process.versions.node, '24.14.1', 'Run helper-process verification with the pinned Node toolchain');
   await access(pinnedNode);
   const installerSource = join(root, 'fake-installer.rs'), appSource = join(root, 'fake-app.rs');
   installerBinary = join(root, 'fake-installer.exe'); appBinary = join(root, 'fake-app.exe');
