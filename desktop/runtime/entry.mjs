@@ -11,7 +11,7 @@ if(!Number.isInteger(guardianPid)||guardianPid<1||process.ppid!==guardianPid)thr
 const knowledgeArgument=argument('--knowledge-root');
 const knowledgeRoot=knowledgeArgument?absoluteDirectory(knowledgeArgument,'--knowledge-root'):join(profile,'knowledge');
 mkdirSync(profile,{recursive:true});
-const coordinator=createCoordinator({port:0,dbPath:join(profile,'rooms.sqlite'),privateDir:join(profile,'participants'),knowledgeRoot,workspaceRoot:profile,secret:randomBytes(32).toString('base64url'),log:{error:message=>process.stderr.write(`${message}\n`)}});
+const coordinator=createCoordinator({port:0,dbPath:join(profile,'rooms.sqlite'),privateDir:join(profile,'participants'),knowledgeRoot,workspaceRoot:profile,secret:randomBytes(32).toString('base64url'),desktopHost:true,updateScheduling:process.env.ROOMS_DISABLE_UPDATES!=='1',log:{error:message=>process.stderr.write(`${message}\n`)}});
 const info=await coordinator.start();
 const ready={type:'ready',protocol:'session-rooms-desktop/v1',pid:process.pid,instanceId:randomUUID(),baseUrl:info.baseUrl,dataDir:profile,dbPath:info.dbPath};
 process.stdout.write(JSON.stringify(ready)+'\n');

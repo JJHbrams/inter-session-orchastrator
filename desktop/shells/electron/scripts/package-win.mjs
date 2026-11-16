@@ -6,7 +6,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { embedWindowsIcon, stampWindowsVersion, verifyEmbeddedWindowsIcon, verifyWindowsVersionResources } from './windows-icon.mjs';
 const run = promisify(execFile);
-const APP_FILES = ['main.mjs','core.mjs','directory-picker.mjs','lifecycle.mjs','package.json','preload.cjs','utility-probe.cjs'];
+const APP_FILES = ['main.mjs','core.mjs','directory-picker.mjs','lifecycle.mjs','updater.mjs','update-helper.mjs','package.json','preload.cjs','utility-probe.cjs'];
 const root = resolve(import.meta.dirname, '..');
 const WINDOWS_ARCHIVE_MODULE = "$ErrorActionPreference='Stop'; Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Archive/Microsoft.PowerShell.Archive.psd1') -Force;";
 async function absent(path) { try { await access(path); return false; } catch (error) { if (error.code === 'ENOENT') return true; throw error; } }
