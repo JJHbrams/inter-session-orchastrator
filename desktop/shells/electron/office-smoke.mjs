@@ -15,7 +15,7 @@ export async function pixiSmokeInPage(){
   const members=()=>['smoke-idle','smoke-peer'].map(node);
   const atMeeting=n=>n?.dataset.seated==='true'&&!n.dataset.station;
   const trace=()=>[...host.querySelectorAll('.office-agent')].map(n=>({id:n.dataset.id,action:n.dataset.action,state:n.dataset.state,seated:n.dataset.seated,station:n.dataset.station,x:n.dataset.currentFootx,y:n.dataset.currentFooty}));
-  probe.setSnapshot({agents});await probe.readyPromise;
+  await probe.readyPromise;probe.setSnapshot({agents});
   result.officeEntryAnimated=await until(()=>members().some(n=>n?.dataset.action==='entering'));
   const settled=await until(()=>members().every(atMeeting)&&node('smoke-chair')?.dataset.crown==='true');
   if(settled){

@@ -14,7 +14,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
  if (!document || !host) throw Error('createOfficePixiScene requires document and host');
  let snapshot={agents:[]}, online=true, destroyed=false, visible=!document.hidden;
  let presentation={collapsed:false,visible:true,reducedMotion:false};
- let P,app,actors,bg,fg,mask,tableFg,tableMask,seatAtlas,emptyChair;
+ let P,app,actors,bg,fg,mask,tableFg,tableMask,doorFg,doorMask,seatAtlas,emptyChair;
  let started=false,frame=0,revision=0,appInitialized=false,appDisposed=false,snapshotBeforeReady=false;
  const textures=new Map(),actionAtlases=new Map(),views=new Map(),records=new Map(),trips=new Map(),retired=new Map();
  const decorations=[];
@@ -42,13 +42,13 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
  const setFoot=(r,p)=>{r.node.dataset.x=String(p.x);r.node.dataset.y=String(p.y);r.node.dataset.currentFootx=String(p.x);r.node.dataset.currentFooty=String(p.y);r.node.dataset.zone=p.zone||'floor';place(r)};
  const tex=async a=>{
   const key=provider(a);
-  if(!textures.has(key)){const loading=P.Assets.load(`/assets/office/${key}-sprites.png`).catch(error=>{if(textures.get(key)===loading)textures.delete(key);throw error});textures.set(key,loading)}
+  if(!textures.has(key)){const loading=Promise.all([actionAtlas(`${key}-travel`),actionAtlas(`${key}-seated`),actionAtlas('work-torsos')]).then(([travel,seated,work])=>({travel,seated,work})).catch(error=>{if(textures.get(key)===loading)textures.delete(key);throw error});textures.set(key,loading)}
   return textures.get(key);
  };
  const actionAtlas=async key=>{
   const asset=OFFICE_ACTION_ASSETS[key];if(!asset)throw Error(`unknown office action atlas: ${key}`);
   const cached=actionAtlases.get(key);if(cached?.frame)return cached;
-  if(!cached){const loading=P.Assets.load(asset.url).then(value=>{actionAtlases.set(key,value);return value}).catch(error=>{if(actionAtlases.get(key)===loading)actionAtlases.delete(key);throw error});actionAtlases.set(key,loading)}
+  if(!cached){const loading=P.Assets.load(asset.url).then(value=>{if(!destroyed&&actionAtlases.get(key)===loading)actionAtlases.set(key,value);return value}).catch(error=>{if(actionAtlases.get(key)===loading)actionAtlases.delete(key);throw error});actionAtlases.set(key,loading)}
   return actionAtlases.get(key);
  };
  const actionTexture=(key,base,col,row)=>{
@@ -72,7 +72,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   const {w}=logical(),s=Math.max(r.agent.kind==='subagent'?20:28,Math.min(r.agent.kind==='subagent'?50:72,w*.06));
   r.size=s;r.container=new P.Container();r.container.label='office-agent:'+r.agent.id;r.container.sortableChildren=true;
   r.chairSprite=new P.Sprite(seatTexture(4,'front'));r.chairSprite.label=`office-chair:${r.agent.id}`;r.chairSprite.visible=false;
-  r.body=new P.Sprite(actionTexture(`${provider(r.agent)}-travel`,r.texture,0,0));r.body.anchor?.set?.(.5,.85);r.body.width=s;r.body.height=s;
+  r.body=new P.Sprite(actionTexture(`${provider(r.agent)}-travel`,r.texture.travel,0,0));r.body.anchor?.set?.(.5,.85);r.body.width=s;r.body.height=s;
   r.eyes=graphic(g=>{g.rect(-s*.045,-s*.4,s*.075,s*.08).fill({color:0xf49b6a});g.rect(s*.095,-s*.41,s*.075,s*.08).fill({color:0xf49b6a});g.rect(-s*.04,-s*.355,s*.065,s*.015).fill({color:0x302523});g.rect(s*.10,-s*.365,s*.065,s*.015).fill({color:0x302523})});
   r.eyes.visible=false;r.prop=graphic(()=>{});r.prop.visible=false;
   r.crown=graphic(g=>{g.poly([-s*.26,-s*.08,-s*.21,-s*.32,-s*.08,-s*.18,0,-s*.40,s*.09,-s*.18,s*.22,-s*.32,s*.27,-s*.08]).fill({color:0x382818});g.poly([-s*.20,-s*.10,-s*.17,-s*.26,-s*.07,-s*.14,0,-s*.33,s*.07,-s*.14,s*.18,-s*.26,s*.21,-s*.10]).fill({color:0xf6c744});g.rect(-s*.13,-s*.12,s*.06,s*.045).rect(s*.07,-s*.12,s*.06,s*.045).fill({color:0xd9435f});});r.crown.visible=false;
@@ -83,7 +83,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   const node=document.createElement('button');node.type='button';node.className='office-agent';node.dataset.agentId=node.dataset.id=agent.id;
   node.onclick=()=>{if(!node.disabled)onSelect?.(selection(node._agent))};
   const label=document.createElement('span'),detail=document.createElement('small');label.className='office-agent-label';detail.className='office-agent-detail';node.append(label,detail);overlay.append(node);
-  const r={agent,node,label,detail,phase:phaseFor(agent.id),pose:poseFor(agent),texture:null,seated:false,seat:null};records.set(agent.id,r);
+  const r={agent,node,label,detail,phase:phaseFor(agent.id),pose:poseFor(agent),texture:null,seated:false,seat:null,walkDistance:0};records.set(agent.id,r);
   setFoot(r,atTarget?target:doorSpot());return r;
  };
  const travel=(id,target,removeAfter=false,fromSeat=null,toSeat=null,mode='walking')=>{
@@ -112,7 +112,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   const seat=r.seat||r.station;r.seated=!!seat&&!trips.has(r.agent.id)&&at.x===seat.x&&at.y===seat.y;
   r.node.dataset.seated=String(r.seated);r.node.dataset.chair=String(r.agent.role==='chair');
   r.node.dataset.facing=r.seated?(seat.facing||'front'):'';
-  r.node.dataset.station=r.station?.station||'';
+  r.node.dataset.station=r.seated&&r.station?r.station.station:'';
   r.node.dataset.seatX=seat?String(seat.x):'';r.node.dataset.seatY=seat?String(seat.y):'';
   const trip=trips.get(r.agent.id);r.node.dataset.action=trip?(trip.mode||'walking'):r.seated?(r.agent.state==='running'&&['responding','synthesis','delegating'].includes(r.agent.activity)?'talking':actionFor(r.agent)):actionFor(r.agent);
   r.node.disabled=!!trip?.removeAfter;
@@ -122,49 +122,37 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
  const animate=r=>{
   if(!r.body)return;
   const a=r.node.dataset.action,p=r.phase,s=r.size,isClaude=provider(r.agent)==='claude';
-  const travelKey=`${provider(r.agent)}-travel`,seatedKey=`${provider(r.agent)}-seated`,direction=Math.max(0,directions.indexOf(r.node.dataset.facing||'front'));
-  r.pose=a==='walking'?(Math.floor(p*7)%4):poseFor(r.agent);
-  r.chairSprite.visible=!!r.seated;r.chairSprite.texture=seatTexture(4,r.node.dataset.facing||'front');
-  if(r.seated){
-   const talking=a==='talking',row=(talking?2:0)+(Math.floor(p*(talking?2.8:1.8))%2);
-   r.pose=row;r.body.texture=actionTexture(seatedKey,actionAtlases.get(seatedKey),direction,row);r.body.anchor?.set?.(.5,1);
-   const ratio=r.body.texture.frame.width/r.body.texture.frame.height;r.body.width=s*1.2*ratio;r.body.height=s*1.2;
-   r.chairSprite.anchor?.set?.(.5,1);r.chairSprite.height=s*1.2;r.chairSprite.width=s*1.2*(r.chairSprite.texture.frame.width/r.chairSprite.texture.frame.height);
-  }else if(['reading','coding','terminal'].includes(a)&&r.station){
-   const row={library:0,development:1,server:2}[r.station.station]??0,col=(isClaude?0:2)+(Math.floor(p*2)%2);
-   r.pose=row*4+col;r.body.texture=actionTexture('work-torsos',actionAtlases.get('work-torsos'),col,row);r.body.anchor?.set?.(.5,1);r.body.height=s*.85;r.body.width=r.body.height*(r.body.texture.frame.width/r.body.texture.frame.height);r.body.y=-s*.4;
+  const inTransit=['walking','entering','exiting'].includes(a),atStation=r.seated&&r.station,atMeeting=r.seated&&r.seat;
+  const direction=Math.max(0,directions.indexOf(r.node.dataset.facing||'front'));
+  let bodyY=0,key,col,row;
+  r.chairSprite.visible=!!(atMeeting||atStation&&r.station.secondary);
+  r.chairSprite.texture=seatTexture(4,r.node.dataset.facing||'front');
+  r.chairSprite.anchor?.set?.(.5,1);r.chairSprite.height=s*.8;r.chairSprite.width=r.chairSprite.height*(r.chairSprite.texture.frame.width/r.chairSprite.texture.frame.height);
+  if(atStation){
+   key='work-torsos';row={library:0,development:1,server:2}[r.station.station]??0;col=(isClaude?0:2)+(Math.floor(p*2.5)%2);
+   r.body.texture=actionTexture(key,r.texture.work,col,row);r.body.anchor?.set?.(.5,1);r.body.height=s*.85;bodyY=-s*.4;
+  }else if(atMeeting){
+   key=`${provider(r.agent)}-seated`;row=(a==='talking'?2:0)+(Math.floor(p*(a==='talking'?2.6:.75))%2);col=direction;
+   r.body.texture=actionTexture(key,r.texture.seated,col,row);r.body.anchor?.set?.(.5,1);r.body.height=s*1.2;
+   if(a==='idle')bodyY=Math.sin(p*2.1)*.4;
   }else{
-   const row=a==='entering'?0:a==='exiting'?1:2,col=a==='walking'?Math.floor(p*7)%4:Math.floor(p*4)%4;
-   r.pose=row*4+col;r.body.texture=actionTexture(travelKey,actionAtlases.get(travelKey),col,row);r.body.anchor?.set?.(.5,.85);r.body.width=s;r.body.height=s;
+   key=`${provider(r.agent)}-travel`;row=a==='entering'?0:a==='exiting'?1:2;col=Math.floor((r.walkDistance||0)/3.5)%4;
+   r.body.texture=actionTexture(key,r.texture.travel,col,row);r.body.anchor?.set?.(.5,1);r.body.height=s*1.2;
+   if(inTransit)bodyY=Math.abs(Math.sin((r.walkDistance||0)*Math.PI/3.5))*s*.025;
   }
-  r.body.scale.x=Math.abs(r.body.scale.x);r.body.rotation=0;r.body.x=0;if(!(['reading','coding','terminal'].includes(a)&&r.station))r.body.y=0;
-  r.crown.x=0;r.crown.y=-s*.92;r.crown.visible=!!(r.agent.kind==='session'&&!r.agent.parentId&&r.agent.role==='chair'&&r.seated);r.node.dataset.crown=String(r.crown.visible);
-  r.eyes.visible=false;r.eyes.scale?.set?.(1,1);r.prop.visible=false;r.prop.alpha=1;r.prop.rotation=0;r.prop.x=0;r.prop.y=0;r.prop.scale?.set?.(1,1);
-  if(r.propAction!==a){
-   r.prop.clear();
-   if(a==='reading')r.prop.poly([0,-s*.23,s*.17,-s*.25,s*.15,-s*.06,0,-s*.05]).fill({color:0xffefd0,alpha:.95});
-   else if(a==='coding'){r.prop.rect(-s*.13,-s*.18,s*.11,s*.055).fill({color:0x26343a});r.prop.rect(s*.05,-s*.18,s*.11,s*.055).fill({color:0x26343a})}
-   else if(a==='terminal'){r.prop.rect(s*.13,-s*.29,s*.06,s*.02).fill({color:0x8cf4d0});r.prop.rect(s*.13,-s*.25,s*.11,s*.02).fill({color:0x8cf4d0});r.prop.rect(s*.13,-s*.21,s*.025,s*.035).fill({color:0x8cf4d0})}
-   else if(a==='thinking'||a==='talking')r.prop.rect(s*.23,-s*.98,s*.04,s*.04).rect(s*.30,-s*1.02,s*.04,s*.04).rect(s*.37,-s*.98,s*.04,s*.04).fill({color:0xffe4a3});
-   r.propAction=a;
+  r.body.width=r.body.height*(r.body.texture.frame.width/r.body.texture.frame.height);r.body.scale.x=Math.abs(r.body.scale.x);r.body.rotation=0;r.body.x=0;
+  if(inTransit){
+   const trip=trips.get(r.agent.id),next=trip?.points[trip.index],dx=next?next.x-foot(r).x:0;
+   if(Math.abs(dx)>.001)r.walkLeft=dx<0;
+   const flip=a==='exiting'?!r.walkLeft:!!r.walkLeft;r.body.scale.x=(flip?-1:1)*Math.abs(r.body.scale.x);
   }
-  let bob=0;
-  if(['walking','entering','exiting'].includes(a)){
-   r.body.scale.x=((trips.get(r.agent.id)?.target.x??foot(r).x)<foot(r).x?-1:1)*Math.abs(r.body.scale.x);
-   bob=Math.abs(Math.sin(p*12))*s*.035;
-  }else if(a==='idle'){
-   bob=Math.sin(p*2.1)*(r.seated?.45:.9);
-   if(r.seated){r.body.y=bob;r.crown.y+=bob;bob=0}
-   if(!r.seated&&isClaude){r.eyes.visible=r.pose===0&&(p%3.2)>.13&&(p%3.2)<.25;r.body.x=Math.sin(p*.7)*.35;r.eyes.x=r.body.x}
-   else if(!r.seated)r.body.rotation=Math.sin(p*1.7)*.025;
-  }else if(a==='reading'){r.prop.visible=!r.station;r.prop.scale.x=.6+Math.abs(Math.sin(p*4))*.4;r.prop.rotation=Math.sin(p*4)*.04}
-  else if(a==='coding'){r.prop.visible=!r.station;r.prop.y=Math.sin(p*14)*1.2;r.prop.rotation=Math.sin(p*14)*.035}
-  else if(a==='terminal'){r.prop.visible=!r.station;r.prop.alpha=Math.sin(p*5)>0?1:.35}
-  else if(a==='thinking'){r.prop.visible=true;r.prop.y=Math.sin(p*4)*1.4}
-  else if(a==='talking'){r.prop.visible=true;r.prop.alpha=.65+Math.sin(p*5)*.3}
-  if(!moving()){bob=0;r.body.rotation=0;r.body.x=0;r.eyes.visible=false;r.prop.rotation=0;r.prop.y=0;r.prop.scale?.set?.(1,1);r.prop.alpha=1}
-  const {h}=logical();r.container.y=visualFoot(r).y*h/100+bob;
-  r.node.dataset.pose=String(r.pose);r.node.dataset.idleOffset=String((r.body.y||0).toFixed(3));r.node.dataset.visualX=String(r.container.x.toFixed(2));r.node.dataset.visualY=String(r.container.y.toFixed(2));r.node.dataset.chairVisualX=String((r.container.x+(r.chairSprite.x||0)).toFixed(2));r.node.dataset.chairVisualY=String((r.container.y+(r.chairSprite.y||0)).toFixed(2));r.node.dataset.crownHeadOffset=String((r.crown.y-r.body.y).toFixed(3));r.node.dataset.blink=String(r.eyes.visible);
+  if(!moving())bodyY=atStation?-s*.4:0;
+  r.body.y=bodyY;r.eyes.visible=false;r.prop.visible=false;
+  r.crown.x=0;r.crown.y=-s*.92+bodyY;r.crown.visible=!!(r.agent.kind==='session'&&!r.agent.parentId&&r.agent.role==='chair'&&atMeeting);r.node.dataset.crown=String(r.crown.visible);
+  const boundary=['entering','exiting'].includes(a)?Math.min(1,distance(foot(r),doorSpot())/7):1;
+  r.container.alpha=boundary;r.node.style.opacity=String(boundary);r.node.dataset.doorOcclusion=String((1-boundary).toFixed(3));
+  const {h}=logical();r.container.y=foot(r).y*h/100;
+  r.pose=row*4+col;r.node.dataset.pose=String(r.pose);r.node.dataset.spriteAsset=key;r.node.dataset.idleOffset=String(bodyY.toFixed(3));r.node.dataset.visualX=String(r.container.x.toFixed(2));r.node.dataset.visualY=String(r.container.y.toFixed(2));r.node.dataset.chairVisualX=String((r.container.x+(r.chairSprite.x||0)).toFixed(2));r.node.dataset.chairVisualY=String((r.container.y+(r.chairSprite.y||0)).toFixed(2));r.node.dataset.crownHeadOffset=String((r.crown.y-r.body.y).toFixed(3));r.node.dataset.blink=String(atMeeting&&a==='idle'&&row===1);
  };
  const tick=d=>{
   if(!moving())return;
@@ -173,9 +161,9 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
    const r=records.get(id);if(!r){trips.delete(id);continue}
    let rest=30*ms/1000;
    while(rest&&t.index<t.points.length){
-    const end=t.points[t.index],len=distance(t.from,end)||1,step=Math.min(rest,(1-t.progress)*len);t.progress+=step/len;
+    const end=t.points[t.index],len=distance(t.from,end)||1,step=Math.min(rest,(1-t.progress)*len);t.progress+=step/len;r.walkDistance=(r.walkDistance||0)+step;
     setFoot(r,{x:t.from.x+(end.x-t.from.x)*t.progress,y:t.from.y+(end.y-t.from.y)*t.progress,zone:t.target.zone});rest-=step;
-    if(t.progress>=1){t.from=end;t.index++;t.progress=0}
+    if(t.progress>=1){setFoot(r,{...end,zone:t.target.zone});t.from=end;t.index++;t.progress=0}
    }
    if(t.index===t.points.length){trips.delete(id);if(t.removeAfter)remove(id)}
   }
@@ -183,6 +171,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
  };
  const sync=()=>{if(app?.ticker)moving()?app.ticker.start?.():app.ticker.stop?.()};
  const drawMasks=(w,h)=>{
+  doorMask?.clear?.().poly([w*.068,h*.524,w*.128,h*.597,w*.128,h*.872,w*.07,h*.796]).poly([w*.184,h*.584,w*.194,h*.59,w*.194,h*.838,w*.184,h*.834]).fill({color:0xffffff,alpha:1});
   mask?.clear?.().poly([w*.39,h*.39,w*.48,h*.35,w*.49,h*.60,w*.47,h*.64,w*.39,h*.65,w*.38,h*.61]).fill({color:0xffffff,alpha:1});
   tableMask?.clear?.().poly([w*.442,h*.70,w*.45,h*.65,w*.49,h*.61,w*.56,h*.596,w*.61,h*.62,w*.624,h*.66,w*.62,h*.72,w*.605,h*.76,w*.605,h*.825,w*.596,h*.825,w*.596,h*.765,w*.51,h*.792,w*.51,h*.845,w*.5,h*.845,w*.5,h*.79,w*.46,h*.778,w*.46,h*.81,w*.45,h*.81,w*.45,h*.764,w*.444,h*.735]).fill({color:0xffffff,alpha:1});
  };
@@ -200,7 +189,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
  const resize=()=>{
   if(!appInitialized||destroyed)return;
   const w=Math.max(1,board.clientWidth||800),h=Math.max(1,Math.round(w/2.6));app.renderer.resize?.(w,h,Math.min(globalThis.devicePixelRatio||1,2));
-  for(const sprite of[bg,fg,tableFg])if(sprite){sprite.width=w;sprite.height=h}
+  for(const sprite of[bg,fg,tableFg,doorFg])if(sprite){sprite.width=w;sprite.height=h}
   drawMasks(w,h);refreshChairs(meetingLayout(snapshot.agents||[]));for(const r of records.values()){place(r);animate(r)}app.render?.();
  };
  const paint=async expected=>{
@@ -229,7 +218,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
    }
    if(records.get(agent.id)===r){setAction(r);animate(r)}
   }
-  if(expected!==revision)return;for(const id of[...records.keys()])if(!shown.has(id)){const r=records.get(id);if(presentation.reducedMotion)remove(id);else{travel(id,doorSpot(),true,r.seat||r.station,null,'exiting');if(records.get(id)===r){setAction(r);animate(r)}}}sync();app.render?.();status();
+  if(expected!==revision)return;for(const id of[...records.keys()])if(!shown.has(id)){const r=records.get(id);if(presentation.reducedMotion)remove(id);else{travel(id,doorSpot(),true,r.seated?(r.seat||r.station):null,null,'exiting');if(records.get(id)===r){setAction(r);animate(r)}}}sync();app.render?.();status();
  };
  const visibility=()=>{visible=!document.hidden;sync()};document.addEventListener('visibilitychange',visibility);
  const readyPromise=Promise.resolve().then(loadPixi).then(async lib=>{
@@ -240,11 +229,11 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   await P.Assets.load('/assets/office/office-background.png');if(destroyed)return;
   const base=await P.Assets.load('/assets/office/office-meeting-background.png');if(destroyed)return;
   seatAtlas=await P.Assets.load('/assets/office/meeting-seats.png');if(destroyed)return;
-  await Promise.all(Object.keys(OFFICE_ACTION_ASSETS).map(actionAtlas));if(destroyed)return;
   bg=new P.Sprite(base);bg.width=app.screen.width;bg.height=app.screen.height;add(app.stage,bg);
   actors=new P.Container();actors.sortableChildren=true;add(app.stage,actors);
   fg=new P.Sprite(base);fg.width=app.screen.width;fg.height=app.screen.height;mask=new P.Graphics();fg.mask=mask;fg.zIndex=650;mask.zIndex=650;add(actors,mask);add(actors,fg);
   tableFg=new P.Sprite(base);tableFg.width=app.screen.width;tableFg.height=app.screen.height;tableMask=new P.Graphics();tableFg.mask=tableMask;tableFg.zIndex=770;tableMask.zIndex=770;add(actors,tableMask);add(actors,tableFg);drawMasks(app.screen.width,app.screen.height);
+  doorFg=new P.Sprite(base);doorFg.width=app.screen.width;doorFg.height=app.screen.height;doorMask=new P.Graphics();doorFg.mask=doorMask;doorFg.zIndex=901;doorMask.zIndex=901;add(actors,doorMask);add(actors,doorFg);drawMasks(app.screen.width,app.screen.height);
   emptyChair=new P.Sprite(seatTexture(4,CHAIR_SEAT.facing));emptyChair.label='meeting-chair-empty';add(actors,emptyChair);
   for(const seat of[{x:61.8,y:67,facing:'left'},{x:49,y:87,facing:'back'},{x:62,y:82,facing:'back'}]){const sprite=new P.Sprite(seatTexture(4,seat.facing));sprite.label='meeting-chair-decoration';decorations.push({sprite,seat});add(actors,sprite)}
   const ro=globalThis.ResizeObserver?new ResizeObserver(resize):null;ro?.observe(board);board._pixiResizeObserver=ro;
@@ -260,6 +249,6 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
    if(presentation.reducedMotion){const pending=[...trips];trips.clear();for(const[id,t]of pending){const r=records.get(id);if(r){setFoot(r,t.target);if(t.removeAfter)remove(id);else{setAction(r);animate(r)}}}}
    sync();if(appInitialized)app.render?.();status();
   },
-  destroy(){destroyed=true;revision++;document.removeEventListener('visibilitychange',visibility);board._pixiResizeObserver?.disconnect?.();for(const id of[...records.keys()])remove(id);app?.ticker?.remove?.(tick);disposeApp();for(const view of views.values())gone(view);views.clear();textures.clear();board.replaceChildren()}
+  destroy(){destroyed=true;revision++;document.removeEventListener('visibilitychange',visibility);board._pixiResizeObserver?.disconnect?.();for(const id of[...records.keys()])remove(id);app?.ticker?.remove?.(tick);disposeApp();for(const view of views.values())gone(view);views.clear();textures.clear();actionAtlases.clear();board.replaceChildren()}
  };
 }
