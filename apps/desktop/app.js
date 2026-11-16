@@ -15,6 +15,7 @@ import {createAttachmentComposer,createAttachmentViewer,renderSharedAttachments}
 import {deliveryPresentation} from '/delivery-status.js';
 import {chairSettingsFields,dialoguePresets,dialogueLimitSummary} from '/chair-settings.js';
 import {createAgendaUI,agendaMessagePresentation} from '/agenda-ui.js';
+import {createAppUpdatesUI} from '/app-updates-ui.js';
 import {UNASSIGNED_CHANNEL_KEY,bindChannelDisclosure,createChannelNav,expandParentForNewRoom,parseReferenceHash,syncRoomChannelOptions} from '/channel-nav.js';
 import {showReferenceDialog} from '/reference-links.js';
 let current, rooms=[], channels=[], pendingSend, selectedRoomId,showArchived=false;const draftBodies=new Map(); const $=s=>document.querySelector(s);
@@ -25,6 +26,7 @@ api.authenticate().then(({version})=>{const label=$('#appVersion');label.textCon
 const renderMarkdown=createRenderer({parse:source=>marked.parse(source,{gfm:true,breaks:true}),sanitize:DOMPurify.sanitize.bind(DOMPurify)});
 const attachmentViewer=createAttachmentViewer({document,authenticate:()=>api.authenticate(),renderMarkdown,getContext:id=>current?.id===id?{mentions:current.members.map(m=>m.alias),references:createReferenceMap(current.members,current.messages)}:{}});
 let agendaUI;
+const appUpdatesUI=createAppUpdatesUI({document,request:req,bridge:globalThis.sessionRoomsDesktop,hasPendingInput:()=>Boolean($('#body')?.value.trim())||[...draftBodies.values()].some(body=>body.trim())||(attachmentComposer?.items?.()||[]).length>0});
 const channelNav=createChannelNav();
 const text=(tag,value,cls)=>{const x=document.createElement(tag);x.textContent=value;if(cls)x.className=cls;return x};
 function actionIcon(name){
@@ -686,7 +688,7 @@ async function editLimits(){
 }
 function updateRoomControls(){for(const id of ['invite','limits','workspaceButton'])$('#'+id).disabled=!active();$('#composer button[type=submit]').disabled=!active()||attachmentComposer?.pending();const steer=$('#kind option[value=steer]');steer.disabled=true;steer.textContent='방향 수정 · 연결 미지원';}
 const inviteButton=memberButton('세션 초대',()=>showDiscovery());inviteButton.id='invite';const limitButton=memberButton('자동 대화 설정',editLimits);limitButton.id='limits';$('.room-actions').prepend(inviteButton,limitButton);$('#discover').onclick=showDiscovery;
-agendaUI=createAgendaUI({document,request:req,renderMarkdown,renderAttachments,error,getRoom:()=>current,getChannels:()=>channels,onChange:()=>openRoom(current?.id,false)});
+agendaUI=createAgendaUI({document,request:req,renderMarkdown,renderAttachments,error,getRoom:()=>current,getChannels:()=>channels,onChange:()=>openRoom(current?.id,false),onSettings:host=>appUpdatesUI.mountSettings(host)});
 const agendaButton=memberButton('안건으로 토론',()=>agendaUI.start());agendaButton.id='agendaStart';agendaButton.classList.add('toolbar-primary');
 const knowledgeButton=memberButton('자료·지식',()=>agendaUI.knowledge());knowledgeButton.id='knowledge';
 const settingsButton=memberButton('앱 설정',()=>agendaUI.settings());settingsButton.id='appSettings';
@@ -695,6 +697,7 @@ decorateAction(knowledgeButton,'workspace');decorateAction(settingsButton,'setti
 $('#workspaceButton').onclick=workspaceDialog;
 
 $('#kind').value='followup';$('#kind').dispatchEvent(new Event('change'));
+appUpdatesUI.start();
 
 const chairStatus=state=>({initializing:'좌장 생성 중',ready:'좌장 준비됨',submitting:'좌장에게 전달 중',running:'응답 생성 중',unknown:'좌장 실행 확인 필요',failed:'좌장 연결 실패'}[state]||state);
 let chairSettingsOpening=false;
