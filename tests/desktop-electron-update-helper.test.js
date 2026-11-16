@@ -23,3 +23,7 @@ test('helper retains a bounded no-commit handoff deadline', async () => {
 test('helper records restart failure after its pre-restart completion record', async () => {
   const source = await readFile(helper, 'utf8'); assert.ok(source.indexOf("persist('completed'") < source.indexOf("restarted = spawn")); assert.match(source, /once\('spawn'/); assert.match(source, /UPDATE_RESTART_FAILED/); assert.match(source, /restartAttempted/);
 });
+
+test('installer notice never kills or falsely fails a later verified installation', async () => {
+  const source = await readFile(helper, 'utf8'); assert.match(source, /ROOMS_UPDATE_HELPER_INSTALLER_NOTICE_MS/); assert.match(source, /UPDATE_INSTALLER_STILL_RUNNING/); assert.doesNotMatch(source, /installer\.kill/); assert.doesNotMatch(source, /UPDATE_INSTALLER_TIMEOUT/); assert.ok(source.indexOf('if (exitCode !== 0)') > source.indexOf('UPDATE_INSTALLER_STILL_RUNNING'));
+});
