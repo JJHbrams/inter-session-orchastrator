@@ -3,13 +3,32 @@ import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
 import {createAgentOffice} from '../apps/desktop/agent-office.js';
 
-function fixture(){
- const dom=new JSDOM('<body><div id="host"></div></body>',{pretendToBeVisual:true});
- const prior={raf:globalThis.requestAnimationFrame,caf:globalThis.cancelAnimationFrame,performance:globalThis.performance,CSS:globalThis.CSS};
- globalThis.requestAnimationFrame=callback=>setTimeout(()=>callback(globalThis.performance.now()),0); globalThis.cancelAnimationFrame=clearTimeout; globalThis.CSS={escape:value=>String(value)};
- const calls=[]; const storage={value:null,getItem(){return this.value},setItem(_,value){this.value=value}};
- const office=createAgentOffice({document:dom.window.document,host:dom.window.document.querySelector('#host'),storage,onSelect:value=>calls.push(value),matchMedia:()=>({matches:true,addEventListener(){},removeEventListener(){}})});
- return {dom,office,calls,restore(){Object.assign(globalThis,{requestAnimationFrame:prior.raf,cancelAnimationFrame:prior.caf,performance:prior.performance,CSS:prior.CSS})}};
+function fixture({ready = Promise.resolve()} = {}) {
+  const dom = new JSDOM('<body><div class="workspace"><div id="host"></div></div></body>');
+  const calls = [], storage = {value: null, getItem() { return this.value; }, setItem(_, value) { this.value = value; }};
+  const fakeScene = ({host}) => ({readyPromise: ready, setSnapshot: value => calls.push(['snapshot', value]), setRoom: value => calls.push(['room', value]), setConnection: value => calls.push(['connection', value]), setPresentation: value => calls.push(['presentation', value]), destroy: () => calls.push(['destroy'])});
+  const media = {matches: false, addEventListener(_, listener) { this.listener = listener; }, removeEventListener() { this.removed = true; }};
+  const office = createAgentOffice({document: dom.window.document, host: dom.window.document.querySelector('#host'), storage, matchMedia: () => media, sceneFactory: fakeScene});
+  return {dom, calls, storage, media, office};
 }
-test('renders factual sprites and routes child selection to its parent',()=>{const f=fixture();try{f.office.setSnapshot({agents:[{id:'parent',sessionId:'s1',membershipId:'m1',parentId:null,label:'Claude',provider:'claude',kind:'session',state:'running',activity:'reading',zone:'library'},{id:'child',sessionId:'s2',membershipId:'m2',parentId:'parent',label:'Codex helper',provider:'codex',kind:'subagent',state:'queued',activity:'coding',zone:'development'}]});const nodes=f.dom.window.document.querySelectorAll('.office-agent');assert.equal(nodes.length,2);assert.match(nodes[0].getAttribute('aria-label'),/책 읽는 중/);nodes[1].click();assert.deepEqual(f.calls,[{sessionId:null,membershipId:null,parentId:'parent',id:'parent'}]);}finally{f.office.destroy();f.restore();}});
-test('collapse persists and destroy removes the office without animation work',()=>{const f=fixture();try{const button=f.dom.window.document.querySelector('.office-controls button:last-child');button.click();assert.equal(f.dom.window.document.querySelector('.agent-office').dataset.collapsed,'true');assert.match(f.dom.window.document.querySelector('.office-controls button:last-child').textContent,/펼치기/);f.office.destroy();assert.equal(f.dom.window.document.querySelector('.agent-office'),null);}finally{f.restore();}});
+
+test('queues snapshot and room state until the async Pixi scene is ready', async () => {
+  let resolve; const f = fixture({ready: new Promise(done => { resolve = done; })});
+  f.office.setSnapshot({agents: [{id: 'a'}]}); f.office.setRoom('room-1'); f.office.setConnection(false);
+  assert.equal(f.calls.length, 0);
+  resolve(); await f.office.readyPromise;
+  assert.deepEqual(f.calls.slice(1, 4), [['snapshot', {agents: [{id: 'a'}]}], ['room', 'room-1'], ['connection', false]]);
+  assert.match(f.dom.window.document.querySelector('.office-header small').textContent, /연결 확인 중/);
+  f.office.destroy();
+});
+
+test('forwards presentation preferences and keeps card aria state accurate', async () => {
+  const f = fixture(); await f.office.readyPromise;
+  const buttons = f.dom.window.document.querySelectorAll('.office-controls button');
+  buttons[0].click(); assert.equal(buttons[0].getAttribute('aria-pressed'), 'true');
+  buttons[2].click(); assert.equal(buttons[2].getAttribute('aria-expanded'), 'false');
+  assert.deepEqual(JSON.parse(f.storage.value), {expanded: false, collapsed: true});
+  f.media.matches = true; f.media.listener();
+  assert.ok(f.calls.some(([method, value]) => method === 'presentation' && value.collapsed && value.reducedMotion));
+  f.office.destroy();
+});
