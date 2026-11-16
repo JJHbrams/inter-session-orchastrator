@@ -6,7 +6,7 @@ const readPreferences = storage => { try { return JSON.parse(storage?.getItem(DI
 export function createAgentOffice({document, host, onSelect, storage = globalThis.localStorage, matchMedia = globalThis.matchMedia?.bind(globalThis), sceneFactory = createOfficePixiScene, loadPixi} = {}) {
   if (!document || !host) throw Error('createAgentOffice requires document and host');
   const saved = readPreferences(storage);
-  let expanded = !!saved.expanded, collapsed = !!saved.collapsed, visible = !document.hidden, connected = true, destroyed = false, queued = [], sceneReady = false;
+  let expanded = !!saved.expanded, collapsed = !!saved.collapsed, visible = !document.hidden, connected = true, destroyed = false, lastStatus = {visibleCount: 0, workingCount: 0, error: null};
   const reducedMotion = matchMedia?.('(prefers-reduced-motion: reduce)');
   const root = document.createElement('section'); root.className = 'agent-office'; root.setAttribute('aria-label', '에이전트 오피스');
   const header = document.createElement('header'); header.className = 'office-header';
@@ -20,11 +20,11 @@ export function createAgentOffice({document, host, onSelect, storage = globalThi
   const empty = document.createElement('p'); empty.className = 'office-empty'; empty.textContent = '참여한 세션이 여기 나타나요.'; scene.append(artboard, empty); root.append(header, scene); host.replaceChildren(root);
   const persist = () => { try { storage?.setItem(DISPLAY_KEY, JSON.stringify({expanded, collapsed})); } catch {} };
   const presentation = () => ({collapsed, expanded, visible, reducedMotion: !!reducedMotion?.matches});
-  const setHeader = ({visibleCount = 0, workingCount = 0, error} = {}) => { status.textContent = !connected ? '연결 확인 중' : error ? '표시 오류' : `${visibleCount}명${workingCount ? ` · ${workingCount} 작업 중` : ''}`; };
+  const setHeader = (info = lastStatus) => { const {visibleCount = 0, workingCount = 0, error} = info; status.textContent = !connected ? '연결 확인 중' : error ? '표시 오류' : `${visibleCount}명${workingCount ? ` · ${workingCount} 작업 중` : ''}`; };
   const renderShell = () => { root.dataset.expanded = String(expanded); root.dataset.collapsed = String(collapsed); root.dataset.online = String(connected); toggle.textContent = collapsed ? '펼치기' : '접기'; toggle.setAttribute('aria-expanded', String(!collapsed)); size.textContent = expanded ? '작게' : '크게'; size.hidden = collapsed; cards.setAttribute('aria-pressed', String(!!host.closest('.workspace')?.classList.contains('office-cards-visible'))); };
   let sceneController;
-  const dispatch = (method, ...args) => { if (destroyed) return; if (!sceneReady) { queued.push([method, args]); return; } sceneController?.[method]?.(...args); };
-  const onStatus = next => { if (destroyed) return; const info = next || {}; empty.hidden = !info.error && (info.visibleCount || 0) > 0; empty.textContent = info.error ? '작업실을 표시할 수 없어요.' : '참여한 세션이 여기 나타나요.'; setHeader(info); };
+  const dispatch = (method, ...args) => { if (!destroyed) sceneController?.[method]?.(...args); };
+  const onStatus = next => { if (destroyed) return; lastStatus = {...lastStatus, ...(next || {})}; empty.hidden = !lastStatus.error && (lastStatus.visibleCount || 0) > 0; empty.textContent = lastStatus.error ? '작업실을 표시할 수 없어요.' : '참여한 세션이 여기 나타나요.'; setHeader(); };
   const applyPresentation = () => dispatch('setPresentation', presentation());
   const onVisibilityChange = () => { visible = !document.hidden; applyPresentation(); };
   const onReducedMotionChange = () => applyPresentation();
@@ -34,6 +34,6 @@ export function createAgentOffice({document, host, onSelect, storage = globalThi
   document.addEventListener('visibilitychange', onVisibilityChange); reducedMotion?.addEventListener?.('change', onReducedMotionChange); renderShell();
   try { sceneController = sceneFactory({document, host: artboard, onSelect, onStatus, loadPixi}); } catch (error) { onStatus({error}); }
   applyPresentation();
-  const readyPromise = Promise.resolve(sceneController?.readyPromise).then(() => { if (destroyed || !sceneController) return; sceneReady = true; const pending = queued; queued = []; pending.forEach(([method, args]) => sceneController?.[method]?.(...args)); }).catch(error => onStatus({error}));
-  return {readyPromise, setSnapshot(next = {}) { const count = Array.isArray(next.agents) ? next.agents.length : 0; if (!count) onStatus({visibleCount: 0, workingCount: 0}); dispatch('setSnapshot', next); }, setRoom(id) { onStatus({visibleCount: 0, workingCount: 0}); dispatch('setRoom', id); }, setConnection(next) { connected = !!next; setHeader(); dispatch('setConnection', connected); applyPresentation(); }, destroy() { if (destroyed) return; destroyed = true; queued = []; document.removeEventListener('visibilitychange', onVisibilityChange); reducedMotion?.removeEventListener?.('change', onReducedMotionChange); sceneController?.destroy?.(); root.remove(); }};
+  const readyPromise = Promise.resolve(sceneController?.readyPromise).catch(error => onStatus({error}));
+  return {readyPromise, setSnapshot(next = {}) { const count = Array.isArray(next.agents) ? next.agents.length : 0; if (!count) onStatus({visibleCount: 0, workingCount: 0, error: null}); dispatch('setSnapshot', next); }, setRoom(id) { onStatus({visibleCount: 0, workingCount: 0, error: null}); dispatch('setRoom', id); }, setConnection(next) { connected = !!next; setHeader(); dispatch('setConnection', connected); applyPresentation(); }, destroy() { if (destroyed) return; destroyed = true; document.removeEventListener('visibilitychange', onVisibilityChange); reducedMotion?.removeEventListener?.('change', onReducedMotionChange); sceneController?.destroy?.(); root.remove(); }};
 }
