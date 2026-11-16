@@ -1,0 +1,22 @@
+/** Runs only in the isolated packaged smoke renderer, never a user's profile. */
+export async function pixiSmokeInPage(){
+ const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+ const until=async test=>{const end=Date.now()+10000;while(Date.now()<end){if(test())return true;await wait(40)}return false};
+ const officePixiReady=await until(()=>{const c=document.querySelector('#agentOffice canvas[data-renderer="pixi"]');return c?.dataset.ready==='true'&&c.width>0&&c.height>0});
+ let officeIdleAnimated=false,officePixiFrames=false,probe,host;
+ if(officePixiReady){
+  try{
+   const {createOfficePixiScene}=await import('/office-pixi-scene.js');
+   host=document.createElement('div');host.className='office-artboard';host.style.cssText='position:fixed;left:0;top:0;width:520px;height:200px;transform:none;pointer-events:none;z-index:10';document.body.append(host);
+   probe=createOfficePixiScene({document,host});probe.setRoom('smoke-office');probe.setPresentation({collapsed:false,visible:true,reducedMotion:false});
+   probe.setSnapshot({agents:[{id:'smoke-idle',sessionId:'smoke',label:'검증용 세션',provider:'claude',kind:'session',state:'idle',activity:'none',zone:'table',updatedAt:'smoke'}]});
+   await probe.readyPromise;
+   const loaded=await until(()=>host.querySelector('[data-agent-id="smoke-idle"]')?.dataset.visualY!==undefined);
+   if(loaded){const node=host.querySelector('[data-agent-id="smoke-idle"]'),canvas=host.querySelector('canvas'),first=Number(node.dataset.idleOffset||0),startFrame=Number(canvas.dataset.frame||0);
+    officeIdleAnimated=await until(()=>Math.abs(Number(node.dataset.idleOffset||0)-first)>.03&&node.dataset.state==='idle');
+    officePixiFrames=Number(canvas.dataset.frame||0)>startFrame;
+   }
+  }finally{probe?.destroy();host?.remove()}
+ }
+ return {officePixiReady,officeIdleAnimated,officePixiFrames};
+}
