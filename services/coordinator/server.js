@@ -105,6 +105,8 @@ async function api(req,res,url){try { if(!localHost(req))return json(res,403,{er
  if(req.method==='POST'&&url.pathname==='/api/updates/prepare')return json(res,200,await updates.prepare(b));
  if(req.method==='POST'&&url.pathname==='/api/updates/cancel')return json(res,200,await updates.cancel(b));
  if(req.method==='POST'&&url.pathname==='/api/updates/acknowledge-install-result')return json(res,200,await updates.acknowledgeInstallResult(b));
+ const startsExternal=/^\/api\/(?:chair\/|sessions\/native-chat$|rooms\/[^/]+\/(?:sessions\/[^/]+\/metadata$|sessions\/create$|session-creations\/[^/]+\/reconcile$|sessions\/[^/]+\/settings\/|deliveries\/[^/]+\/retry$|chair(?:\/reconcile)?$))/;
+ if(updates?.fence&&startsExternal.test(url.pathname))throw Object.assign(Error('Update preparation is in progress'),{code:'UPDATE_BUSY'});
  const creationRoute=url.pathname.match(/^\/api\/rooms\/([^/]+)\/sessions\/create$/);
  if(req.method==='POST'&&creationRoute){if(updates?.fence)throw Object.assign(Error('Update preparation is in progress'),{code:'UPDATE_BUSY'});const roomId=creationRoute[1],result=creations.create(roomId,b);track(Promise.resolve(result).then(created=>{if(created?.sessionId)metadataObserver.observe(created.sessionId,{force:true});}));const created=creations.forRoom(roomId).find(item=>item.requestKey===String(b.requestKey||'').trim());return json(res,created?.status==='ready'?201:202,created);}
  const reconcileCreation=url.pathname.match(/^\/api\/rooms\/([^/]+)\/session-creations\/([^/]+)\/reconcile$/);
