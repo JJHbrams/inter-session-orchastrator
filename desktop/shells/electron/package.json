@@ -1,1 +1,16 @@
-{"name":"session-rooms-electron","private":true,"version":"1.2.0","type":"module","main":"main.mjs","scripts":{"start":"electron .","test":"node --test ../../../tests/desktop-electron*.test.js","package:win":"node scripts/package-win.mjs"},"devDependencies":{"@electron/packager":"20.3.0","electron":"45.1.0"}}
+{
+  "name": "session-rooms-electron",
+  "private": true,
+  "version": "1.4.4",
+  "type": "module",
+  "main": "main.mjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test ../../../tests/desktop-electron*.test.js",
+    "package:win": "node scripts/package-win.mjs"
+  },
+  "devDependencies": {
+    "@electron/packager": "20.3.0",
+    "electron": "45.1.0"
+  }
+}

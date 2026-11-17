@@ -23,6 +23,7 @@ fn main() {
     fs::create_dir_all(install.join("resources/runtime/app")).unwrap();
     fs::write(install.join("resources/runtime/app/VERSION"), env::var("ROOMS_TEST_INSTALL_VERSION").unwrap()).unwrap();
     fs::write(profile.join("installer-observed.txt"), format!("parent_exited={}\nargs={:?}", marker.exists(), args)).unwrap();
+    if let Ok(path) = env::var("ROOMS_TEST_RELEASE_FILE") { while !PathBuf::from(&path).exists() { thread::sleep(Duration::from_millis(20)); } }
     thread::sleep(Duration::from_millis(env::var("ROOMS_TEST_INSTALL_DELAY_MS").unwrap().parse().unwrap()));
     exit(env::var("ROOMS_TEST_INSTALL_EXIT").unwrap().parse().unwrap());
 }`;
@@ -101,7 +102,8 @@ async function fixture(t, { installedVersion = version, installerExit = 0, insta
 async function host(value, mode) {
   await command(pinnedNode, [value.hostFile, join(value.helpers, 'node.exe'), join(value.helpers, 'update-helper.mjs'), value.jobFile, mode, value.parentExited], { env: value.env });
 }
-async function result(value) { return JSON.parse(await readFile(join(value.helpers, 'result.json'), 'utf8')); }
+async function result(value) { await eventually(join(value.helpers,'result.json'));return JSON.parse(await readFile(join(value.helpers, 'result.json'), 'utf8')); }
+async function finalResult(value){const until=Date.now()+10000;for(;;){const r=await result(value);if(r.ok===true)return r;if(Date.now()>until)throw Error('Final installation result missing');await new Promise(done=>setTimeout(done,20));}}
 
 test('real copied helper waits for the host exit, persists completion, then restarts the old app with exact profile', async t => {
   const value = await fixture(t); await host(value, 'commit');
@@ -132,9 +134,9 @@ test('nonzero installer exit is persisted as failure and recovers the validated 
 });
 
 test('installer still-running notice does not kill it and eventual success replaces the notice before restart', async t => {
-  const value = await fixture(t, { installerDelay: 350 }); value.env.ROOMS_UPDATE_HELPER_INSTALLER_NOTICE_MS = '25'; await host(value, 'commit');
-  await eventually(join(value.helpers, 'result.json')); const notice = await result(value); assert.equal(notice.code, 'UPDATE_INSTALLER_STILL_RUNNING');
-  await eventually(join(value.profile, 'restart-observed.txt')); assert.deepEqual(await result(value), { ok: true, version });
+  const value = await fixture(t);value.env.ROOMS_TEST_RELEASE_FILE=join(value.profile,'continue-installer'); value.env.ROOMS_UPDATE_HELPER_INSTALLER_NOTICE_MS = '25'; await host(value, 'commit');
+  await eventually(join(value.helpers, 'result.json')); const notice = await result(value); assert.equal(notice.code, 'UPDATE_INSTALLER_STILL_RUNNING');await writeFile(value.env.ROOMS_TEST_RELEASE_FILE,'continue');
+  await eventually(join(value.profile, 'restart-observed.txt')); assert.deepEqual(await finalResult(value), { ok: true, version });
   const persisted = JSON.parse(await readFile(join(value.profile, 'updates', 'last-install-result.json'), 'utf8')); assert.equal(persisted.status, 'completed');
 });
 

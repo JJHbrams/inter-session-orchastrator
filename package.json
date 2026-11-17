@@ -11,14 +11,17 @@
     "verify:web": "node desktop/scripts/run-with-node.mjs desktop/scripts/verify-web.mjs",
     "verify:electron": "node desktop/scripts/run-with-node.mjs desktop/scripts/verify-electron.mjs",
     "build:electron": "node desktop/scripts/run-with-node.mjs desktop/scripts/release-electron.mjs",
-    "build:installer": "node desktop/scripts/run-with-node.mjs desktop/scripts/release-installer.mjs"
+    "build:installer": "node desktop/scripts/run-with-node.mjs desktop/scripts/release-installer.mjs",
+    "build:pixi": "node desktop/scripts/build-pixi.mjs"
   },
   "dependencies": {
     "dompurify": "3.4.17",
-    "marked": "18.1.1"
+    "marked": "18.1.1",
+    "pixi.js": "8.23.0"
   },
   "devDependencies": {
     "@resvg/resvg-js": "2.6.2",
+    "esbuild": "0.28.2",
     "jsdom": "29.1.1",
     "rcedit": "5.0.2"
   }

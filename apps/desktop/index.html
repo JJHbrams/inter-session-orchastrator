@@ -9,6 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="/assets/brand/session-rooms.svg">
   <link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/session-rooms-180.png">
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/office.css">
 </head>
 <body>
   <main class="app">
@@ -19,8 +20,9 @@
       <div class="sidebar-tools"><button id="showArchived" class="archive-toggle" type="button" role="switch" aria-checked="false"><span class="switch-track" aria-hidden="true"></span><span>보관 항목 표시</span></button><button id="discover" class="ghost">세션 카탈로그</button></div>
       <span id="appVersion" class="app-version" aria-label="현재 실행 버전">버전 확인 중…</span>
     </aside>
-    <section class="workspace">
+    <section class="workspace has-agent-office">
       <header class="topbar"><div><p class="eyebrow">LOCAL ROOM</p><h1 id="title">토론장을 선택하세요</h1></div><div class="room-actions"><button id="workspaceButton">작업 공간</button><button id="pause">중지</button><button id="archive">보관</button></div></header>
+      <section id="agentOffice" aria-label="에이전트 오피스"></section>
       <section class="session-panel" aria-label="좌장과 참여 세션">
         <div class="chair-row"><section class="chair-profile"><h2 class="panel-label">좌장</h2><div id="chairProfile"></div></section><section class="chair-summary" aria-label="좌장 토론 정리"><div class="summary-heading"><h2>토론 정리</h2><span id="summaryStatus" class="muted"></span></div><div id="decisions" class="decision-list"></div></section></div>
         <section class="participants-row"><h2 class="panel-label">참여 세션</h2><div id="participants" class="participants" aria-label="참여 세션"></div></section>

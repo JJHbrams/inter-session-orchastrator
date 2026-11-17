@@ -29,7 +29,7 @@ export function validateSmokeOutput(stdout) {
   const records = stdout.split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line));
   const record = records[0];
   if (records.length !== 1 || record?.type !== 'electron-smoke') throw new Error('packaged smoke test must emit exactly one electron-smoke JSON record');
-  if (record.passed !== true || record.renderer?.documentReady !== true || record.renderer?.appPresent !== true || record.renderer?.bootstrap !== true || record.renderer?.authenticatedRead !== true || record.renderer?.folderPickerAvailable !== true || record.renderer?.folderPickerGuarded !== true || record.renderer?.updateInstallerAvailable !== true || record.renderer?.updateInstallerGuarded !== true || record.shutdown?.normal !== true || record.shutdown?.forced !== false || record.shutdown?.exitCode !== 0 || record.shutdown?.signalCode !== null) throw new Error('packaged smoke record does not prove a normal renderer and shutdown');
+  if (record.passed !== true || record.renderer?.officePixiReady !== true || record.renderer?.officeIdleAnimated !== true || record.renderer?.officePixiFrames !== true || record.renderer?.officeChairCrowned !== true || record.renderer?.officeChairFacingParticipants !== true || record.renderer?.officeSeatedParticipants !== true || record.renderer?.officeSceneTransitions !== true || record.renderer?.officeEntryAnimated !== true || record.renderer?.officeExitAnimated !== true || record.renderer?.officeWorkSeated !== true || record.renderer?.officeIdleRegistrationStable !== true || record.renderer?.officeWorkHeadScaleStable !== true || record.renderer?.officeFloorCollisionFree !== true || record.renderer?.officeObjectOcclusion !== true || record.renderer?.officeDockTransitions !== true || record.renderer?.officeSpritesLoaded !== true || record.renderer?.officeAvailable !== true || record.renderer?.officeArtworkLoaded !== true || record.renderer?.documentReady !== true || record.renderer?.appPresent !== true || record.renderer?.bootstrap !== true || record.renderer?.authenticatedRead !== true || record.renderer?.folderPickerAvailable !== true || record.renderer?.folderPickerGuarded !== true || record.renderer?.updateInstallerAvailable !== true || record.renderer?.updateInstallerGuarded !== true || record.shutdown?.normal !== true || record.shutdown?.forced !== false || record.shutdown?.exitCode !== 0 || record.shutdown?.signalCode !== null) throw new Error('packaged smoke record does not prove a normal renderer and shutdown');
   if (!Number.isInteger(record.childPid) || record.childPid < 1) throw new Error('packaged smoke runtime PID is invalid');
   const url = new URL(record.origin);
   if (url.hostname !== '127.0.0.1' || url.protocol !== 'http:' || !url.port || url.username || url.password || url.search || url.hash || url.origin !== record.origin) throw new Error('packaged smoke origin is invalid');
@@ -39,7 +39,7 @@ async function smoke(executable, profile) {
   return new Promise((resolveSmoke, reject) => {
     const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
     const child = spawn(executable, ['--smoke-test', '--profile', profile], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env }); let stdout = '', stderr = '';
-    const timer = setTimeout(() => { child.kill(); reject(new Error('packaged smoke test timed out after 30 seconds')); }, 30000);
+    const timer = setTimeout(() => { child.kill(); reject(new Error('packaged smoke test timed out after 45 seconds')); }, 45000);
     child.stdout.on('data', value => stdout += value); child.stderr.on('data', value => stderr += value);
     child.once('error', error => { clearTimeout(timer); reject(error); }); child.once('close', async (code, signal) => { clearTimeout(timer); try {
       if (code !== 0 || signal) throw new Error(`packaged smoke test failed (${code ?? signal}): ${stderr}`);
@@ -62,7 +62,7 @@ export async function buildElectronRelease({ sourceRoot = root } = {}) {
   const output = join(sourceRoot, 'dist', id), snapshotZip = join(output, 'source.zip'), snapshot = join(output, 'source'); await mustNotExist(output); await mkdir(output, { recursive: true });
   validationLog = join(output, 'validation.log');
   try {
-    await run('git', ['archive', '--format=zip', `--output=${snapshotZip}`, sha], { cwd: sourceRoot });
+    await run('git', ['-c', 'core.autocrlf=false', 'archive', '--format=zip', `--output=${snapshotZip}`, sha], { cwd: sourceRoot });
     await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `${WINDOWS_ARCHIVE_MODULE} Expand-Archive -LiteralPath '${quotedPowerShell(snapshotZip)}' -DestinationPath '${quotedPowerShell(snapshot)}' -ErrorAction Stop`]);
     const tools = await prepareToolchains({ destination: join(sourceRoot, '.local', 'toolchains') });
     const node = tools.node.path;
@@ -71,6 +71,7 @@ export async function buildElectronRelease({ sourceRoot = root } = {}) {
     await run(node, [npmCli, 'ci', '--ignore-scripts', '--no-audit', '--no-fund', '--cache', join(sourceRoot, '.local', 'npm-cache')], { cwd: snapshot });
     const cargoVersion = (await run('cargo', ['--version'], { cwd: snapshot, capture: true })).stdout.trim();
     const rustcVersion = (await run('rustc', ['--version'], { cwd: snapshot, capture: true })).stdout.trim();
+    await run(node, ['desktop/scripts/build-pixi.mjs','--check'], { cwd: snapshot });
     await run(node, ['desktop/scripts/verify-web.mjs'], { cwd: snapshot });
     await run(node, ['desktop/scripts/verify-electron.mjs'], { cwd: snapshot });
     const stageDirectory = join(output, 'runtime-stage'); await mkdir(stageDirectory, { recursive: true });
