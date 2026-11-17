@@ -73,7 +73,7 @@ async function rendererSmokeResult(chooseDirectory) {
   const main = await readFile(new URL('../desktop/shells/electron/main.mjs', import.meta.url), 'utf8');
   const script = main.match(/executeJavaScript\(`([\s\S]*?)`\); \}/)?.[1];
   assert.ok(script, 'renderer smoke script must be present');
-  const evaluatedScript = Function('pixiSmokeInPage', `return \`${script}\``)(async () => ({officePixiReady:true,officeIdleAnimated:true,officePixiFrames:true,officeChairCrowned:true,officeChairFacingParticipants:true,officeSeatedParticipants:true,officeSceneTransitions:true,officeEntryAnimated:true,officeExitAnimated:true,officeWorkSeated:true,officeIdleRegistrationStable:true,officeWorkHeadScaleStable:true}));
+  const evaluatedScript = Function('pixiSmokeInPage', `return \`${script}\``)(async () => ({officePixiReady:true,officeIdleAnimated:true,officePixiFrames:true,officeChairCrowned:true,officeChairFacingParticipants:true,officeSeatedParticipants:true,officeSceneTransitions:true,officeEntryAnimated:true,officeExitAnimated:true,officeWorkSeated:true,officeIdleRegistrationStable:true,officeWorkHeadScaleStable:true,officeFloorCollisionFree:true,officeObjectOcclusion:true,officeDockTransitions:true}));
   return vm.runInNewContext(evaluatedScript, {
     document: { readyState: 'complete', querySelector: () => ({children:[{}]}) },
     setTimeout, clearTimeout,
