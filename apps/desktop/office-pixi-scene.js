@@ -239,10 +239,10 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
  const refreshChairs=(layout,agents=[])=>{
   if(!emptyChair)return;
   const seats=[...layout.values()];emptyChair.visible=!seats.some(s=>s.chair);placeChair(emptyChair,CHAIR_SEAT);
-  const occupied=seats.some(s=>!s.chair);
-  for(const d of decorations){d.sprite.visible=!occupied;placeChair(d.sprite,d.seat)}
+  maskRenderable(emptyChair,CHAIR_SEAT);const reservations=[...meetingReservations(agents).values()];
+  for(let i=0;i<decorations.length;i++){const d=decorations[i],seat=reservations[i];if(!seat){d.sprite.visible=false;continue}const occupied=seats.some(s=>s.x===seat.x&&s.y===seat.y)||[...records.values()].some(r=>r.ghost&&r.displaySeat?.x===seat.x&&r.displaySeat?.y===seat.y);d.sprite.visible=!occupied;d.sprite.texture=seatTexture(4,seat.facing);placeChair(d.sprite,seat);maskRenderable(d.sprite,seat)}
   const occupiedStations=new Set(agents.filter(a=>a.state==='running'&&['library','development','server'].includes(a.zone)).map(a=>a.zone));
-  for(const chair of emptyWorkChairs){chair.sprite.visible=!occupiedStations.has(chair.station);placeEmptyWorkChair(chair.sprite,WORK_STATIONS[chair.station],chair.column)}
+  for(const chair of emptyWorkChairs){chair.sprite.visible=!occupiedStations.has(chair.station);placeEmptyWorkChair(chair.sprite,WORK_STATIONS[chair.station],chair.column);maskRenderable(chair.sprite,WORK_STATIONS[chair.station])}
  };
  const resize=()=>{
   if(!appInitialized||destroyed)return;
