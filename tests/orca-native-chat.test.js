@@ -142,6 +142,24 @@ test('a failed turn or mismatched native submission never becomes a room reply',
   }
 });
 
+test('an explicitly recorded answered turn that is absent from history remains unknown',async()=>{
+  const mock=rpcFactory(),operation='request',receipt={sessionId:handle,nativeId,runtimeId:'runtime-1',fence:7,clientOperationId:operation,payloadFingerprint:'op',bodyPayloadFingerprint:'body'};
+  const call=async(method,params)=>{
+    if(method!=='agentSession.history'||params.limit===1)return mock.call(method,params);
+    return {ok:true,result:{ok:true,providerSession:{id:nativeId},page:page({hasOlder:false,submissions:[{clientMessageId:operation,fence:7,payloadFingerprint:'body',answeredInTurn:{turnItemId:'missing-turn'}}],items:[{itemId:'orca:'+operation,body:{kind:'message',role:'user'}}]})}};
+  };
+  const adapter=createOrcaNativeChatAdapter({call,mutation}),binding=await verified(adapter),result=await adapter.send(binding,binding,'unused',operation,{observeOnly:true,receipt});
+  assert.equal(result.ok,false);assert.equal(result.stage,'unknown');assert.equal(result.receipt.correlation,'answered_turn_not_observed');
+});
+
+test('history searches beyond eight pages and fails closed on a provider identity change',async()=>{
+ const receipt={sessionId:handle,nativeId,runtimeId:'runtime-1',fence:7,clientOperationId:'request',payloadFingerprint:'op',bodyPayloadFingerprint:'body'};
+ for(const bad of [false,true]){let pageNo=0;const mock=rpcFactory();const call=async(method,params)=>{
+  if(method!=='agentSession.history'||params.limit===1)return mock.call(method,params);
+  pageNo++;const last=pageNo===10;return {ok:true,result:{ok:true,providerSession:{id:bad&&pageNo===2?'other':nativeId},page:page({epoch:'many',hasOlder:!last,window:last?undefined:{nextCursor:{n:pageNo}},submissions:pageNo===1?[{clientMessageId:'request',fence:7,payloadFingerprint:'body',answeredInTurn:{turnItemId:'turn'}}]:[],latestTurn:last?{itemId:'turn',turn:{state:'completed',outcome:'success',userItemId:'orca:request'}}:undefined,items:last?[{itemId:'orca:request',body:{kind:'message',role:'user'}},{itemId:'answer',body:{kind:'message',role:'assistant',blocks:[{type:'text',text:'recovered'}]},turnScope:{kind:'turn',turnItemId:'turn'}}]:[]})}};
+ };const adapter=createOrcaNativeChatAdapter({call,mutation}),binding=await verified(adapter);if(bad)await assert.rejects(()=>adapter.send(binding,binding,'x','request',{observeOnly:true,receipt}),/identity or epoch changed/);else {const result=await adapter.send(binding,binding,'x','request',{observeOnly:true,receipt});assert.equal(result.ok,true);assert.equal(result.stage,'reply');assert.equal(result.reply.body,'recovered');assert.equal(pageNo,10);}}
+});
+
 test('native operation IDs follow admission format and a definite refusal retains its original result',async()=>{
   const refusal={code:'agent_session_conflict',message:'owner not ready',details:{reason:'ownerUnproven'}};
   const mock=rpcFactory({send:params=>{assert.match(params.envelope.clientOperationId,/^\d{13}-[0-9a-f]{32}$/);return {ok:true,result:{ok:false,refusal}};}});
@@ -185,4 +203,50 @@ test('native handover may advance the lease fence while provider-item linkage st
   const result=await adapter.send(binding,binding,'not resent',requestId,{observeOnly:true,receipt:{sessionId:handle,nativeId,runtimeId:'runtime-1',fence:7,requestId,clientOperationId:clientId,payloadFingerprint:'operation',bodyPayloadFingerprint:'body-hash'}});
   assert.equal(result.stage,'reply');assert.equal(result.reply.turnId,'provider-turn');assert.equal(result.reply.finalBody,'{"stance":"agree"}');assert.equal(result.receipt.fence,7);assert.equal(result.receipt.observedFence,8);
   assert.equal(mock.calls.some(x=>x.method==='agentSession.send'),false);
+});
+
+
+test('history cursor cycles and page exhaustion remain bounded and never replay native input',async()=>{
+  for(const mode of ['cycle','limit']){
+    const mock=rpcFactory();let reads=0,writes=0;
+    const receipt={sessionId:handle,nativeId,runtimeId:'runtime-1',fence:7,clientOperationId:'request',payloadFingerprint:'op',bodyPayloadFingerprint:'body'};
+    const call=async(method,params)=>{
+      if(method==='agentSession.send'){writes++;throw Error('unexpected replay');}
+      if(method!=='agentSession.history'||params.limit===1)return mock.call(method,params);
+      reads++;
+      return {ok:true,result:{ok:true,providerSession:{id:nativeId},page:page({epoch:'bounded',hasOlder:true,window:{nextCursor:{n:mode==='cycle'?1:reads}},submissions:[],items:[]})}};
+    };
+    const adapter=createOrcaNativeChatAdapter({call,mutation}),binding=await verified(adapter);
+    const result=await adapter.send(binding,binding,'never send','request',{observeOnly:true,receipt});
+    assert.equal(result.ok,false);assert.equal(result.stage,'unknown');assert.equal(writes,0);
+    assert.equal(result.receipt.correlation,mode==='cycle'?'history_cursor_cycle':'history_page_limit');
+    assert.equal(reads,mode==='cycle'?2:64);
+  }
+});
+
+test('conflicting duplicate native submissions are not collapsed into one result',async()=>{
+  const mock=rpcFactory();let writes=0;
+  const receipt={sessionId:handle,nativeId,runtimeId:'runtime-1',fence:7,clientOperationId:'request',payloadFingerprint:'op',bodyPayloadFingerprint:'body'};
+  const call=async(method,params)=>{
+    if(method==='agentSession.send'){writes++;throw Error('unexpected replay');}
+    if(method!=='agentSession.history'||params.limit===1)return mock.call(method,params);
+    return {ok:true,result:{ok:true,providerSession:{id:nativeId},page:page({hasOlder:false,submissions:[{clientMessageId:'request',fence:7,payloadFingerprint:'body'},{clientMessageId:'request',fence:7,payloadFingerprint:'conflict'}],items:[]})}};
+  };
+  const adapter=createOrcaNativeChatAdapter({call,mutation}),binding=await verified(adapter);
+  await assert.rejects(()=>adapter.send(binding,binding,'never send','request',{observeOnly:true,receipt}),/ambiguous native submission evidence/);
+  assert.equal(writes,0);
+});
+
+
+test('a later history page does not discard an earlier exact turn snapshot',async()=>{
+  const mock=rpcFactory();let reads=0;
+  const receipt={sessionId:handle,nativeId,runtimeId:'runtime-1',fence:7,clientOperationId:'request',payloadFingerprint:'op',bodyPayloadFingerprint:'body'};
+  const call=async(method,params)=>{
+    if(method!=='agentSession.history'||params.limit===1)return mock.call(method,params);
+    reads++;const first=reads===1;
+    return {ok:true,result:{ok:true,providerSession:{id:nativeId},page:page({epoch:'turn-snapshots',hasOlder:first,window:first?{nextCursor:{n:1}}:undefined,submissions:first?[{clientMessageId:'request',fence:7,payloadFingerprint:'body',answeredInTurn:{turnItemId:'original-turn'}}]:[],latestTurn:{itemId:first?'original-turn':'other-turn',turn:{state:'completed',outcome:'success',userItemId:first?'orca:request':'other-user'}},items:first?[]:[{itemId:'orca:request',body:{kind:'message',role:'user'}},{itemId:'answer',body:{kind:'message',role:'assistant',blocks:[{type:'text',text:'original reply'}]},turnScope:{kind:'turn',turnItemId:'original-turn'}}]})}};
+  };
+  const adapter=createOrcaNativeChatAdapter({call,mutation}),binding=await verified(adapter);
+  const result=await adapter.send(binding,binding,'never send','request',{observeOnly:true,receipt});
+  assert.equal(result.stage,'reply');assert.equal(result.reply.body,'original reply');
 });

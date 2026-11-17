@@ -149,12 +149,25 @@ test('known legacy pre-admission refusal is archived and the original room reque
  }finally{e.store.db.close();}
 });
 
-test('a later dispatch lease can differ from the verified binding snapshot while its stored receipt remains exact',async()=>{
+test('a later candidate cannot replace the prepared native receipt fence',async()=>{
   const e=setup(),adapter=adapterFor(e),dispatcher=new ParticipantDispatcher(e.store,{adapter});
   try{
     await dispatcher.tick();const record=e.store.db.prepare('SELECT * FROM participant_dispatches').get();
-    const receipt={...adapter.receipt,fence:3};dispatcher.persistReceipt(record,receipt);
-    e.store.replyFromAdapter(e.delivery.id,record.attempt_id,{bindingId:e.binding.id,incarnation:e.binding.incarnation,receipt,reply:{body:'same actor, exact operation',turnId:'turn',itemIds:['assistant']}});
-    assert.equal(e.store.db.prepare('SELECT state FROM deliveries WHERE id=?').get(e.delivery.id).state,'completed');
+    const receipt={...adapter.receipt,fence:3};
+    assert.throws(()=>dispatcher.persistReceipt(record,receipt),/native receipt identity changed: fence/);
+    assert.equal(JSON.parse(e.store.db.prepare('SELECT receipt_json FROM participant_dispatches WHERE delivery_id=?').get(e.delivery.id).receipt_json).fence,2);
   }finally{e.store.db.close();}
+});
+
+test('a forged native result cannot replace the durable receipt or complete its writer',async()=>{
+ const e=setup(),good={sessionId:'actor-1',nativeId:'original-claude',runtimeId:'runtime-1',fence:2,requestId:e.delivery.request_id,clientOperationId:'1793860000000-'+e.delivery.request_id.replaceAll('-',''),payloadFingerprint:'good'};
+ const forged={...good,clientOperationId:'1793860000000-ffffffffffffffffffffffffffffffff',payloadFingerprint:'forged'};
+ const adapter={async preflight(){return {ok:true};},async send(_a,_b,_p,_r,options){await options.onPrepared(good);return {ok:true,stage:'reply',receipt:forged,reply:{body:'must not publish',turnId:'t',itemIds:['a']}};}};
+ const dispatcher=new ParticipantDispatcher(e.store,{adapter});try{await dispatcher.tick();const saved=JSON.parse(e.store.db.prepare('SELECT receipt_json FROM participant_dispatches WHERE delivery_id=?').get(e.delivery.id).receipt_json);assert.equal(saved.clientOperationId,good.clientOperationId);assert.equal(e.store.db.prepare('SELECT state FROM deliveries WHERE id=?').get(e.delivery.id).state,'unknown');assert.equal(e.store.db.prepare('SELECT count(*) n FROM messages WHERE reply_request_id=?').get(e.delivery.request_id).n,0);assert.equal(e.store.db.prepare('SELECT unresolved_delivery_id FROM writers WHERE session_id=?').get(e.session.id).unresolved_delivery_id,e.delivery.id);}finally{e.store.db.close();}
+});
+
+test('an unknown native request stays unknown when observation reports admission only',async()=>{
+ const e=setup();let calls=0;const receipt={sessionId:'actor-1',nativeId:'original-claude',runtimeId:'runtime-1',fence:2,requestId:e.delivery.request_id,clientOperationId:'1793860000000-'+e.delivery.request_id.replaceAll('-',''),payloadFingerprint:'good'};
+ const adapter={async preflight(){return {ok:true};},async send(_a,_b,_p,_r,options){calls++;if(!options.observeOnly){await options.onPrepared(receipt);return {ok:false,receipt,reason:'history_cursor_cycle'};}return {ok:true,stage:'input_accepted',receipt:{...receipt,correlation:'awaiting_turn'}};}};
+ const dispatcher=new ParticipantDispatcher(e.store,{adapter});try{await dispatcher.tick();await dispatcher.retry(e.room.id,e.delivery.id);const d=e.store.db.prepare('SELECT state,blocked_reason FROM deliveries WHERE id=?').get(e.delivery.id);assert.equal(d.state,'unknown');assert.equal(d.blocked_reason,'awaiting_turn');assert.equal(calls,2);}finally{e.store.db.close();}
 });
