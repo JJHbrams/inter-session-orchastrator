@@ -44,11 +44,12 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   r.node.dataset.visualX=String(r.container.x.toFixed(2));r.node.dataset.visualY=String(r.container.y.toFixed(2));
   r.node.dataset.pose=String(r.pose);r.node.dataset.idleOffset='0';
   maskRenderable(r.container,p);
+  r.node.dataset.occluders=occludersAt(p).map(o=>o.id).join(',');
  };
  const setFoot=(r,p)=>{r.node.dataset.x=String(p.x);r.node.dataset.y=String(p.y);r.node.dataset.currentFootx=String(p.x);r.node.dataset.currentFooty=String(p.y);r.node.dataset.zone=p.zone||'floor';place(r)};
- const clearGhost=r=>{gone(r.ghost,{children:true});r.ghost=null};
- const ghostAt=(r,point)=>{clearGhost(r);if(!r.body||!point)return;const g=new P.Container(),sprite=new P.Sprite(r.body.texture),{w,h}=logical();sprite.anchor?.set?.(r.body.anchor?.x??.5,r.body.anchor?.y??.95);sprite.scale?.set?.(r.body.scale?.x??1,r.body.scale?.y??1);g.x=point.x*w/100;g.y=point.y*h/100;g.scale?.set?.(r.container.scale?.x??1,r.container.scale?.y??1);g.zIndex=Math.round(point.y*10);g.label=`office-seat-ghost:${r.agent.id}`;add(g,sprite);add(actors,g);r.ghost=g};
- const maskRenderable=(renderable,point)=>{if(!renderable?.setMask||!P)return;gone(renderable._occlusionMask);const holes=occludersAt(point);if(!holes.length){renderable.setMask({mask:null,inverse:true});return}const g=new P.Graphics(),{w,h}=logical();for(const o of holes)g.poly(o.visual.flatMap(p=>[p.x*w/100,p.y*h/100])).fill({color:0xffffff,alpha:1});renderable._occlusionMask=g;add(actors,g);renderable.setMask({mask:g,inverse:true})};
+ const clearGhost=r=>{if(r.ghost){r.ghost.setMask?.({mask:null,inverse:true});gone(r.ghost._occlusionMask);gone(r.ghost,{children:true})}r.ghost=null};
+ const ghostAt=(r,point,targetSeat=null)=>{clearGhost(r);if(!r.body||!point)return;const g=new P.Container(),sprite=new P.Sprite(r.body.texture),{w,h}=logical();if(targetSeat){const station=targetSeat.station,assetKey=station?'work-chair-composite':`${provider(r.agent)}-chair-composite`,asset=OFFICE_COMPOSITE_ASSETS[assetKey],column=station?({library:0,development:1,server:2}[station]??0):Math.max(0,directions.indexOf(targetSeat.facing||'front')),row=station?(provider(r.agent)==='claude'?1:3):0,texture=compositeTexture(assetKey,station?r.texture.work:r.texture.seated,column,row),geometry=asset.geometry[row*asset.columns+column],artFoot=geometry.foot; sprite.texture=texture;sprite.anchor?.set?.((artFoot[0]-texture.frame.x)/texture.frame.width,(artFoot[1]-texture.frame.y)/texture.frame.height);const scale=r.size*(station?1.75:1.6)/(asset.size[1]/asset.rows);sprite.scale?.set?.(scale,scale)}else{sprite.anchor?.set?.(r.body.anchor?.x??.5,r.body.anchor?.y??.95);sprite.scale?.set?.(r.body.scale?.x??1,r.body.scale?.y??1)}g.x=point.x*w/100;g.y=point.y*h/100;g.scale?.set?.(r.container.scale?.x??1,r.container.scale?.y??1);g.zIndex=Math.round(point.y*10);g.label=`office-seat-ghost:${r.agent.id}`;add(g,sprite);add(actors,g);maskRenderable(g,point);r.ghost=g};
+ const maskRenderable=(renderable,point)=>{if(!renderable?.setMask||!P)return;const holes=occludersAt(point),{w,h}=logical(),key=`${w}x${h}:${holes.map(o=>o.id).join(',')}`;if(renderable._occlusionKey===key)return;renderable.setMask({mask:null,inverse:true});gone(renderable._occlusionMask);renderable._occlusionMask=null;renderable._occlusionKey=key;if(!holes.length)return;const g=new P.Graphics();for(const o of holes)g.poly(o.visual.flatMap(p=>[p.x*w/100,p.y*h/100])).fill({color:0xffffff,alpha:1});renderable._occlusionMask=g;add(actors,g);renderable.setMask({mask:g,inverse:true})};
  const tex=async a=>{
   const key=provider(a);
   if(!textures.has(key)){const loading=Promise.all([actionAtlas(`${key}-travel`),compositeAtlas(`${key}-chair-composite`),compositeAtlas('work-chair-composite')]).then(([travel,seated,work])=>({travel,seated,work})).catch(error=>{if(textures.get(key)===loading)textures.delete(key);throw error});textures.set(key,loading)}
@@ -215,9 +216,9 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
     setFoot(r,{x:t.from.x+(end.x-t.from.x)*t.progress,y:t.from.y+(end.y-t.from.y)*t.progress,zone:t.target.zone});rest-=step;
     if(t.progress>=1){setFoot(r,{...end,zone:t.target.zone});t.from=end;t.index++;t.progress=0}
    }
-   if(t.index===t.points.length){if(t.toSeat){ghostAt(r,t.target);r.body.visible=false;t.phase='docking';t.elapsed=0}else{trips.delete(id);if(t.removeAfter)remove(id)}}
+   if(t.index===t.points.length){if(t.toSeat){ghostAt(r,t.target,t.toSeat);r.body.visible=false;t.phase='docking';t.elapsed=0}else{trips.delete(id);if(t.removeAfter)remove(id)}}
   }
-  for(const r of records.values()){r.phase=(r.phase+ms/1000)%100;setAction(r);animate(r)}
+  for(const r of records.values()){r.phase=(r.phase+ms/1000)%100;setAction(r);animate(r);const trip=trips.get(r.agent.id);if(trip?.phase==='undocking'||trip?.phase==='docking'){const alpha=Math.max(0,Math.min(1,trip.elapsed/220));r.container.alpha=trip.phase==='undocking'?alpha:1-alpha;r.node.style.opacity=String(r.container.alpha);r.node.dataset.visibleAlpha=String(r.container.alpha.toFixed(3))}else r.node.dataset.visibleAlpha=String((r.container.alpha??1).toFixed(3))}
  };
  const sync=()=>{if(app?.ticker)moving()?app.ticker.start?.():app.ticker.stop?.()};
  const drawMasks=(w,h)=>{
