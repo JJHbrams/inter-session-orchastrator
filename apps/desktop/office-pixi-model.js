@@ -15,7 +15,12 @@ const MEETING_APPROACHES=[{x:37,y:70},{x:40,y:87},{x:42,y:53},{x:73,y:53},{x:72,
 const MEETING_SEATS=[{x:65,y:76},{x:54,y:88},{x:54,y:64},{x:49,y:64},{x:59,y:63},{x:66,y:72},{x:66,y:81},{x:61,y:88},{x:51,y:89}];
 const meetingApproach=seat=>MEETING_APPROACHES.reduce((best,node)=>distance(node,seat)<distance(best,seat)?node:best);
 const participantSeat=(index,count)=>{if(index<MEETING_SEATS.length)return MEETING_SEATS[index];const slot=index-MEETING_SEATS.length,total=Math.max(count-MEETING_SEATS.length,1),angle=(-Math.PI/2)+(Math.PI*2*slot/total);return{x:53.4+Math.cos(angle)*13,y:76.5+Math.sin(angle)*13};};
-const facingChair=seat=>{const dx=seat.x-CHAIR_SEAT.x,dy=seat.y-CHAIR_SEAT.y;return Math.abs(dx)>Math.abs(dy)?dx>0?'left':'right':dy>0?'back':'front'};
+export const SEAT_DIRECTIONS=Object.freeze(['right','front-right','front','front-left','left','back-left','back','back-right']);
+export const facingChair=seat=>{
+ const vx=(CHAIR_SEAT.x-seat.x)*2.6,vy=CHAIR_SEAT.y-seat.y;
+ const angle=Math.atan2(vy,vx),index=((Math.round(angle/(Math.PI/4))%8)+8)%8;
+ return SEAT_DIRECTIONS[index];
+};
 export function isAtMeeting(agent={}){if(agent.state==='left')return false;if(agent.role==='chair')return true;return agent.kind==='session'&&(agent.zone==='table'||MEETING_STATES.has(agent.state));}
 export function meetingLayout(agents=[]){const seated=agents.filter(isAtMeeting).sort((a,b)=>String(a.id).localeCompare(String(b.id))),layout=new Map(),chair=seated.find(a=>a.role==='chair');if(chair)layout.set(chair.id,{...CHAIR_SEAT,approach:{...CHAIR_SEAT.approach}});const participants=seated.filter(a=>a!==chair);for(let i=0;i<participants.length;i++){const point=participantSeat(i,participants.length),approach=meetingApproach(point);layout.set(participants[i].id,{...point,zone:'table',seat:true,facing:facingChair(point),chair:false,approach:{...approach,zone:'table'}})}return layout;}
 export function brief(a){if(a.state==='queued')return '요청 대기';if(ATTENTION.has(a.state))return({waiting:'확인 대기',unknown:'상태 확인',failed:'연결 확인'})[a.state];if(TERMINAL.has(a.state))return '자리로 돌아옴';return({reading:'책 읽는 중',research:'자료 보는 중',coding:'파일 편집 중',terminal:'터미널 보는 중',synthesis:'의견 취합 중',delegating:'작업 위임 중',responding:'응답 중',none:'대기 중'})[a.activity]||'대기 중'}

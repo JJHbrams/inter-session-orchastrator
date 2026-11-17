@@ -1,6 +1,7 @@
-import {ATTENTION, TERMINAL, OFFICE_ANCHORS, brief, floorPath, spot, stationSpot, selection, distance, floorPoint, meetingLayout, CHAIR_SEAT} from './office-pixi-model.js';
+import {ATTENTION, TERMINAL, OFFICE_ANCHORS, WORK_STATIONS, brief, floorPath, spot, stationSpot, selection, distance, floorPoint, meetingLayout, CHAIR_SEAT} from './office-pixi-model.js';
 import {MEETING_SEAT_FRAMES} from './office-seat-frames.js';
 import {OFFICE_ACTION_ASSETS, OFFICE_ACTION_GEOMETRY} from './office-action-frames.js';
+import {COMPOSITE_DIRECTIONS, OFFICE_COMPOSITE_ASSETS} from './office-composite-frames.js';
 
 const poseFor = a => a.state === 'completed' ? 7 : ({reading:3,research:3,coding:4,terminal:5,responding:6,synthesis:6,delegating:6}[a.activity] ?? 0);
 const provider = a => a.provider === 'claude' ? 'claude' : 'codex';
@@ -8,16 +9,18 @@ const add = (p,c) => p.addChild?.(c);
 const gone = (x,o) => x?.destroy?.(o);
 const actionFor = a => a.state === 'running' ? ({reading:'reading',research:'reading',coding:'coding',terminal:'terminal',responding:'thinking',synthesis:'thinking',delegating:'thinking'}[a.activity] || 'working') : 'idle';
 const phaseFor = id => [...String(id)].reduce((n,c) => ((n*31)+c.charCodeAt(0))>>>0,7)%500/100;
-const directions = ['front','back','left','right'];
+const directions = COMPOSITE_DIRECTIONS;
+const legacyDirections = ['front','back','left','right'];
+const legacyFacing = facing => ({'front-left':'left','back-left':'left','front-right':'right','back-right':'right'})[facing]||facing;
 
 export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=()=>import('/vendor/pixi.mjs')}={}) {
  if (!document || !host) throw Error('createOfficePixiScene requires document and host');
  let snapshot={agents:[]}, online=true, destroyed=false, visible=!document.hidden;
  let presentation={collapsed:false,visible:true,reducedMotion:false};
- let P,app,actors,bg,fg,mask,tableFg,tableMask,doorFg,doorMask,seatAtlas,emptyChair;
+ let P,app,actors,bg,fg,mask,tableFg,tableMask,doorFg,doorMask,seatAtlas,emptyChair,workAtlas;
  let started=false,frame=0,revision=0,appInitialized=false,appDisposed=false,snapshotBeforeReady=false;
- const textures=new Map(),actionAtlases=new Map(),views=new Map(),records=new Map(),trips=new Map(),retired=new Map();
- const decorations=[],stationFronts=[];
+ const textures=new Map(),actionAtlases=new Map(),compositeAtlases=new Map(),views=new Map(),records=new Map(),trips=new Map(),retired=new Map();
+ const decorations=[],stationFronts=[],emptyWorkChairs=[];
  const board=host;
  board.classList.add('office-artboard');board.dataset.renderer='pixi';board.dataset.ready='false';
  const overlay=document.createElement('div');overlay.className='office-sprite-layer';board.replaceChildren(overlay);
@@ -42,8 +45,14 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
  const setFoot=(r,p)=>{r.node.dataset.x=String(p.x);r.node.dataset.y=String(p.y);r.node.dataset.currentFootx=String(p.x);r.node.dataset.currentFooty=String(p.y);r.node.dataset.zone=p.zone||'floor';place(r)};
  const tex=async a=>{
   const key=provider(a);
-  if(!textures.has(key)){const loading=Promise.all([actionAtlas(`${key}-travel`),actionAtlas(`${key}-seated`),actionAtlas('work-torsos')]).then(([travel,seated,work])=>({travel,seated,work})).catch(error=>{if(textures.get(key)===loading)textures.delete(key);throw error});textures.set(key,loading)}
+  if(!textures.has(key)){const loading=Promise.all([actionAtlas(`${key}-travel`),compositeAtlas(`${key}-chair-composite`),compositeAtlas('work-chair-composite')]).then(([travel,seated,work])=>({travel,seated,work})).catch(error=>{if(textures.get(key)===loading)textures.delete(key);throw error});textures.set(key,loading)}
   return textures.get(key);
+ };
+ const compositeAtlas=async key=>{
+  const asset=OFFICE_COMPOSITE_ASSETS[key];if(!asset)throw Error(`unknown office composite atlas: ${key}`);
+  const cached=compositeAtlases.get(key);if(cached?.frame)return cached;
+  if(!cached){const loading=P.Assets.load(asset.url).then(value=>{if(!destroyed&&compositeAtlases.get(key)===loading)compositeAtlases.set(key,value);return value}).catch(error=>{if(compositeAtlases.get(key)===loading)compositeAtlases.delete(key);throw error});compositeAtlases.set(key,loading)}
+  return compositeAtlases.get(key);
  };
  const actionAtlas=async key=>{
   const asset=OFFICE_ACTION_ASSETS[key];if(!asset)throw Error(`unknown office action atlas: ${key}`);
@@ -56,13 +65,18 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   if(!views.has(id)){const specified=OFFICE_ACTION_GEOMETRY[key]?.[index]?.frame||asset.frames?.[index],fw=base.frame.width/asset.columns,fh=base.frame.height/asset.rows,[x,y,w,h]=specified||[col*fw,row*fh,fw,fh];views.set(id,new P.Texture({source:base.source,frame:new P.Rectangle(x,y,w,h)}))}
   return views.get(id);
  };
+ const compositeTexture=(key,base,col,row)=>{
+  const asset=OFFICE_COMPOSITE_ASSETS[key],index=row*asset.columns+col,id=`composite:${key}:${index}`;
+  if(!views.has(id)){const cellWidth=base.frame.width/asset.columns,cellHeight=base.frame.height/asset.rows,[x,y,w,h]=asset.frames?.[index]||[col*cellWidth,row*cellHeight,cellWidth,cellHeight];views.set(id,new P.Texture({source:base.source,frame:new P.Rectangle(x,y,w,h)}))}
+  return views.get(id);
+ };
  const crop=(key,base,p)=>{
   const id=`${key}:${p}`;
   if(!views.has(id))views.set(id,new P.Texture({source:base.source,frame:new P.Rectangle((p%4)*443.5,p>=4?443.5:0,443.5,443.5)}));
   return views.get(id);
  };
  const seatTexture=(row,facing)=>{
-  const col=Math.max(0,directions.indexOf(facing)),index=row*4+col,key=`meeting:${index}`;
+  const col=Math.max(0,legacyDirections.indexOf(legacyFacing(facing))),index=row*4+col,key=`meeting:${index}`;
   if(!views.has(key)){const [x,y,w,h]=MEETING_SEAT_FRAMES[index];views.set(key,new P.Texture({source:seatAtlas.source,frame:new P.Rectangle(x,y,w,h)}))}
   return views.get(key);
  };
@@ -120,11 +134,29 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   r.node.dataset.crown=String(!!r.crown?.visible);
   place(r);
  };
+ const animateComposite=(r,atMeeting,atStation)=>{
+  const a=r.node.dataset.action,p=r.phase,assetKey=atMeeting?`${provider(r.agent)}-chair-composite`:'work-chair-composite';
+  const asset=OFFICE_COMPOSITE_ASSETS[assetKey],column=atMeeting?Math.max(0,directions.indexOf(r.node.dataset.facing||'front')):({library:0,development:1,server:2}[r.station.station]??0);
+  const row=atMeeting?(a==='talking'?2:(Math.floor(p*.75)%9===0?1:0)):(provider(r.agent)==='claude'?(Math.floor(p*2)%2?2:1):(Math.floor(p*2)%2?4:3));
+  r.chairSprite.visible=false;r.chairFront.visible=false;
+  r.body.texture=compositeTexture(assetKey,atMeeting?r.texture.seated:r.texture.work,column,row);
+  r.body.rotation=0;r.body.x=0;r.body.y=0;
+  const frameRect=r.body.texture.frame,geometry=asset.geometry?.[row*asset.columns+column],head=geometry?.head||[frameRect.x,frameRect.y,frameRect.width,frameRect.height*.45];
+  const foot=geometry?.foot||[frameRect.x+frameRect.width/2,frameRect.y+frameRect.height];
+  r.body.anchor?.set?.((foot[0]-frameRect.x)/frameRect.width,(foot[1]-frameRect.y)/frameRect.height);
+  const pixelScale=r.size*(assetKey==='work-chair-composite'?1.75:1.6)/(asset.size[1]/asset.rows);r.body.scale.set?.(pixelScale,pixelScale);
+  const scaleY=Math.abs(r.body.scale.y),scaleX=Math.abs(r.body.scale.x),containerScaleX=Math.abs(r.container.scale?.x??1),containerScaleY=Math.abs(r.container.scale?.y??1);
+  const headTop=-(foot[1]-frameRect.y)*scaleY+(head[1]-frameRect.y)*scaleY,headCenterX=((head[0]+head[2]/2)-foot[0])*scaleX;
+  r.crown.x=headCenterX;r.crown.y=headTop-r.size*.06;r.crown.visible=!!(r.agent.kind==='session'&&!r.agent.parentId&&r.agent.role==='chair'&&atMeeting);r.node.dataset.crown=String(r.crown.visible);
+  const boundary=['entering','exiting'].includes(a)?Math.min(1,distance(foot(r),doorSpot())/7):1;r.container.alpha=boundary;r.node.style.opacity=String(boundary);r.node.dataset.doorOcclusion=String((1-boundary).toFixed(3));
+  r.pose=row*asset.columns+column;r.node.dataset.pose=String(r.pose);r.node.dataset.spriteAsset=assetKey;r.node.dataset.idleOffset='0';r.node.dataset.visualX=String(r.container.x.toFixed(2));r.node.dataset.visualY=String(r.container.y.toFixed(2));r.node.dataset.frameX=String(frameRect.x);r.node.dataset.frameY=String(frameRect.y);r.node.dataset.frameWidth=String(frameRect.width);r.node.dataset.frameHeight=String(frameRect.height);r.node.dataset.bodyScaleX=String((scaleX*containerScaleX).toFixed(6));r.node.dataset.bodyScaleY=String((scaleY*containerScaleY).toFixed(6));r.node.dataset.registeredHeadWidth=String((head[2]*scaleX*containerScaleX).toFixed(3));r.node.dataset.registeredHeadHeight=String((head[3]*scaleY*containerScaleY).toFixed(3));r.node.dataset.registeredHeadY=String((headTop*containerScaleY).toFixed(3));r.node.dataset.actualHeadX=String((head[0]*scaleX*containerScaleX).toFixed(3));r.node.dataset.actualHeadY=String((head[1]*scaleY*containerScaleY).toFixed(3));r.node.dataset.actualHeadWidth=String((head[2]*scaleX*containerScaleX).toFixed(3));r.node.dataset.actualHeadHeight=String((head[3]*scaleY*containerScaleY).toFixed(3));r.node.dataset.seatBaseline='0';r.node.dataset.renderDepth=String(r.container.zIndex);r.node.dataset.blink=String(atMeeting&&a==='idle'&&row===1);
+ };
  const animate=r=>{
   if(!r.body)return;
   const a=r.node.dataset.action,p=r.phase,s=r.size,isClaude=provider(r.agent)==='claude';
   const inTransit=['walking','entering','exiting'].includes(a),atStation=r.seated&&r.station,atMeeting=r.seated&&r.seat;
   const direction=Math.max(0,directions.indexOf(r.node.dataset.facing||'front'));
+  if(atStation||atMeeting){animateComposite(r,atMeeting,atStation);return}
   let bodyY=0,key,col,row;
   r.chairSprite.visible=!!(atMeeting||atStation&&r.station.secondary);
   r.chairSprite.texture=seatTexture(4,r.node.dataset.facing||'front');
@@ -202,23 +234,29 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   sprite.anchor?.set?.(.5,1);sprite.height=Math.max(28,Math.min(72,w*.06))*.95*scale;sprite.width=sprite.height*ratio;
   sprite.x=seat.x*w/100;sprite.y=seat.y*h/100;sprite.zIndex=Math.round(seat.y*10);
  };
- const refreshChairs=layout=>{
+ const placeEmptyWorkChair=(sprite,station,column)=>{
+  const {w,h}=logical(),asset=OFFICE_COMPOSITE_ASSETS['work-chair-composite'],frame=sprite.texture.frame,geometry=asset.geometry[column],foot=geometry.foot,size=Math.max(28,Math.min(72,w*.06)),pixelScale=size*1.75/(asset.size[1]/asset.rows);
+  sprite.anchor?.set?.((foot[0]-frame.x)/frame.width,(foot[1]-frame.y)/frame.height);sprite.scale?.set?.(pixelScale,pixelScale);sprite.x=station.x*w/100;sprite.y=station.y*h/100;sprite.zIndex=Math.round(station.y*10);
+ };
+ const refreshChairs=(layout,agents=[])=>{
   if(!emptyChair)return;
   const seats=[...layout.values()];emptyChair.visible=!seats.some(s=>s.chair);placeChair(emptyChair,CHAIR_SEAT);
   const occupied=seats.some(s=>!s.chair);
   for(const d of decorations){d.sprite.visible=!occupied;placeChair(d.sprite,d.seat)}
+  const occupiedStations=new Set(agents.filter(a=>a.state==='running'&&['library','development','server'].includes(a.zone)).map(a=>a.zone));
+  for(const chair of emptyWorkChairs){chair.sprite.visible=!occupiedStations.has(chair.station);placeEmptyWorkChair(chair.sprite,WORK_STATIONS[chair.station],chair.column)}
  };
  const resize=()=>{
   if(!appInitialized||destroyed)return;
   const w=Math.max(1,board.clientWidth||800),h=Math.max(1,Math.round(w/2.6));app.renderer.resize?.(w,h,Math.min(globalThis.devicePixelRatio||1,2));
   for(const sprite of[bg,fg,tableFg,doorFg])if(sprite){sprite.width=w;sprite.height=h}
   for(const front of stationFronts){front.sprite.width=w;front.sprite.height=h}
-  drawMasks(w,h);refreshChairs(meetingLayout(snapshot.agents||[]));for(const r of records.values()){place(r);animate(r)}app.render?.();
+  drawMasks(w,h);refreshChairs(meetingLayout(snapshot.agents||[]),snapshot.agents||[]);for(const r of records.values()){place(r);animate(r)}app.render?.();
  };
  const paint=async expected=>{
   if(!started||destroyed||expected!==revision)return;
   const agents=(snapshot.agents||[]).filter(a=>a.state!=='left').slice(0,25),layout=meetingLayout(agents),shown=new Set(),slots=new Map(),anchors={...OFFICE_ANCHORS,...(snapshot.anchors||{})};
-  refreshChairs(layout);
+  refreshChairs(layout,agents);
   for(const agent of agents){
    if(expected!==revision)return;
    const old=retired.get(agent.id);if(old===agent.updatedAt&&TERMINAL.has(agent.state))continue;if(old&&!TERMINAL.has(agent.state))retired.delete(agent.id);shown.add(agent.id);
@@ -250,16 +288,18 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   appInitialized=true;if(destroyed){disposeApp();return}
   app.canvas.dataset.renderer='pixi';app.canvas.dataset.ready='false';app.canvas.dataset.frame='0';board.prepend(app.canvas);app.stage.sortableChildren=true;
   await P.Assets.load('/assets/office/office-background.png');if(destroyed)return;
-  const base=await P.Assets.load('/assets/office/office-meeting-background.png');if(destroyed)return;
+  const base=await P.Assets.load('/assets/office/office-chairless-background.png');if(destroyed)return;
   seatAtlas=await P.Assets.load('/assets/office/meeting-seats.png');if(destroyed)return;
+  workAtlas=await compositeAtlas('work-chair-composite');if(destroyed)return;
   bg=new P.Sprite(base);bg.width=app.screen.width;bg.height=app.screen.height;add(app.stage,bg);
   actors=new P.Container();actors.sortableChildren=true;add(app.stage,actors);
   fg=new P.Sprite(base);fg.width=app.screen.width;fg.height=app.screen.height;mask=new P.Graphics();fg.mask=mask;fg.zIndex=650;mask.zIndex=650;add(actors,mask);add(actors,fg);
   tableFg=new P.Sprite(base);tableFg.width=app.screen.width;tableFg.height=app.screen.height;tableMask=new P.Graphics();tableFg.mask=tableMask;tableFg.zIndex=770;tableMask.zIndex=770;add(actors,tableMask);add(actors,tableFg);drawMasks(app.screen.width,app.screen.height);
   doorFg=new P.Sprite(base);doorFg.width=app.screen.width;doorFg.height=app.screen.height;doorMask=new P.Graphics();doorFg.mask=doorMask;doorFg.zIndex=901;doorMask.zIndex=901;add(actors,doorMask);add(actors,doorFg);drawMasks(app.screen.width,app.screen.height);
-  for(const config of[{name:'library-desk',depth:550,points:[.228,.419,.307,.372,.357,.414,.35,.54,.335,.552,.335,.47,.275,.49,.27,.548,.255,.55,.255,.475,.229,.46]},{name:'development-chair',depth:460,points:[.537,.37,.568,.37,.577,.405,.57,.438,.55,.443,.535,.419]},{name:'server-chair',depth:620,points:[.83,.535,.863,.535,.877,.565,.866,.611,.846,.62,.83,.586]}]){const sprite=new P.Sprite(base),frontMask=new P.Graphics();sprite.width=app.screen.width;sprite.height=app.screen.height;sprite.mask=frontMask;sprite.zIndex=config.depth;frontMask.zIndex=config.depth;sprite.label=config.name;stationFronts.push({...config,sprite,mask:frontMask});add(actors,frontMask);add(actors,sprite)}drawMasks(app.screen.width,app.screen.height);
+  for(const config of[{name:'library-desk',depth:550,points:[.228,.419,.307,.372,.357,.414,.35,.54,.335,.552,.335,.47,.275,.49,.27,.548,.255,.55,.255,.475,.229,.46]}]){const sprite=new P.Sprite(base),frontMask=new P.Graphics();sprite.width=app.screen.width;sprite.height=app.screen.height;sprite.mask=frontMask;sprite.zIndex=config.depth;frontMask.zIndex=config.depth;sprite.label=config.name;stationFronts.push({...config,sprite,mask:frontMask});add(actors,frontMask);add(actors,sprite)}drawMasks(app.screen.width,app.screen.height);
   emptyChair=new P.Sprite(seatTexture(4,CHAIR_SEAT.facing));emptyChair.label='meeting-chair-empty';add(actors,emptyChair);
   for(const seat of[{x:61.8,y:67,facing:'left'},{x:49,y:87,facing:'back'},{x:62,y:82,facing:'back'}]){const sprite=new P.Sprite(seatTexture(4,seat.facing));sprite.label='meeting-chair-decoration';decorations.push({sprite,seat});add(actors,sprite)}
+  for(const [station,column] of Object.entries({library:0,development:1,server:2})){const sprite=new P.Sprite(compositeTexture('work-chair-composite',workAtlas,column,0));sprite.label=`work-chair-empty:${station}`;emptyWorkChairs.push({sprite,station,column});add(actors,sprite)}
   const ro=globalThis.ResizeObserver?new ResizeObserver(resize):null;ro?.observe(board);board._pixiResizeObserver=ro;
   app.ticker.maxFPS=30;app.ticker.add(tick);started=true;board.dataset.ready='true';sync();await paint(revision);snapshotBeforeReady=false;if(!destroyed)app.canvas.dataset.ready='true';status();
  }).catch(e=>{if(destroyed)return;board.dataset.ready='false';status(e);throw e});
