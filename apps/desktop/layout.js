@@ -31,6 +31,12 @@ export function mentionMenuGeometry(anchor,menu,viewport={}){
 export function loadLayout(storage,viewport){try{return clampLayout(JSON.parse((storage??globalThis.localStorage).getItem(LAYOUT_KEY)||'{}'),viewport);}catch{return clampLayout({},viewport);}}
 export function saveLayout(values,storage){try{(storage??globalThis.localStorage).setItem(LAYOUT_KEY,JSON.stringify(values));}catch{}}
 export function resetLayout(storage){try{(storage??globalThis.localStorage).removeItem(LAYOUT_KEY);}catch{}return {...DEFAULTS};}
+export function setSummaryExpanded(panel,control,expanded){
+ const value=Boolean(expanded);
+ panel?.classList.toggle('summary-expanded',value);
+ if(control){control.textContent=value?'접기':'펼치기';control.setAttribute('aria-expanded',String(value));}
+ return value;
+}
 
 export function initLayout(){
  const $=s=>document.querySelector(s),handles=new Map();

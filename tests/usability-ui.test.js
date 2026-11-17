@@ -32,3 +32,8 @@ test('folder choice preserves cancelled input, applies selected absolute path an
 });
 test('web fallback keeps manual path editing enabled',()=>{const dom=new JSDOM('<label><input></label>'),input=dom.window.document.querySelector('input'),button=attachDirectoryPicker(input,{getBridge:()=>null});assert.equal(button.disabled,true);assert.equal(input.disabled,false);assert.match(button.title,/직접 입력/);dom.window.close();});
 test('project labels handle Windows, UNC, POSIX and unknown paths',()=>{assert.equal(sessionLocation({cwd:'C:\\work\\My Project\\'}).label,'프로젝트 · My Project');assert.equal(sessionLocation({cwd:'\\\\server\\share\\Study'}).label,'프로젝트 · Study');assert.equal(sessionLocation({cwd:'/work/project/'}).label,'프로젝트 · project');assert.equal(sessionLocation({projectName:'Known Project'}).label,'프로젝트 · Known Project');assert.equal(sessionLocation({}).label,'작업 폴더 미확인');assert.equal(sessionLocation({cwd:'C:/complete/path'}).path,'C:/complete/path');});
+test('discussion summary starts bounded with an accessible expand control',()=>{
+ const dom=new JSDOM(markup),button=dom.window.document.getElementById('expandSummary'),summary=dom.window.document.querySelector('.chair-summary');
+ assert.ok(summary);assert.ok(button);assert.equal(button.type,'button');assert.equal(button.textContent,'펼치기');assert.equal(button.getAttribute('aria-controls'),'decisions');assert.equal(button.getAttribute('aria-expanded'),'false');
+ dom.window.close();
+});

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DEFAULTS,LAYOUT_KEY,clampLayout,layoutLimits,loadLayout,mentionMenuGeometry,saveLayout,resetLayout} from '../apps/desktop/layout.js';
+import {DEFAULTS,LAYOUT_KEY,clampLayout,layoutLimits,loadLayout,mentionMenuGeometry,saveLayout,resetLayout,setSummaryExpanded} from '../apps/desktop/layout.js';
 test('restore rejects malformed storage and nonnumeric dimensions without losing defaults',()=>{
  for(const value of [null,[],42,'bad',{}, {composer:Infinity,sidebar:NaN}])assert.deepEqual(clampLayout(value),DEFAULTS);
  assert.deepEqual(loadLayout({getItem:()=>'{bad'}),DEFAULTS);
@@ -40,4 +40,9 @@ test('mention menu stays in the viewport and prefers the space above its compose
  assert.equal(narrow.left,452);assert.equal(narrow.top,101);assert.equal(narrow.maxHeight,230);
  const tall=mentionMenuGeometry({left:-20,top:70,bottom:100},{width:270,height:2000},{width:431,height:300});
  assert.deepEqual(tall,{left:8,top:62,maxHeight:230});
+});
+test('summary expansion changes only the summary UI state and accessible label',()=>{
+ const classes=new Set(),panel={classList:{toggle(name,value){if(value)classes.add(name);else classes.delete(name);}}},attrs=new Map(),control={textContent:'펼치기',setAttribute(name,value){attrs.set(name,value)}};
+ assert.equal(setSummaryExpanded(panel,control,true),true);assert.equal(control.textContent,'접기');assert.equal(attrs.get('aria-expanded'),'true');assert.ok(classes.has('summary-expanded'));
+ assert.equal(setSummaryExpanded(panel,control,false),false);assert.equal(control.textContent,'펼치기');assert.equal(attrs.get('aria-expanded'),'false');assert.ok(!classes.has('summary-expanded'));
 });
