@@ -3,3 +3,8 @@
 /* Labels follow the shared foot anchor without covering the Pixi character. */
 .office-sprite-layer{position:absolute;inset:0;pointer-events:none}.office-agent{pointer-events:auto;transform:translate(-50%,-85%);min-height:0}.office-agent-label,.office-agent-detail{position:absolute;left:50%;transform:translateX(-50%);max-width:110px;white-space:nowrap;text-shadow:none;border-radius:4px;padding:1px 4px;line-height:1.2}.office-agent-label{top:89%;background:#fff4daed;border:1px solid #735543;color:#292b29;font-size:10px}.office-agent-detail{top:calc(89% + 16px);background:#172932e8;color:#e2f2ef;font-size:8px}.office-child .office-agent-label{font-size:8px}.office-child .office-agent-detail{display:none}
 .office-attention::after{content:'!';position:absolute;right:0;top:1px;width:13px;height:13px;border-radius:50%;background:#f3c05e;color:#654222;font-size:10px;font-weight:900}.office-agent[data-state=failed]::after{content:'×';background:#df7474;color:white}
+
+/* Small helpers keep their parent affiliation without covering seated participants. */
+.office-child .office-agent-label{font-size:7px;max-width:100%;padding:1px 2px;overflow:hidden;text-overflow:ellipsis}.office-child.office-attention::after{width:10px;height:10px;font-size:8px;right:1px;top:0}
+
+.office-overflow .office-agent-label{font-size:8px;max-width:100%;overflow:hidden;text-overflow:ellipsis}.office-overflow .office-agent-detail{display:none}

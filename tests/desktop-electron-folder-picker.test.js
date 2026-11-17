@@ -73,7 +73,7 @@ async function rendererSmokeResult(chooseDirectory) {
   const main = await readFile(new URL('../desktop/shells/electron/main.mjs', import.meta.url), 'utf8');
   const script = main.match(/executeJavaScript\(`([\s\S]*?)`\); \}/)?.[1];
   assert.ok(script, 'renderer smoke script must be present');
-  const evaluatedScript = Function('pixiSmokeInPage', `return \`${script}\``)(async () => ({officePixiReady:true,officeIdleAnimated:true,officePixiFrames:true,officeChairCrowned:true,officeChairFacingParticipants:true,officeSeatedParticipants:true,officeSceneTransitions:true,officeEntryAnimated:true,officeExitAnimated:true,officeWorkSeated:true,officeIdleRegistrationStable:true,officeWorkHeadScaleStable:true,officeFloorCollisionFree:true,officeObjectOcclusion:true,officeDockTransitions:true}));
+  const evaluatedScript = Function('pixiSmokeInPage', `return \`${script}\``)(async () => ({officePixiReady:true,officeIdleAnimated:true,officePixiFrames:true,officeChairCrowned:true,officeChairFacingParticipants:true,officeSeatedParticipants:true,officeSceneTransitions:true,officeEntryAnimated:true,officeExitAnimated:true,officeWorkSeated:true,officeIdleRegistrationStable:true,officeWorkHeadScaleStable:true,officeFloorCollisionFree:true,officeObjectOcclusion:true,officeDockTransitions:true,officeCrownAnchored:true,officeObservedLayout:true}));
   return vm.runInNewContext(evaluatedScript, {
     document: { readyState: 'complete', querySelector: () => ({children:[{}]}) },
     setTimeout, clearTimeout,
@@ -84,7 +84,11 @@ async function rendererSmokeResult(chooseDirectory) {
 }
 
 test('renderer smoke accepts Electron-wrapped invalid-request errors only', async () => {
+  const main = await readFile(new URL('../desktop/shells/electron/main.mjs', import.meta.url), 'utf8');
+  assert.match(main, /renderer\?\.officeCrownAnchored&&renderer\?\.officeObservedLayout/);
   const wrapped = await rendererSmokeResult(async () => { throw new Error("Error invoking remote method 'session-rooms:choose-directory': Error: DIRECTORY_PICKER_INVALID_REQUEST"); });
+  assert.equal(wrapped.officeCrownAnchored, true);
+  assert.equal(wrapped.officeObservedLayout, true);
   assert.equal(wrapped.folderPickerGuarded, true);
   const untrusted = await rendererSmokeResult(async () => { throw new Error("Error invoking remote method 'session-rooms:choose-directory': Error: DIRECTORY_PICKER_UNTRUSTED_SENDER"); });
   assert.equal(untrusted.folderPickerGuarded, false);

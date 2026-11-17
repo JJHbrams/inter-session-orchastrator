@@ -7,7 +7,7 @@ import {bindCreationForm} from '/creation-form.js';
 import {attachDirectoryPicker} from '/directory-picker.js';
 import {sessionLocation} from '/session-location.js';
 import {showNewSessionDialog} from '/new-session-dialog.js';
-import {initLayout,mentionMenuGeometry} from '/layout.js';
+import {initLayout,mentionMenuGeometry,setSummaryExpanded} from '/layout.js';
 import {marked} from '/vendor/marked.js';
 import DOMPurify from '/vendor/purify.js';
 import {createRenderer,createMentionInput,createReferenceMap} from '/rich-text.js';
@@ -733,17 +733,9 @@ const renameRoomButton=renameButton('토론장 이름 변경',()=>{if(current)re
 renameRoomButton.id='renameRoom';
 $('#title').after(renameRoomButton);
 
-const expandSummary=memberButton('크게 보기',()=>{
- const {d,f}=dialog('토론 정리');d.classList.add('summary-dialog');
- const copy=$('#decisions').cloneNode(true);copy.removeAttribute('id');
- for(const element of copy.querySelectorAll('[id]'))element.removeAttribute('id');
- for(const button of copy.querySelectorAll('button'))button.remove();
- for(const detail of copy.querySelectorAll('details'))detail.open=true;
- for(const link of copy.querySelectorAll('a'))link.addEventListener('click',()=>d.close());
- f.append(copy);const close=memberButton('닫기',()=>d.close());f.append(close);d.showModal();
-});
-expandSummary.id='expandSummary';expandSummary.className='summary-expand';
-$('.summary-heading').append(expandSummary);
+const expandSummary=$('#expandSummary');
+const summaryPanel=$('.session-panel');
+expandSummary.addEventListener('click',()=>setSummaryExpanded(summaryPanel,expandSummary,!summaryPanel.classList.contains('summary-expanded')));
 
 const moreActions=document.createElement('details');moreActions.className='room-more';
 const moreSummary=text('summary','','toolbar-more');moreSummary.setAttribute('aria-label','토론장 더 보기');moreSummary.title='더 보기';moreSummary.append(actionIcon('more'));
