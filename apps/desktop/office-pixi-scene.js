@@ -105,7 +105,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   const node=document.createElement('button');node.type='button';node.className='office-agent';node.dataset.agentId=node.dataset.id=agent.id;
   node.onclick=()=>{if(!node.disabled)onSelect?.(selection(node._agent))};
   const label=document.createElement('span'),detail=document.createElement('small');label.className='office-agent-label';detail.className='office-agent-detail';node.append(label,detail);overlay.append(node);
-  const r={agent,node,label,detail,phase:phaseFor(agent.id),pose:poseFor(agent),texture:null,seated:false,seat:null,walkDistance:0};records.set(agent.id,r);
+  const r={agent,node,label,detail,phase:phaseFor(agent.id),pose:poseFor(agent),texture:null,seated:false,seat:null,station:null,displaySeat:null,displayStation:null,walkDistance:0};records.set(agent.id,r);
   setFoot(r,atTarget?target:doorSpot());return r;
  };
  const travel=(id,target,removeAfter=false,fromSeat=null,toSeat=null,mode='walking')=>{
@@ -113,17 +113,17 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
   const active=trips.get(id);
   if(active&&active.target.x===target.x&&active.target.y===target.y){active.removeAfter||=removeAfter;return}
   const from=foot(r),exit=fromSeat?.approach||(canStand(from)?from:null),enter=toSeat?.approach||(canStand(target)?target:null);
-  if(!exit||!enter||!canStand(exit)||!canStand(enter)){r.node.dataset.routeBlocked='true';r.detail.textContent='이동 경로 확인 필요';return}
+  if(!exit||!enter||!canStand(exit)||!canStand(enter)){r.node.dataset.routeBlocked='true';r.detail.textContent='이동 경로 확인 필요';return false}
   const route=floorPath(exit,enter);
-  if(!route.length&&!(exit.x===enter.x&&exit.y===enter.y)){r.node.dataset.routeBlocked='true';r.detail.textContent='이동 경로 확인 필요';return}
-  r.node.dataset.routeBlocked='false';r.seated=false;ghostAt(r,fromSeat||null);if(r.body)r.body.visible=false;trips.set(id,{from:exit,target,points:route,index:0,progress:0,removeAfter,exitApproach:exit,enterApproach:enter,mode,phase:fromSeat?'undocking':'walking',elapsed:0,toSeat});
+  if(!route.length&&!(exit.x===enter.x&&exit.y===enter.y)){r.node.dataset.routeBlocked='true';r.detail.textContent='이동 경로 확인 필요';return false}
+  r.node.dataset.routeBlocked='false';r.seated=false;ghostAt(r,fromSeat||null);if(r.body)r.body.visible=false;trips.set(id,{from:exit,target,points:route,index:0,progress:0,removeAfter,exitApproach:exit,enterApproach:enter,mode,phase:fromSeat?'undocking':'walking',elapsed:0,toSeat});return true;
  };
  const setAction=r=>{
   const at=foot(r);
-  const seat=r.seat||r.station;r.seated=!!seat&&!trips.has(r.agent.id)&&at.x===seat.x&&at.y===seat.y;
+  const seat=r.displaySeat||r.displayStation;r.seated=!!seat&&!trips.has(r.agent.id)&&at.x===seat.x&&at.y===seat.y;
   r.node.dataset.seated=String(r.seated);r.node.dataset.chair=String(r.agent.role==='chair');
   r.node.dataset.facing=r.seated?(seat.facing||'front'):'';
-  r.node.dataset.station=r.seated&&r.station?r.station.station:'';
+  r.node.dataset.station=r.seated&&r.displayStation?r.displayStation.station:'';
   r.node.dataset.seatX=seat?String(seat.x):'';r.node.dataset.seatY=seat?String(seat.y):'';
   const trip=trips.get(r.agent.id);r.detail.textContent=r.node.dataset.routeBlocked==='true'?'이동 경로 확인 필요':trip?.mode==='entering'?'입장 중':trip?.mode==='exiting'?'퇴장 중':brief(r.agent);r.node.setAttribute('aria-label',`${r.agent.label||'이름 없는 세션'} · ${r.detail.textContent}`);r.node.dataset.action=trip?(trip.mode||'walking'):r.seated?(r.agent.state==='running'&&['responding','synthesis','delegating'].includes(r.agent.activity)?'talking':actionFor(r.agent)):actionFor(r.agent);r.node.dataset.transition=trip?.phase||'';
   r.node.disabled=!!trip?.removeAfter;
@@ -132,7 +132,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
  };
  const animateComposite=(r,atMeeting,atStation)=>{
   const a=r.node.dataset.action,p=r.phase,assetKey=atMeeting?`${provider(r.agent)}-chair-composite`:'work-chair-composite';
-  const asset=OFFICE_COMPOSITE_ASSETS[assetKey],column=atMeeting?Math.max(0,directions.indexOf(r.node.dataset.facing||'front')):({library:0,development:1,server:2}[r.station.station]??0);
+  const asset=OFFICE_COMPOSITE_ASSETS[assetKey],column=atMeeting?Math.max(0,directions.indexOf(r.node.dataset.facing||'front')):({library:0,development:1,server:2}[r.displayStation.station]??0);
   const row=atMeeting?(a==='talking'?2:(Math.floor(p*.75)%9===0?1:0)):(provider(r.agent)==='claude'?(Math.floor(p*2)%2?2:1):(Math.floor(p*2)%2?4:3));
   r.chairSprite.visible=false;r.chairFront.visible=false;
   r.body.texture=compositeTexture(assetKey,atMeeting?r.texture.seated:r.texture.work,column,row);
@@ -150,7 +150,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
  const animate=r=>{
   if(!r.body)return;
   const a=r.node.dataset.action,p=r.phase,s=r.size,isClaude=provider(r.agent)==='claude';
-  const inTransit=['walking','entering','exiting'].includes(a),atStation=r.seated&&r.station,atMeeting=r.seated&&r.seat;
+  const inTransit=['walking','entering','exiting'].includes(a),atStation=r.seated&&r.displayStation,atMeeting=r.seated&&r.displaySeat;
   const direction=Math.max(0,directions.indexOf(r.node.dataset.facing||'front'));
   if(atStation||atMeeting){animateComposite(r,atMeeting,atStation);return}
   let bodyY=0,key,col,row;
@@ -218,7 +218,7 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
    }
    if(t.index===t.points.length){if(t.toSeat){ghostAt(r,t.target,t.toSeat);r.body.visible=false;t.phase='docking';t.elapsed=0}else{trips.delete(id);if(t.removeAfter)remove(id)}}
   }
-  for(const r of records.values()){r.phase=(r.phase+ms/1000)%100;setAction(r);animate(r);const trip=trips.get(r.agent.id);if(trip?.phase==='undocking'||trip?.phase==='docking'){const alpha=Math.max(0,Math.min(1,trip.elapsed/220));r.container.alpha=trip.phase==='undocking'?alpha:1-alpha;r.node.style.opacity=String(r.container.alpha);r.node.dataset.visibleAlpha=String(r.container.alpha.toFixed(3))}else r.node.dataset.visibleAlpha=String((r.container.alpha??1).toFixed(3))}
+  for(const r of records.values()){if(!r.container||!r.body)continue;r.phase=(r.phase+ms/1000)%100;setAction(r);animate(r);const trip=trips.get(r.agent.id);if(trip?.phase==='undocking'||trip?.phase==='docking'){const alpha=Math.max(0,Math.min(1,trip.elapsed/220));r.container.alpha=trip.phase==='undocking'?alpha:1-alpha;r.node.style.opacity=String(r.container.alpha);r.node.dataset.visibleAlpha=String(r.container.alpha.toFixed(3))}else r.node.dataset.visibleAlpha=String((r.container.alpha??1).toFixed(3))}
  };
  const sync=()=>{if(app?.ticker)moving()?app.ticker.start?.():app.ticker.stop?.()};
  const drawMasks=(w,h)=>{
@@ -262,18 +262,19 @@ export function createOfficePixiScene({document,host,onSelect,onStatus,loadPixi=
    const station=!seat&&agent.state==='running'&&['library','development','server'].includes(zone)?stationSpot(agent,i,anchors):null;
    const target=seat||station||spot(agent,i,anchors);
    let r=records.get(agent.id);const entering=!r;if(!r){if(TERMINAL.has(agent.state)&&agent.kind==='subagent'){retired.set(agent.id,agent.updatedAt||'');continue}r=create(agent,target,snapshotBeforeReady)}
-   const previousSeat=r.seated?(r.seat||r.station):null;
+   const previousSeat=r.seated?(r.displaySeat||r.displayStation):null;
    r.agent=agent;r.seat=seat;r.station=station;r.node._agent=agent;r.label.textContent=agent.label||'세션';r.detail.textContent=brief(agent);
    r.node.dataset.state=agent.state;r.node.dataset.provider=agent.provider||'';r.node.classList.toggle('office-child',agent.kind==='subagent');r.node.classList.toggle('office-working',agent.state==='running');r.node.classList.toggle('office-attention',ATTENTION.has(agent.state));
    r.node.setAttribute('aria-label',`${agent.label||'이름 없는 세션'} · ${brief(agent)}`);
    if(!r.texture){try{const base=await tex(agent);if(destroyed||expected!==revision||records.get(agent.id)!==r)return;r.texture=base;parts(r);place(r)}catch(e){status(e)}}
-   if(agent.role==='chair'){trips.delete(agent.id);setFoot(r,target)}
+   if(agent.role==='chair'){trips.delete(agent.id);r.displaySeat=seat;r.displayStation=station;setFoot(r,target)}
    else if(TERMINAL.has(agent.state)&&agent.kind==='subagent'){
     if(presentation.reducedMotion)remove(agent.id);else travel(agent.id,doorSpot(),true,previousSeat,null,'exiting');
    }else{
     const at=foot(r);
-    if(presentation.reducedMotion){trips.delete(agent.id);setFoot(r,target)}
-    else if(at.x!==target.x||at.y!==target.y)travel(agent.id,target,false,previousSeat,seat||station,entering?'entering':'walking');
+    if(presentation.reducedMotion){if((seat||station||canStand(target))&&roomContains(target,0)){trips.delete(agent.id);r.displaySeat=seat;r.displayStation=station;setFoot(r,target)}else r.node.dataset.routeBlocked='true';}
+    else if(at.x!==target.x||at.y!==target.y){const moved=travel(agent.id,target,false,previousSeat,seat||station,entering?'entering':'walking');if(moved){r.displaySeat=seat;r.displayStation=station}}
+    else {r.displaySeat=seat;r.displayStation=station}
    }
    if(records.get(agent.id)===r){setAction(r);animate(r)}
   }
