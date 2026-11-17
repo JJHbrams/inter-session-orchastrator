@@ -23,3 +23,6 @@ test('walkable space excludes the room exterior, furniture footprints, and the p
 test('all portal routes stay in collision-free floor space and server traffic goes around the partition',()=>{const portals=[{x:15,y:80},{x:21,y:55},{x:57,y:49},{x:89,y:65},{x:37,y:70},{x:40,y:87}];for(const from of portals)for(const to of portals){const route=routeFloor(from,to),points=[from,...route];assert.ok(route.length||from===to,`${from.x},${from.y} -> ${to.x},${to.y}`);for(let i=1;i<points.length;i++)assert.equal(segmentClear(points[i-1],points[i]),true)}});
 
 test('invalid collision endpoints produce no direct route or teleport fallback',()=>{assert.deepEqual(routeFloor({x:90,y:45},{x:89,y:65}),[]);assert.deepEqual(routeFloor({x:15,y:80},{x:80,y:85}),[])});
+
+
+test('walking routes avoid the measured front table legs instead of passing below its foreground',()=>{assert.equal(canStand({x:56.9925,y:82.7849}),false);const from={x:72,y:90},route=routeFloor(from,{x:22,y:50});assert.ok(route.length);const points=[from,...route];for(let i=1;i<points.length;i++){assert.equal(segmentClear(points[i-1],points[i]),true);for(let j=0;j<=50;j++){const t=j/50,p={x:points[i-1].x+(points[i].x-points[i-1].x)*t,y:points[i-1].y+(points[i].y-points[i-1].y)*t};assert.ok(p.x<44||p.x>63||p.y<60||p.y>84.5)}}});

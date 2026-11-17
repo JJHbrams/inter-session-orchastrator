@@ -1,7 +1,8 @@
 const ROOM=[[15,43],[34,25],[49,25],[65,29],[81,38],[95,48],[95,84],[87,94],[35,94],[12,82],[12,62]];
 const WAYPOINTS=[[20,65],[37,70],[37,55],[40,87],[42,53],[73,53],[77,65],[89,65],[72,90],[90,90]];
 const RECTANGLES=[[75,88,76,89],[77,85,84,92],[82,96,39,61],[48,69,23,45],[23,36,34,55],[41,46,58,72]];
-const TABLE={x:53.4,y:68.8,rx:9,ry:8.8};
+// Include the front legs, whose authored floor edge reaches y=84.5.
+const TABLE={x:53.4,y:72.5,rx:9,ry:11.5};
 const WALL=[[72.7,69.4],[96.9,84.4]];
 export const ACTOR_FOOT_RADIUS=2;
 const metric=(a,b)=>Math.hypot((b.x-a.x)*2.6,b.y-a.y);

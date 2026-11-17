@@ -35,7 +35,7 @@ export function stationSpot(a,index=0,anchors=OFFICE_ANCHORS){
   if(!overflowPoints.has(key)){
    const offsets={library:[[-6.2,10.8],[6.3,10.8],[0,19]],development:[[-6.5,9.1],[7,9.1],[0,18]],server:[[-5.5,8.5],[6,8.5],[-10,9]]}[name];
    const preferred=offsets.map(([dx,dy])=>({x:x+dx,y:y+dy})),grid=[];
-   for(let gy=44;gy<=92;gy+=8)for(let gx=16;gx<=94;gx+=6)grid.push({x:gx,y:gy});
+   for(let gy=44;gy<=92;gy+=2)for(let gx=16;gx<=94;gx+=2)grid.push({x:gx,y:gy});
    grid.sort((a,b)=>distance(a,{x,y})-distance(b,{x,y}));
    const points=[];
    for(const p of [...preferred,...grid])if(distance(p,{x,y})>=16&&canStand(p)&&points.every(q=>distance(p,q)>=16)&&floorPath({x:15,y:80},p).length)points.push(p);
