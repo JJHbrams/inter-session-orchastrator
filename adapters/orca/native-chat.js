@@ -61,26 +61,30 @@ function receiptFor(binding, runtimeId, fence, requestId, payloadFingerprint = n
 function correlated(page, requestId, receipt, incomplete = false) {
   const clientMessageId = messageIdFor(receipt,requestId);
   const submissions = (page?.submissions || []).filter(row => row?.clientMessageId === clientMessageId);
-  if (submissions.length !== 1) return { ok: false, stage: 'unknown', receipt: { ...receipt, correlation: 'submission_not_observed' } };
+  if (submissions.length !== 1) return { ok: false, stage: 'unknown', receipt: { ...receipt, correlation: submissions.length ? 'ambiguous_submission' : 'submission_not_observed' } };
   const submission = submissions[0], userIds = userKeys(receipt,requestId,submission);
   if (!Number.isInteger(submission.fence)||submission.fence<receipt.fence||submission.fence>page.fence||(receipt.bodyPayloadFingerprint && submission.payloadFingerprint !== receipt.bodyPayloadFingerprint)) return { ok: false, stage: 'unknown', receipt: { ...receipt, correlation: 'submission_fence_or_body_mismatch' } };
-  const user = (page.items || []).find(item => userIds.includes(idOf(item)) && item?.body?.kind === 'message' && item?.body?.role === 'user');
-  if (!user) return { ok: false, stage: 'unknown', receipt: { ...receipt, correlation: 'user_item_not_observed' } };
+  const users = (page.items || []).filter(item => userIds.includes(idOf(item)) && item?.body?.kind === 'message' && item?.body?.role === 'user');
+  if (users.length !== 1) return { ok: false, stage: 'unknown', receipt: { ...receipt, correlation: users.length ? 'ambiguous_user_item' : 'user_item_not_observed' } };
+  const user=users[0];
   const turns=new Map((page.items||[]).filter(item=>item.body?.kind==='turn'||item.body?.turnLifecycle).map(item=>[idOf(item),item]));
+  for(const snapshot of page.latestTurns||[])if(snapshot?.itemId&&snapshot.turn)turns.set(snapshot.itemId,{itemId:snapshot.itemId,body:snapshot.turn});
   if(page.latestTurn?.itemId&&page.latestTurn.turn)turns.set(page.latestTurn.itemId,{itemId:page.latestTurn.itemId,body:page.latestTurn.turn});
   const exactTurnId=submission?.answeredInTurn?.turnItemId;
   const matches=[...turns.values()].filter(item=>exactTurnId?idOf(item)===exactTurnId:userIds.includes((item.body?.turnLifecycle||item.body)?.userItemId));
   if(matches.length>1)return {ok:false,stage:'unknown',reason:'multiple native turns match this submission',receipt:{...receipt,correlation:'ambiguous_turn'}};
-  if(!matches.length)return {ok:true,stage:'input_accepted',receipt:{...receipt,userItemId:idOf(user)}};
+  if(!matches.length)return exactTurnId
+    ? {ok:false,stage:'unknown',reason:'the recorded answered turn was not observed',receipt:{...receipt,userItemId:idOf(user),correlation:'answered_turn_not_observed'}}
+    : {ok:true,stage:'input_accepted',receipt:{...receipt,userItemId:idOf(user),correlation:'awaiting_turn'}};
   const turn=matches[0],turnId=idOf(turn);
   if (!turn) return { ok: false, stage: 'unknown', receipt: { ...receipt, userItemId: idOf(user), turnId, correlation: 'answered_turn_not_observed' } };
   const body=turn?.body?.kind==='status'?turn.body.turnLifecycle:turn?.body;
   if(body?.userItemId&&!userIds.includes(body.userItemId))return {ok:false,stage:'unknown',reason:'submission was merged into another user turn',receipt:{...receipt,correlation:'turn_user_mismatch'}};
-  if(body?.state==='running')return { ok: true, stage: 'turn_started', receipt: { ...receipt, userItemId: idOf(user), turnId } };
+  if(body?.state==='running')return { ok: true, stage: 'turn_started', receipt: { ...receipt, userItemId: idOf(user), turnId,correlation:'turn_started' } };
   if(body?.state!=='completed'||body.outcome!=='success')return {ok:false,stage:'unknown',reason:`native turn outcome is ${body?.outcome||'unverified'}`,receipt:{...receipt,turnId,correlation:'turn_not_successful'}};
   const assistants = (page.items || []).filter(item => item?.body?.kind === 'message' && item?.body?.role === 'assistant' && item?.turnScope?.kind === 'turn' && item?.turnScope?.turnItemId === turnId);
   if (!assistants.length || incomplete) return { ok: false, stage: 'unknown', receipt: { ...receipt, userItemId: idOf(user), turnId, correlation: incomplete ? 'history_window_incomplete' : 'completed_turn_has_no_assistant_message' } };
-  return { ok: true, stage: 'reply', receipt: { ...receipt, userItemId: idOf(user), turnId,observedFence:page.fence }, reply: { body: assistants.map(textOf).join('\n\n'),finalBody:textOf(assistants.at(-1)), turnId:body.turnId||turnId, turnItemId: turnId, userItemId: idOf(user), itemIds: assistants.map(idOf) } };
+  return { ok: true, stage: 'reply', receipt: { ...receipt, userItemId: idOf(user), turnId,observedFence:page.fence,correlation:'correlated_reply' }, reply: { body: assistants.map(textOf).join('\n\n'),finalBody:textOf(assistants.at(-1)), turnId:body.turnId||turnId, turnItemId: turnId, userItemId: idOf(user), itemIds: assistants.map(idOf) } };
 }
 
 export function createOrcaNativeChatAdapter({ call: givenCall = null, mutation: givenMutation = null,operationIdFactory=null,moduleLoader=require, clientFactory = null, resolveExecutable = executable,metadataTimeoutMs=750 } = {}) {
@@ -90,19 +94,32 @@ export function createOrcaNativeChatAdapter({ call: givenCall = null, mutation: 
   const rpc = async (method, params, options) => unwrap(await (callPromise ||= defaultCallFactory({ clientFactory, resolveExecutable: resolvedExecutable })).then(call => call(method, params, options)));
   const history = (sessionId,cursor=null,limit=200,options) => rpc('agentSession.history',{sessionId,direction:cursor?'before':'tail',limit,...(cursor?{cursor}:{})},options);
   async function allHistory(sessionId,requestId,receipt) {
-    const first=await history(sessionId),items=new Map(),submissions=new Map(),seen=new Set();let current=first,covered=false,incomplete=false;
-    for(let count=0;count<8;count++){
-      if(current?.ok!==true||current.page?.sessionId!==sessionId||current.page?.epoch!==first.page?.epoch||current.page?.fence!==first.page?.fence)throw Error('native history identity or epoch changed');
+    const first=await history(sessionId),items=new Map(),submissions=new Map(),seen=new Set(),observedTurns=new Map();let current=first,latestTurn=first.page?.latestTurn||null,covered=false,incomplete=false,stopReason=null;
+    const submissionSignature=row=>JSON.stringify({clientMessageId:row?.clientMessageId,providerItemId:row?.providerItemId,fence:row?.fence,payloadFingerprint:row?.payloadFingerprint,answeredInTurn:row?.answeredInTurn?.turnItemId||null,dispatchState:row?.dispatchState||null,resolvedAt:row?.resolvedAt||null});
+    for(let count=0;count<64;count++){
+      if(current?.ok!==true||current.providerSession?.id!==first.providerSession?.id||current.page?.sessionId!==sessionId||current.page?.epoch!==first.page?.epoch||current.page?.fence!==first.page?.fence)throw Error('native history identity or epoch changed');
       for(const item of current.page.items||[])if(!items.has(idOf(item))||(item.revision||0)>(items.get(idOf(item)).revision||0))items.set(idOf(item),item);
-      for(const submission of current.page.submissions||[])if(!submissions.has(submission.clientMessageId))submissions.set(submission.clientMessageId,submission);
+      if(current.page.latestTurn?.itemId){observedTurns.set(current.page.latestTurn.itemId,current.page.latestTurn);latestTurn=current.page.latestTurn;}
+      const pageClients=new Set();for(const submission of current.page.submissions||[]){
+        if(pageClients.has(submission?.clientMessageId))throw Error('ambiguous native submission evidence');
+        pageClients.add(submission?.clientMessageId);
+        const prior=submissions.get(submission.clientMessageId);
+        if(prior&&submissionSignature(prior)!==submissionSignature(submission))throw Error('ambiguous native submission evidence');
+        submissions.set(submission.clientMessageId,submission);
+      }
       const submission=submissions.get(messageIdFor(receipt,requestId)),keys=userKeys(receipt,requestId,submission);
       covered=[...items.values()].some(item=>keys.includes(idOf(item))&&item.body?.role==='user');
-      if(covered||current.page.hasOlder===false)break;
+      const expectedTurn=submission?.answeredInTurn?.turnItemId;
+      const observedTurn=expectedTurn&&([...items.values()].some(item=>idOf(item)===expectedTurn)||observedTurns.has(expectedTurn));
+      if(covered&&(!expectedTurn||observedTurn))break;
+      if(current.page.hasOlder===false)break;
       const cursor=current.page.window?.nextCursor,key=JSON.stringify(cursor);
-      if(!cursor||seen.has(key)||count===7){incomplete=true;break;}seen.add(key);
+      if(!cursor){incomplete=true;stopReason='history_cursor_missing';break;}
+      if(seen.has(key)){incomplete=true;stopReason='history_cursor_cycle';break;}
+      if(count===63){incomplete=true;stopReason='history_page_limit';break;}seen.add(key);
       current=await history(sessionId,cursor);
     }
-    return {...first,page:{...first.page,items:[...items.values()].sort(historyOrder),submissions:[...submissions.values()]},incomplete:incomplete||!covered};
+    return {...first,page:{...first.page,latestTurn,latestTurns:[...observedTurns.values()],items:[...items.values()].sort(historyOrder),submissions:[...submissions.values()]},incomplete:incomplete||!covered,incompleteReason:stopReason||(!covered?'history_exhausted':null)};
   }
   async function lookup(provider, nativeId, cwd, handle = null, options) {
     const [status, listed] = await Promise.all([rpc('status.get',undefined,options), rpc('session.tabs.listAll',undefined,options)]);
@@ -146,7 +163,9 @@ export function createOrcaNativeChatAdapter({ call: givenCall = null, mutation: 
     const receipt=previousReceipt||receiptFor(bindingInput,checked.capabilities.nativeChat.runtimeId,checked.capabilities.nativeChat.fence,requestId);
     const detail = await allHistory(bindingInput.handle,requestId,receipt);
     if(detail.providerSession?.id!==nativeOf(bindingInput)||detail.page.sessionId!==bindingInput.handle)return fail('identity_changed');
-    return correlated(detail?.page, requestId, receipt, detail.incomplete);
+    const result=correlated(detail?.page, requestId, receipt, detail.incomplete);
+    if(!result.ok&&detail.incompleteReason)result.receipt={...result.receipt,correlation:detail.incompleteReason};
+    return result;
   }
   return {
     async discover({ provider = null, cwd = null, handle = null, timeoutMs: discoveryTimeoutMs = null } = {}) {
@@ -189,7 +208,7 @@ export function createOrcaNativeChatAdapter({ call: givenCall = null, mutation: 
         prepared.submissionClientMessageId=sent?.value?.submission?.clientMessageId||sent?.value?.clientMessageId||sent?.submission?.clientMessageId||operationId;
         if(onPrepared)await onPrepared(prepared);
       }catch(error){return {ok:false,stage:'unknown',reason:error.message,receipt:{...prepared,correlation:'send_outcome_unknown',rpcError:{code:error.code||null,message:error.message}}};}
-      try { const detail = await allHistory(bindingInput.handle,requestId,prepared); return correlated(detail.page, requestId, prepared, detail.incomplete); } catch(error) { return { ok: false, stage: 'unknown',reason:error.message,receipt: { ...prepared, correlation: 'history_unavailable_after_send' } }; }
+      try { const detail = await allHistory(bindingInput.handle,requestId,prepared); const result=correlated(detail.page, requestId, prepared, detail.incomplete); if(!result.ok&&detail.incompleteReason)result.receipt={...result.receipt,correlation:detail.incompleteReason}; return result; } catch(error) { return { ok: false, stage: 'unknown',reason:error.message,receipt: { ...prepared, correlation: 'history_unavailable_after_send' } }; }
     }
   };
 }

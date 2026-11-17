@@ -9,6 +9,7 @@ const now = () => new Date().toISOString();
 const helperPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../packages/mcp/participant.js');
 const hash = token => createHash('sha256').update(token).digest('hex');
 const nativeChat = row => { try { return JSON.parse(row.capabilities||'{}').transport==='orca-native-chat'; } catch { return false; } };
+const nativeReceiptCore=['requestId','clientOperationId','submissionClientMessageId','sessionId','nativeId','runtimeId','fence','payloadFingerprint','bodyPayloadFingerprint'];
 
 export class ParticipantDispatcher {
   constructor(store, { adapter, privateDir = '.local/participant-dispatch', baseUrl = 'http://127.0.0.1:4317' } = {}) {
@@ -172,11 +173,20 @@ export class ParticipantDispatcher {
   }
 
   persistReceipt(record,receipt) {
-    this.store.db.prepare('UPDATE participant_dispatches SET receipt_json=?,updated_at=? WHERE delivery_id=? AND attempt_id=?').run(JSON.stringify(receipt),now(),record.delivery_id,record.attempt_id);
+    if(!receipt||typeof receipt!=='object')throw Error('native receipt is invalid');
+    const row=this.store.db.prepare('SELECT receipt_json FROM participant_dispatches WHERE delivery_id=? AND attempt_id=?').get(record.delivery_id,record.attempt_id);
+    const saved=JSON.parse(row?.receipt_json||'null');
+    if(saved){for(const key of nativeReceiptCore){if(saved[key]!=null&&receipt[key]!==saved[key])throw Error(`native receipt identity changed: ${key}`);}}
+    // The host client-message ID arrives only after admission. Older rows can
+    // lack other fields too, so only fill gaps while retaining recorded values.
+    const merged={...(saved||{}),...receipt};
+    for(const key of nativeReceiptCore)if(saved?.[key]!=null)merged[key]=saved[key];
+    this.store.db.prepare('UPDATE participant_dispatches SET receipt_json=?,updated_at=? WHERE delivery_id=? AND attempt_id=?').run(JSON.stringify(merged),now(),record.delivery_id,record.attempt_id);
+    return merged;
   }
 
   nativeResult(row,record,result) {
-    if(result.receipt) this.persistReceipt(record,result.receipt);
+    if(result.receipt) result={...result,receipt:this.persistReceipt(record,result.receipt)};
     if(result.notRecorded){
       this.store.db.prepare('INSERT OR IGNORE INTO native_dispatch_refusals VALUES(?,?,?,?,?,?)').run(record.attempt_id,row.id,result.receipt?.clientOperationId||null,JSON.stringify(result.receipt||{}),result.reason||'native operation was not recorded',now());
       const cleared=this.notSent(row,record,result.reason||'native operation was refused before recording',{confirmedNotRecorded:true});
@@ -187,7 +197,7 @@ export class ParticipantDispatcher {
     if(!result.ok) {
       const saved=this.store.db.prepare('SELECT receipt_json FROM participant_dispatches WHERE delivery_id=?').get(row.id);
       if(!result.receipt&&!saved?.receipt_json&&record.status==='prepared')return this.notSent(row,record,result.reason||'native preflight refused');
-      return this.record(row,record,'unknown',result.reason||'native result requires reconciliation',result.receipt);
+      return this.record(row,record,'unknown',result.reason||result.receipt?.correlation||result.reasonCode||'native result requires reconciliation',result.receipt);
     }
     if(result.reply) {
       let request;try{request=JSON.parse(row.body);}catch{}
@@ -201,6 +211,7 @@ export class ParticipantDispatcher {
       }else this.store.replyFromAdapter(row.id,record.attempt_id,{bindingId:row.binding_id,incarnation:row.incarnation,receipt:result.receipt,reply:result.reply});
       return this.record(row,record,'completed',null,result.receipt);
     }
+    if(result.stage==='input_accepted'&&this.store.db.prepare('SELECT state FROM deliveries WHERE id=?').get(row.id)?.state==='unknown')return this.record(row,record,'unknown',result.receipt?.correlation||'awaiting_turn_reconciliation',result.receipt);
     const kind=result.stage==='turn_started'?'turn_started':'host_receipt';
     this.store.evidence(record.attempt_id,kind,'orca-native-chat',record.host_request_id);
     return this.record(row,record,kind==='turn_started'?'running':'accepted',null,result.receipt);
