@@ -177,6 +177,27 @@ test('a legacy UUID refused by admission is reconciled as unrecorded without rep
   assert.equal(result.notRecorded,true);assert.equal(result.legacyInvalidId,true);assert.equal(result.receipt.requestId,requestId);assert.equal(mock.calls.some(x=>x.method==='agentSession.send'),false);
 });
 
+test('an incomplete legacy receipt remains unknown without reading or sending',async()=>{
+  const mock=rpcFactory(),adapter=createOrcaNativeChatAdapter({call:mock.call,mutation}),binding=await verified(adapter);
+  const receipt={sessionId:handle,nativeId,runtimeId:'runtime-1',fence:7,requestId:'legacy',clientOperationId:null};
+  const before=mock.calls.length,result=await adapter.send(binding,binding,'never send','legacy',{observeOnly:true,receipt});
+  assert.equal(result.ok,false);assert.equal(result.reasonCode,'native_receipt_incomplete');assert.equal(result.receipt.correlation,'native_receipt_incomplete');
+  assert.equal(mock.calls.slice(before).some(call=>call.method==='agentSession.send'),false);
+});
+
+test('observe recovers an old receipt after a same-actor host restart while preflight remains strict',async()=>{
+  const oldRuntime='old-runtime',newRuntime='new-runtime',receipt={sessionId:handle,nativeId,runtimeId:oldRuntime,fence:7,requestId:'old',clientOperationId:'old-op',payloadFingerprint:'op',bodyPayloadFingerprint:'body'};let sends=0;
+  const mock=rpcFactory(),call=async(method,params)=>{if(method==='status.get')return {ok:true,result:{runtimeId:newRuntime,capabilities:['agent-session.structured.v1','agent-session.accepted-send.v1','agent-session.pending-send-result.v1','agent-session.queued-messages.v2']}};if(method==='agentSession.send'){sends++;throw Error('must not send');}if(method==='agentSession.history'&&params.limit!==1)return {ok:true,result:{ok:true,providerSession:{id:nativeId},page:page({fence:8,hasOlder:false,submissions:[{clientMessageId:'old-op',fence:7,payloadFingerprint:'body',answeredInTurn:{turnItemId:'turn'}}],latestTurn:{itemId:'turn',turn:{state:'completed',outcome:'success',userItemId:'orca:old-op'}},items:[{itemId:'orca:old-op',body:{kind:'message',role:'user'}},{itemId:'answer',body:{kind:'message',role:'assistant',blocks:[{type:'text',text:'recovered'}]},turnScope:{kind:'turn',turnItemId:'turn'}}]})}};return mock.call(method,params);};
+  const adapter=createOrcaNativeChatAdapter({call,mutation}),current=await verified(adapter),old={...current,incarnation:`${oldRuntime}:7`,capabilities:{...current.capabilities,nativeChat:{...current.capabilities.nativeChat,runtimeId:oldRuntime}}};
+  assert.equal((await adapter.preflight(old,old)).reasonCode,'identity_changed');const result=await adapter.send(old,old,'never','old',{observeOnly:true,receipt});assert.equal(result.stage,'reply');assert.equal(result.reply.body,'recovered');assert.equal(result.receipt.runtimeId,oldRuntime);assert.equal(result.receipt.observedRuntimeId,newRuntime);assert.equal(sends,0);
+});
+
+test('observe fails closed when the host runtime changes during history',async()=>{
+  let statuses=0,sends=0;const mock=rpcFactory(),receipt={sessionId:handle,nativeId,runtimeId:'runtime-1',fence:7,requestId:'r',clientOperationId:'op',payloadFingerprint:'op',bodyPayloadFingerprint:'body'};
+  const call=async(method,params)=>{if(method==='status.get'){statuses++;return {ok:true,result:{runtimeId:statuses>2?'runtime-2':'runtime-1',capabilities:['agent-session.structured.v1','agent-session.accepted-send.v1','agent-session.pending-send-result.v1','agent-session.queued-messages.v2']}};}if(method==='agentSession.send'){sends++;throw Error('must not send');}if(method==='agentSession.history'&&params.limit!==1)return {ok:true,result:{ok:true,providerSession:{id:nativeId},page:page({hasOlder:false})}};return mock.call(method,params);};
+  const adapter=createOrcaNativeChatAdapter({call,mutation}),binding=await verified(adapter),result=await adapter.send(binding,binding,'never','r',{observeOnly:true,receipt});assert.equal(result.ok,false);assert.equal(result.reasonCode,'identity_changed');assert.equal(sends,0);
+});
+
 test('the default protocol bridge passes the UUID factory to the installed operation generator',async()=>{
   let generated=false,resolutions=0,prepared=false;
   const mock=rpcFactory({send:params=>{assert.equal(generated,true);assert.equal(prepared,true);assert.match(params.envelope.clientOperationId,/^\d{13}-[0-9a-f]{32}$/);return {ok:true,result:{ok:false,refusal:{code:'test_refusal'}}};}});
@@ -184,6 +205,13 @@ test('the default protocol bridge passes the UUID factory to the installed opera
   const adapter=createOrcaNativeChatAdapter({call:mock.call,moduleLoader,resolveExecutable:async()=>{resolutions++;return 'C:/Orca/resources/bin/orca.exe';}}),binding=await verified(adapter);
   const result=await adapter.send(binding,binding,'prompt','room-uuid',{onPrepared(){prepared=true;}});
   assert.equal(result.receipt.requestId,'room-uuid');assert.equal(result.notRecorded,true);assert.equal(resolutions,1);
+});
+
+test('the default protocol bridge supports the relocated official operation generator',async()=>{
+  let generated=false;const mock=rpcFactory({send:()=>({ok:true,result:{ok:false,refusal:{code:'test_refusal'}}})});
+  const moduleLoader=path=>{if(path.includes('requests'))return {structuredAgentSessionMessageSendMutation:mutation};if(/lifecycle[\\/]structured-/.test(path)){const error=Error(`Cannot find module ${path}`);error.code='MODULE_NOT_FOUND';throw error;}return {createStructuredAgentSessionOperationId(uuid){generated=true;return Date.now()+'-'+uuid().replaceAll('-','');}};};
+  const adapter=createOrcaNativeChatAdapter({call:mock.call,moduleLoader,resolveExecutable:async()=> 'C:/Orca/resources/bin/orca.exe'}),binding=await verified(adapter);
+  const result=await adapter.send(binding,binding,'prompt','room');assert.equal(generated,true);assert.equal(result.notRecorded,true);
 });
 
 test('native handover may advance the lease fence while provider-item linkage still identifies the exact completed turn',async()=>{
@@ -249,4 +277,13 @@ test('a later history page does not discard an earlier exact turn snapshot',asyn
   const adapter=createOrcaNativeChatAdapter({call,mutation}),binding=await verified(adapter);
   const result=await adapter.send(binding,binding,'never send','request',{observeOnly:true,receipt});
   assert.equal(result.stage,'reply');assert.equal(result.reply.body,'original reply');
+});
+
+
+test('an unrelated missing dependency inside the official generator is not hidden by layout fallback',async()=>{
+  const mock=rpcFactory();let fallbackLoads=0;
+  const moduleLoader=path=>{if(path.includes('requests'))return {structuredAgentSessionMessageSendMutation:mutation};if(/lifecycle[\\/]structured-/.test(path)){const error=Error(`Cannot find module 'broken-dependency'\nRequire stack:\n- ${path}`);error.code='MODULE_NOT_FOUND';throw error;}fallbackLoads++;return {createStructuredAgentSessionOperationId:()=>nativeOperation};};
+  const adapter=createOrcaNativeChatAdapter({call:mock.call,moduleLoader,resolveExecutable:async()=> 'C:/Orca/resources/bin/orca.exe'}),binding=await verified(adapter);
+  await assert.rejects(()=>adapter.send(binding,binding,'prompt','room'),/broken-dependency/);
+  assert.equal(fallbackLoads,0);assert.equal(mock.calls.some(call=>call.method==='agentSession.send'),false);
 });

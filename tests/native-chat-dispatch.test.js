@@ -171,3 +171,13 @@ test('an unknown native request stays unknown when observation reports admission
  const adapter={async preflight(){return {ok:true};},async send(_a,_b,_p,_r,options){calls++;if(!options.observeOnly){await options.onPrepared(receipt);return {ok:false,receipt,reason:'history_cursor_cycle'};}return {ok:true,stage:'input_accepted',receipt:{...receipt,correlation:'awaiting_turn'}};}};
  const dispatcher=new ParticipantDispatcher(e.store,{adapter});try{await dispatcher.tick();await dispatcher.retry(e.room.id,e.delivery.id);const d=e.store.db.prepare('SELECT state,blocked_reason FROM deliveries WHERE id=?').get(e.delivery.id);assert.equal(d.state,'unknown');assert.equal(d.blocked_reason,'awaiting_turn');assert.equal(calls,2);}finally{e.store.db.close();}
 });
+
+test('a native local failure before receipt preparation returns the original request to queued',async()=>{
+ const e=setup(),adapter={async preflight(){return {ok:true};},async send(){throw Error('official operation generator unavailable');}};
+ const dispatcher=new ParticipantDispatcher(e.store,{adapter});try{const result=(await dispatcher.tick())[0];assert.equal(result.state,'queued');assert.equal(e.store.db.prepare('SELECT state FROM deliveries WHERE id=?').get(e.delivery.id).state,'queued');assert.equal(e.store.db.prepare('SELECT unresolved_delivery_id FROM writers WHERE session_id=?').get(e.session.id).unresolved_delivery_id,null);assert.equal(e.store.db.prepare('SELECT count(*) n FROM participant_dispatches').get().n,0);}finally{e.store.db.close();}
+});
+
+test('an old unknown observation without a durable receipt remains unknown and writer-held',async()=>{
+ const e=setup(),adapter={async send(){return {ok:false,reasonCode:'native_receipt_incomplete',reason:'native_receipt_incomplete'};}};const dispatcher=new ParticipantDispatcher(e.store,{adapter});
+ try{const row=dispatcher.eligible()[0],claim=e.store.claim(row.id),attempt=e.store.fence(row.id,claim.fence),record=dispatcher.persist(row,attempt,row.request_id,'legacy prompt','');dispatcher.record(row,record,'unknown','legacy unknown');const result=await dispatcher.observe(row,record);assert.equal(result.state,'unknown');assert.equal(e.store.db.prepare('SELECT state FROM deliveries WHERE id=?').get(row.id).state,'unknown');assert.equal(e.store.db.prepare('SELECT unresolved_delivery_id FROM writers WHERE session_id=?').get(e.session.id).unresolved_delivery_id,row.id);}finally{e.store.db.close();}
+});
