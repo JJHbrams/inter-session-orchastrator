@@ -5,9 +5,10 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {fork} from 'node:child_process';
-import {ClaudeSessionLease} from '../adapters/claude/session-lease.js';
+import {ClaudeSessionLease,createProcessInspector} from '../adapters/claude/session-lease.js';
 
 const fixture=async state=>{const root=await mkdtemp(join(tmpdir(),'claude-lease-')),inspector={async self(){return {pid:1,start:'self'};},async inspect(pid){return state.get(pid);}};return {root,inspector,lease:new ClaudeSessionLease({root,processInspector:inspector})};};
+test('default inspector returns a stable self identity and definitive dead PID',async()=>{const inspector=createProcessInspector(),self=await inspector.self(),same=await inspector.inspect(process.pid);assert.equal(same.pid,self.pid);assert.equal(same.start,self.start);assert.equal(await inspector.inspect(2147483647),null);await assert.rejects(()=>inspector.inspect(0));});
 test('a live acquired owner blocks a second lease',async()=>{const state=new Map([[1,{pid:1,start:'self'}]]),f=await fixture(state),first=await f.lease.acquire('same'),second=await f.lease.acquire('same');assert.ok(first.token);assert.equal(second.reasonCode,'session_lease_held');});
 test('empty and malformed lock directories fail closed',async()=>{for(const value of ['', '{bad']){const state=new Map(),f=await fixture(state),path=f.lease.path('same');await mkdir(path);if(value)await writeFile(join(path,'lease.json'),value);const result=await f.lease.acquire('same');assert.equal(result.reasonCode,'session_lease_held');}});
 test('a PID-reused acquired owner is safely reclaimed while launching remains held',async()=>{const state=new Map([[9,{pid:9,start:'new'}]]),f=await fixture(state),path=f.lease.path('same');await mkdir(path);await writeFile(join(path,'lease.json'),JSON.stringify({sessionId:'same',token:'old',phase:'acquired',owner:{pid:9,start:'old'}}));const fresh=await f.lease.acquire('same');assert.ok(fresh.token);await f.lease.update(fresh,{phase:'launching'});state.delete(1);const held=await f.lease.acquire('same');assert.equal(held.reasonCode,'session_lease_held');});

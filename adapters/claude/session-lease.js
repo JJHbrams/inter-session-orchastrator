@@ -1,7 +1,8 @@
 import {createHash,randomUUID} from 'node:crypto';
-import {execFileSync} from 'node:child_process';
+import {execFile} from 'node:child_process';
 import {homedir} from 'node:os';
 import {mkdir,readFile,rename,rm,writeFile} from 'node:fs/promises';
+import {promisify} from 'node:util';
 import {join,resolve,relative} from 'node:path';
 
 const digest=value=>createHash('sha256').update(String(value)).digest('hex');
@@ -9,10 +10,10 @@ const inside=(root,path)=>{const r=relative(resolve(root),resolve(path));return 
 const read=async path=>JSON.parse(await readFile(path,'utf8'));
 const atomic=async(path,value)=>{const temp=`${path}.${randomUUID()}.tmp`;await writeFile(temp,JSON.stringify(value),{flag:'wx'});await rename(temp,path);};
 
-export function createProcessInspector(){
- const command=(file,args)=>execFileSync(file,args,{encoding:'utf8',windowsHide:true}).trim();
- const start=pid=>{if(process.platform==='win32')return command('powershell.exe',['-NoProfile','-NonInteractive','-Command',`(Get-Process -Id ${Number(pid)} -ErrorAction Stop).StartTime.ToFileTimeUtc()`]);try{return command('ps',['-o','lstart=','-p',String(pid)]);}catch{return command('cat',[`/proc/${Number(pid)}/stat`]).split(' ')[21];}};
- return {async self(){return {pid:process.pid,start:String(start(process.pid))};},async inspect(pid){if(!Number.isInteger(Number(pid))||Number(pid)<1)return null;try{return {pid:Number(pid),start:String(start(pid))};}catch(error){const text=String(error?.stderr||error?.message||'');if(/no such process|not found|cannot find/i.test(text))return null;throw error;}}};
+export function createProcessInspector({run=promisify(execFile)}={}){
+ const powershell=pid=>run('powershell.exe',['-NoProfile','-NonInteractive','-Command',`try{$p=[System.Diagnostics.Process]::GetProcessById(${Number(pid)});try{[pscustomobject]@{pid=$p.Id;start=$p.StartTime.ToFileTimeUtc().ToString()}|ConvertTo-Json -Compress}catch{[pscustomobject]@{unknown=$true}|ConvertTo-Json -Compress}}catch [System.ArgumentException]{'{"alive":false}'}catch{[pscustomobject]@{unknown=$true}|ConvertTo-Json -Compress}`],{encoding:'utf8',windowsHide:true,shell:false,timeout:5000,maxBuffer:16384});
+ const probe=async pid=>{if(!Number.isInteger(Number(pid))||Number(pid)<1)throw Error('invalid process identity');if(process.platform==='win32'){const {stdout}=await powershell(pid),value=JSON.parse(stdout.trim());if(value.alive===false)return null;if(value.unknown||!value.start)throw Error('process identity unavailable');return {pid:Number(value.pid),start:String(value.start)};}try{const stat=await readFile(`/proc/${Number(pid)}/stat`,'utf8'),tail=stat.slice(stat.lastIndexOf(')')+2).trim().split(/\s+/),start=tail[19];if(!start)throw Error('process identity unavailable');return {pid:Number(pid),start:String(start)};}catch(error){if(error?.code==='ENOENT')return null;throw error;}};
+ return {async self(){const value=await probe(process.pid);if(!value?.start)throw Error('self process identity unavailable');return value;},async inspect(pid){return probe(pid);}};
 }
 
 export class ClaudeSessionLease {
