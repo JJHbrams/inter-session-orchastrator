@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
+import {createHash} from 'node:crypto';
 import { id, hashPayload, identityKey, MODES, REACTION_EMOJIS, REACTION_MEANINGS, requireText, exactIdentity, parseAliases, mentionSpans, resolveMentionTargets, normalizeChairSettings } from '../../packages/contracts/index.js';
 import { decodeBase64, safeFilename, imageMimeFor, attachmentDigest, textSnippet, MAX_ATTACHMENTS_PER_MESSAGE, MAX_STAGED_ATTACHMENTS_PER_ROOM } from '../../packages/contracts/attachments.js';
 import { participantEvidence, evidenceFilename } from '../../packages/contracts/participant-evidence.js';
@@ -90,13 +91,15 @@ export class Store {
     this.db.prepare('UPDATE bindings SET active=0 WHERE session_id=? AND active=1').run(s.id);const b={id:id(),session_id:s.id,mode:input.mode,ownership:input.ownership||'borrowed',handle:input.handle||null,incarnation:input.incarnation||null,capabilities:JSON.stringify(input.capabilities||{}),policy_revision:input.policyRevision||null,verified_at:input.verified?now():null,blocked_reason:input.verified?null:'discovered metadata only',active:1}; this.db.prepare('INSERT INTO bindings VALUES(?,?,?,?,?,?,?,?,?,?,?)').run(...Object.values(b)); return {session:s,binding:b}; }); }
   migrateClaudeDirect(verified,{automaticInput=false}={}) { return this.tx(()=>{
     if(!verified?.verified||verified.provider!=='claude'||verified.capabilities?.transport!=='claude-direct'||verified.mode!=='resume')throw Error('verified Claude direct binding required');
-    const session=this.db.prepare('SELECT * FROM sessions WHERE identity_key=?').get(identityKey(verified));
+    let session=this.db.prepare('SELECT * FROM sessions WHERE identity_key=?').get(identityKey(verified));
+    if(!session){const matches=this.db.prepare('SELECT * FROM sessions WHERE provider=? AND native_id=? AND cwd=? AND profile=?').all('claude',verified.nativeId,verified.cwd,verified.profile);if(matches.length>1)throw Error('ambiguous existing Claude session identity');session=matches[0]||null;}
     if(!session)return this.registerSession({...verified,capabilities:{...verified.capabilities,automaticInput}});
     const prior=this.db.prepare('SELECT * FROM bindings WHERE session_id=? AND active=1').get(session.id);
+    if(JSON.parse(prior?.capabilities||'{}').transport==='claude-direct')return {session,binding:prior};
     const active=this.db.prepare(`SELECT 1 FROM writers WHERE session_id=? AND unresolved_delivery_id IS NOT NULL`).get(session.id)||this.db.prepare('SELECT 1 FROM session_controls WHERE session_id=?').get(session.id)||this.db.prepare(`SELECT 1 FROM deliveries d JOIN memberships m ON m.id=d.membership_id WHERE m.session_id=? AND (d.state IN ('claimed','submitting','accepted','running','unknown') OR (d.state='queued' AND (EXISTS(SELECT 1 FROM attempts a WHERE a.delivery_id=d.id) OR EXISTS(SELECT 1 FROM participant_dispatches p WHERE p.delivery_id=d.id))))`).get(session.id);
     if(active)throw Error('existing Claude delivery requires reconciliation before direct migration');
     const queued=this.db.prepare(`SELECT d.id,m.room_id FROM deliveries d JOIN memberships m ON m.id=d.membership_id WHERE m.session_id=? AND d.state='queued' AND NOT EXISTS(SELECT 1 FROM attempts a WHERE a.delivery_id=d.id) AND NOT EXISTS(SELECT 1 FROM participant_dispatches p WHERE p.delivery_id=d.id)`).all(session.id);
-    const result=this.registerSession({...verified,capabilities:{...verified.capabilities,automaticInput},policyRevision:prior?.policy_revision||verified.policyRevision||null});
+    const result=this.registerSession({...verified,host:session.host,capabilities:{...verified.capabilities,automaticInput},policyRevision:prior?.policy_revision||verified.policyRevision||null});
     if(result.session.id!==session.id)throw Error('direct migration must preserve the original session');
     for(const delivery of queued)this.db.prepare('UPDATE deliveries SET binding_id=?,policy_revision=?,blocked_reason=NULL WHERE id=?').run(result.binding.id,result.binding.policy_revision,delivery.id);
     for(const room of this.db.prepare('SELECT room_id FROM memberships WHERE session_id=? AND left_at IS NULL').all(session.id))this.event(room.room_id,'session.claude-direct',{sessionId:session.id,previousBindingId:prior?.id||null,bindingId:result.binding.id});
@@ -187,8 +190,9 @@ export class Store {
       const caps = JSON.parse(b.capabilities||'{}'), saved = JSON.parse(record.receipt_json||'null');
       const direct=caps.transport==='claude-direct';
       if((!direct&&caps.transport!=='orca-native-chat')||!receipt||!saved||
-        (direct&&(!receipt.transport||receipt.transport!=='claude-direct'||receipt.requestId!==d.request_id||saved.requestId!==d.request_id||receipt.operationId!==saved.operationId||!receipt.operationId||receipt.nativeId!==d.native_id||receipt.cwd!==d.cwd||saved.nativeId!==d.native_id||saved.cwd!==d.cwd||receipt.payloadFingerprint!==saved.payloadFingerprint||receipt.leaseToken!==saved.leaseToken||!receipt.leaseToken||!reply?.turnId||!Array.isArray(reply.itemIds)||!reply.itemIds.length||reply.itemIds.some(x=>typeof x!=='string'||!x)||typeof reply.body!=='string'||!reply.body.trim()))||
+        (direct&&(!receipt.transport||receipt.transport!=='claude-direct'||saved.transport!=='claude-direct'||b.mode!=='resume'||b.handle!==d.native_id||receipt.requestId!==d.request_id||saved.requestId!==d.request_id||receipt.operationId!==saved.operationId||!receipt.operationId||reply?.turnId!==receipt.operationId||receipt.nativeId!==d.native_id||receipt.cwd!==d.cwd||saved.nativeId!==d.native_id||saved.cwd!==d.cwd||receipt.payloadFingerprint!==saved.payloadFingerprint||receipt.payloadFingerprint!==createHash('sha256').update(record.prompt).digest('hex')||receipt.leaseToken!==saved.leaseToken||!receipt.leaseToken||!reply?.turnId||!Array.isArray(reply.itemIds)||!reply.itemIds.length||reply.itemIds.some(x=>typeof x!=='string'||!x)||typeof reply.body!=='string'||!reply.body.trim()))||
         (!direct&&(
+        b.mode!=='live_attach'||
         receipt.requestId!==d.request_id||saved.requestId!==d.request_id||saved.clientOperationId!==receipt.clientOperationId||
         (saved.submissionClientMessageId!=null&&saved.submissionClientMessageId!==receipt.submissionClientMessageId)||
         !/^\d{13}-[0-9a-f]{32}$/.test(receipt.clientOperationId||'')||

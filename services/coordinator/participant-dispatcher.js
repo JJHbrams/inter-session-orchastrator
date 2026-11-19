@@ -125,7 +125,7 @@ export class ParticipantDispatcher {
     if (!readiness.ok){this.store.db.prepare("UPDATE deliveries SET blocked_reason=? WHERE id=? AND state='queued'").run(readiness.reason,row.id);return { deliveryId: row.id, state: 'skipped', message: readiness.reason };}
     if(this.debates?.reactive&&!this.debates.reactive.canStartParticipant(row.message_id))return {deliveryId:row.id,state:'skipped',message:'안건의 동시 응답 한도를 기다리고 있어.'};
     let configPath;
-    try { configPath = nativeChat(row) ? '' : this.config(row); } catch (error) { return { deliveryId: row.id, state: 'skipped', message: error.message }; }
+    try { configPath = nativeChat(row)||claudeDirect(row) ? '' : this.config(row); } catch (error) { return { deliveryId: row.id, state: 'skipped', message: error.message }; }
     const hostRequestId = row.request_id;
     const prompt = this.prompt(row, configPath, hostRequestId);
     let claim, attempt;
@@ -196,7 +196,7 @@ export class ParticipantDispatcher {
     if(result.notRecorded){
       this.store.db.prepare('INSERT OR IGNORE INTO native_dispatch_refusals VALUES(?,?,?,?,?,?)').run(record.attempt_id,row.id,result.receipt?.clientOperationId||null,JSON.stringify(result.receipt||{}),result.reason||'native operation was not recorded',now());
       const cleared=this.notSent(row,record,result.reason||'native operation was refused before recording',{confirmedNotRecorded:true});
-      if(result.legacyInvalidId)return cleared;
+      if(claudeDirect(row)||result.legacyInvalidId)return cleared;
       this.store.db.prepare("UPDATE deliveries SET state='blocked' WHERE id=? AND state='queued'").run(row.id);
       return {...cleared,state:'blocked'};
     }
