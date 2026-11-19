@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import {PassThrough} from 'node:stream';
-import {mkdtemp,mkdir,writeFile,readFile} from 'node:fs/promises';
+import {mkdtemp,mkdir,writeFile,readFile,utimes} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {randomUUID} from 'node:crypto';
@@ -52,6 +52,11 @@ test('native registry holds idle owners and fails closed for live malformed meta
  assert.equal((await guard.check({nativeId:id,cwd:config})).ok,true);
  await writeFile(file,'');
  assert.equal((await guard.check({nativeId:id,cwd:config})).reasonCode,'native_owner_unverified');
+ if(process.platform==='win32') {
+  const now=Date.now();processes.set(10,{pid:10,start:String(BigInt(now)*10000n+116444736000000000n)});
+  await utimes(file,new Date(now-86400000),new Date(now-86400000));
+  assert.equal((await guard.check({nativeId:id,cwd:config})).ok,true,'an old malformed record cannot own a PID started a day later');
+ }
  processes.clear();assert.equal((await guard.check({nativeId:id,cwd:config})).ok,true);
  const missing=createClaudeOwnershipGuard({configDirectory:join(config,'missing'),processInspector:{async inspect(){return null;}}});
  assert.equal((await missing.check({nativeId:id,cwd:config})).reasonCode,'native_owner_unverified');
