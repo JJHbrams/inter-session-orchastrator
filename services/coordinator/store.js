@@ -59,7 +59,7 @@ export class Store {
   restoreChannel(channelId){return this.tx(()=>{const channel=this.db.prepare('SELECT * FROM channels WHERE id=?').get(channelId);if(!channel)throw Error('channel not found');if(channel.archived_at)this.db.prepare('UPDATE channels SET archived_at=NULL WHERE id=?').run(channelId);const restored=this.db.prepare('SELECT * FROM channels WHERE id=?').get(channelId);this.event(null,'channel.restored',{channelId});return restored;});}
   createRoom(name,channelId=null,cwd=null) { requireText(name, 'name', 120); return this.tx(() => { if(channelId){const channel=this.db.prepare('SELECT * FROM channels WHERE id=?').get(channelId);if(!channel)throw Error('channel not found');if(channel.archived_at)throw Error('channel is archived');}const room = { id:id(), name:name.trim(), created_at:now(),channel_id:channelId,cwd }; this.db.prepare('INSERT INTO rooms(id,name,archived_at,created_at,channel_id,cwd) VALUES(?,?,NULL,?,?,?)').run(room.id,room.name,room.created_at,channelId,cwd); this.event(room.id,'room.created',room); return room; }); }
   setWorkspace(roomId,cwd){const r=this.db.prepare('UPDATE rooms SET cwd=? WHERE id=? AND archived_at IS NULL').run(cwd,roomId);if(!r.changes)throw Error('room unavailable');this.event(roomId,'room.workspace',{cwd});return this.room(roomId);}
-  setAutomation(roomId,sessionId,enabled){if(typeof enabled!=='boolean')throw Error('enabled must be boolean');return this.tx(()=>{const m=this.db.prepare('SELECT * FROM memberships WHERE room_id=? AND session_id=? AND left_at IS NULL AND read_only=0').get(roomId,sessionId),b=this.db.prepare('SELECT * FROM bindings WHERE session_id=? AND active=1').get(sessionId);if(!m||!b||b.mode!=='live_attach'||!b.handle||!b.incarnation||!b.verified_at)throw Error('정확히 연결된 쓰기 가능한 세션이 필요해.');if(this.chair(roomId)?.session_id===sessionId)throw Error('좌장은 별도 자동 전달 경로를 사용해.');const caps=JSON.parse(b.capabilities);caps.automaticInput=enabled;caps.wake=enabled;this.db.prepare('UPDATE bindings SET capabilities=? WHERE id=?').run(JSON.stringify(caps),b.id);this.event(roomId,'session.automation',{sessionId,enabled});return {enabled};});}
+  setAutomation(roomId,sessionId,enabled){if(typeof enabled!=='boolean')throw Error('enabled must be boolean');return this.tx(()=>{const m=this.db.prepare('SELECT * FROM memberships WHERE room_id=? AND session_id=? AND left_at IS NULL AND read_only=0').get(roomId,sessionId),b=this.db.prepare('SELECT * FROM bindings WHERE session_id=? AND active=1').get(sessionId),caps=b&&JSON.parse(b.capabilities||'{}'),direct=caps?.transport==='claude-direct';if(!m||!b||(!direct&&b.mode!=='live_attach')||!b.handle||!b.incarnation||!b.verified_at)throw Error('정확히 연결된 쓰기 가능한 세션이 필요해.');if(this.chair(roomId)?.session_id===sessionId)throw Error('좌장은 별도 자동 전달 경로를 사용해.');caps.automaticInput=enabled;caps.wake=enabled;this.db.prepare('UPDATE bindings SET capabilities=? WHERE id=?').run(JSON.stringify(caps),b.id);this.event(roomId,'session.automation',{sessionId,enabled});return {enabled};});}
   renameRoom(roomId,name){requireText(name,'name',120);return this.tx(()=>{const r=this.db.prepare('UPDATE rooms SET name=? WHERE id=?').run(name.trim(),roomId);if(!r.changes)throw Error('room not found');const room=this.db.prepare('SELECT * FROM rooms WHERE id=?').get(roomId);this.event(roomId,'room.renamed',{name:room.name});return room;});}
   limits(roomId,requestBudget,roundBudget){for(const n of [requestBudget,roundBudget])if(!Number.isInteger(n)||n<1||n>100)throw Error('limits must be integers from 1 to 100');const r=this.db.prepare('UPDATE rooms SET request_budget=?,round_budget=? WHERE id=? AND archived_at IS NULL').run(requestBudget,roundBudget,roomId);if(!r.changes)throw Error('room unavailable');}
   rooms() { return this.db.prepare('SELECT * FROM rooms ORDER BY created_at DESC').all(); }
@@ -88,6 +88,20 @@ export class Store {
   registerSession(input) { exactIdentity(input); if (!MODES.includes(input.mode)) throw new Error('invalid connection mode'); if (input.mode !== 'read_only' && !input.verified) throw new Error('automatic input requires verified registration'); return this.tx(()=> { const key=identityKey(input); let s=this.db.prepare('SELECT * FROM sessions WHERE identity_key=?').get(key); if(!s){const candidates=this.db.prepare('SELECT * FROM sessions WHERE native_id=? AND profile=?').all(input.nativeId,input.profile).filter(x=>identityKey({provider:x.provider,host:x.host,nativeId:x.native_id,cwd:x.cwd,profile:x.profile})===key);if(candidates.length>1)throw Error('ambiguous registered session identity');if(candidates.length===1){s=candidates[0];this.db.prepare('UPDATE sessions SET identity_key=? WHERE id=?').run(key,s.id);}} if(!s){const used=new Set(this.db.prepare('SELECT alias FROM sessions').all().map(x=>x.alias).filter(Boolean));const p=personaFor(used.size,used);s={id:id(),identity_key:key,provider:input.provider,host:input.host,native_id:input.nativeId,cwd:input.cwd,profile:input.profile,display_name:input.displayName||null,...p,created_at:now()};this.db.prepare('INSERT INTO sessions(id,identity_key,provider,host,native_id,cwd,profile,display_name,alias,avatar,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)').run(...Object.values(s));}
     if(input.mode==='read_only'){const active=this.db.prepare('SELECT * FROM bindings WHERE session_id=? AND active=1 AND verified_at IS NOT NULL').get(s.id);if(active)return {session:s,binding:active};}
     this.db.prepare('UPDATE bindings SET active=0 WHERE session_id=? AND active=1').run(s.id);const b={id:id(),session_id:s.id,mode:input.mode,ownership:input.ownership||'borrowed',handle:input.handle||null,incarnation:input.incarnation||null,capabilities:JSON.stringify(input.capabilities||{}),policy_revision:input.policyRevision||null,verified_at:input.verified?now():null,blocked_reason:input.verified?null:'discovered metadata only',active:1}; this.db.prepare('INSERT INTO bindings VALUES(?,?,?,?,?,?,?,?,?,?,?)').run(...Object.values(b)); return {session:s,binding:b}; }); }
+  migrateClaudeDirect(verified,{automaticInput=false}={}) { return this.tx(()=>{
+    if(!verified?.verified||verified.provider!=='claude'||verified.capabilities?.transport!=='claude-direct'||verified.mode!=='resume')throw Error('verified Claude direct binding required');
+    const session=this.db.prepare('SELECT * FROM sessions WHERE identity_key=?').get(identityKey(verified));
+    if(!session)return this.registerSession({...verified,capabilities:{...verified.capabilities,automaticInput}});
+    const prior=this.db.prepare('SELECT * FROM bindings WHERE session_id=? AND active=1').get(session.id);
+    const active=this.db.prepare(`SELECT 1 FROM writers WHERE session_id=? AND unresolved_delivery_id IS NOT NULL`).get(session.id)||this.db.prepare('SELECT 1 FROM session_controls WHERE session_id=?').get(session.id)||this.db.prepare(`SELECT 1 FROM deliveries d JOIN memberships m ON m.id=d.membership_id WHERE m.session_id=? AND (d.state IN ('claimed','submitting','accepted','running','unknown') OR (d.state='queued' AND (EXISTS(SELECT 1 FROM attempts a WHERE a.delivery_id=d.id) OR EXISTS(SELECT 1 FROM participant_dispatches p WHERE p.delivery_id=d.id))))`).get(session.id);
+    if(active)throw Error('existing Claude delivery requires reconciliation before direct migration');
+    const queued=this.db.prepare(`SELECT d.id,m.room_id FROM deliveries d JOIN memberships m ON m.id=d.membership_id WHERE m.session_id=? AND d.state='queued' AND NOT EXISTS(SELECT 1 FROM attempts a WHERE a.delivery_id=d.id) AND NOT EXISTS(SELECT 1 FROM participant_dispatches p WHERE p.delivery_id=d.id)`).all(session.id);
+    const result=this.registerSession({...verified,capabilities:{...verified.capabilities,automaticInput},policyRevision:prior?.policy_revision||verified.policyRevision||null});
+    if(result.session.id!==session.id)throw Error('direct migration must preserve the original session');
+    for(const delivery of queued)this.db.prepare('UPDATE deliveries SET binding_id=?,policy_revision=?,blocked_reason=NULL WHERE id=?').run(result.binding.id,result.binding.policy_revision,delivery.id);
+    for(const room of this.db.prepare('SELECT room_id FROM memberships WHERE session_id=? AND left_at IS NULL').all(session.id))this.event(room.room_id,'session.claude-direct',{sessionId:session.id,previousBindingId:prior?.id||null,bindingId:result.binding.id});
+    return result;
+  }); }
   recordParticipantMetadata(sessionId,expectedBinding,observation){return this.tx(()=>{
     const binding=this.db.prepare('SELECT * FROM bindings WHERE id=? AND session_id=? AND active=1').get(expectedBinding?.id,sessionId),session=this.db.prepare('SELECT * FROM sessions WHERE id=?').get(sessionId);
     if(!binding||!session||binding.handle!==expectedBinding.handle||binding.incarnation!==expectedBinding.incarnation||session.provider!==expectedBinding.provider||session.native_id!==expectedBinding.nativeId||session.cwd!==expectedBinding.cwd)return {saved:false,reasonCode:'identity_changed'};
@@ -162,16 +176,19 @@ export class Store {
   // or externally supplied transcript is accepted as proof of a participant reply.
   replyFromAdapter(deliveryId, attemptId, { bindingId, incarnation, receipt, reply } = {}) {
     return this.tx(() => {
-      const d = this.db.prepare(`SELECT d.*,m.room_id,mb.session_id,mb.left_at,mb.read_only,s.native_id
+      const d = this.db.prepare(`SELECT d.*,m.room_id,mb.session_id,mb.left_at,mb.read_only,s.native_id,s.cwd
         FROM deliveries d JOIN messages m ON m.id=d.message_id JOIN memberships mb ON mb.id=d.membership_id
         JOIN sessions s ON s.id=mb.session_id WHERE d.id=?`).get(deliveryId);
       const b = d && this.db.prepare('SELECT * FROM bindings WHERE id=? AND session_id=? AND active=1').get(bindingId,d.session_id);
       const a = this.db.prepare('SELECT * FROM attempts WHERE id=? AND delivery_id=?').get(attemptId,deliveryId);
       const record = this.db.prepare('SELECT * FROM participant_dispatches WHERE delivery_id=? AND attempt_id=?').get(deliveryId,attemptId);
-      if(!d||d.left_at||d.read_only||!b||b.id!==d.binding_id||b.incarnation!==incarnation||b.policy_revision!==d.policy_revision||!b.verified_at||b.mode!=='live_attach'||!a||a.request_id!==d.request_id||!record)
+      if(!d||d.left_at||d.read_only||!b||b.id!==d.binding_id||b.incarnation!==incarnation||b.policy_revision!==d.policy_revision||!b.verified_at||!a||a.request_id!==d.request_id||!record)
         throw Error('stale native reply binding or attempt');
       const caps = JSON.parse(b.capabilities||'{}'), saved = JSON.parse(record.receipt_json||'null');
-      if(caps.transport!=='orca-native-chat'||!receipt||!saved||
+      const direct=caps.transport==='claude-direct';
+      if((!direct&&caps.transport!=='orca-native-chat')||!receipt||!saved||
+        (direct&&(!receipt.transport||receipt.transport!=='claude-direct'||receipt.requestId!==d.request_id||saved.requestId!==d.request_id||receipt.operationId!==saved.operationId||!receipt.operationId||receipt.nativeId!==d.native_id||receipt.cwd!==d.cwd||saved.nativeId!==d.native_id||saved.cwd!==d.cwd||receipt.payloadFingerprint!==saved.payloadFingerprint||receipt.leaseToken!==saved.leaseToken||!receipt.leaseToken||!reply?.turnId||!Array.isArray(reply.itemIds)||!reply.itemIds.length||reply.itemIds.some(x=>typeof x!=='string'||!x)||typeof reply.body!=='string'||!reply.body.trim()))||
+        (!direct&&(
         receipt.requestId!==d.request_id||saved.requestId!==d.request_id||saved.clientOperationId!==receipt.clientOperationId||
         (saved.submissionClientMessageId!=null&&saved.submissionClientMessageId!==receipt.submissionClientMessageId)||
         !/^\d{13}-[0-9a-f]{32}$/.test(receipt.clientOperationId||'')||
@@ -180,7 +197,7 @@ export class Store {
         !receipt.payloadFingerprint||saved.payloadFingerprint!==receipt.payloadFingerprint||
         (saved.bodyPayloadFingerprint!=null&&saved.bodyPayloadFingerprint!==receipt.bodyPayloadFingerprint)||
         !reply?.turnId||!Array.isArray(reply.itemIds)||!reply.itemIds.length||reply.itemIds.some(x=>typeof x!=='string'||!x)||
-        typeof reply.body!=='string'||!reply.body.trim()) throw Error('uncorrelated native reply');
+        typeof reply.body!=='string'||!reply.body.trim()))) throw Error('uncorrelated native reply');
       const fullBody=reply.body.trim(), long=fullBody.length>8000;
       const body=long?`${fullBody.slice(0,7400)}\n\n… 전체 세션 답변은 첨부에 보존했어.`:fullBody;
       const old = this.db.prepare('SELECT * FROM messages WHERE reply_request_id=?').get(d.request_id);
@@ -190,7 +207,7 @@ export class Store {
       const attachmentIds=long?[this.uploadAttachment(d.room_id,{filename:'native-session-answer.md',mime:'text/markdown',base64:Buffer.from(fullBody).toString('base64'),requestKey:`native-reply:${d.request_id}`},d.session_id).id]:[];
       const response = this.post({roomId:d.room_id,senderSessionId:d.session_id,body,attachmentIds,kind:'post',replyTo:d.message_id,targets:[],allowArchivedReply:true});
       this.db.prepare("UPDATE messages SET reply_request_id=?,provenance='native_session' WHERE id=?").run(d.request_id,response.message.id);
-      this.evidence(attemptId,'reply','orca-native-chat',JSON.stringify({requestId:d.request_id,operationId:receipt.clientOperationId,turnId:reply.turnId,itemIds:reply.itemIds}));
+      this.evidence(attemptId,'reply',direct?'claude-direct':'orca-native-chat',JSON.stringify({requestId:d.request_id,operationId:direct?receipt.operationId:receipt.clientOperationId,turnId:reply.turnId,itemIds:reply.itemIds}));
       this.event(d.room_id,'native.reply',{requestId:d.request_id,turnId:reply.turnId,messageId:response.message.id});
       return this.snapshot(response.message.id);
     });

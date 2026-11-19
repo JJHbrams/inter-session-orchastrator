@@ -7,6 +7,9 @@ const reasons={
   screen_unavailable:'세션 화면을 확인할 수 없어 전달하지 않았어요. 원래 세션 연결을 다시 확인해요.',
   composer_unverified:'입력창이 비어 있는지 확인할 수 없어 전달하지 않았어요. 원래 세션에서 입력창을 확인한 뒤 다시 시도해요.',
   native_receipt_incomplete:'기존 요청의 전송 식별 정보가 불완전해 결과를 확인할 수 없어요. 원래 세션 이력을 확인한 뒤 별도로 판단해줘.'
+  ,external_owner:'원래 Claude 세션을 다른 작업이 사용 중이야. 그 작업이 끝날 때까지 새 요청을 보내지 않고 기다려.'
+  ,owner_unverified:'원래 Claude 세션의 실행 소유권을 확인하지 못해 요청을 보류했어.'
+  ,lease_held:'같은 Claude 대화에 이미 요청이 진행 중이야. 중복 실행하지 않고 결과를 기다려.'
 };
 
 export function deliveryReason(value){
