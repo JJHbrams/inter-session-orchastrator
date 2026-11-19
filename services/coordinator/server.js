@@ -44,10 +44,11 @@ function fail(res,e){const status=['CONFLICT','ACTIVE_CHILD_ROOMS','PROVIDER_IMM
 function nativeChatBinding(binding){try{return JSON.parse(binding?.capabilities||'{}').transport==='orca-native-chat';}catch{return false;}}
 function claudeDirectBinding(binding){try{return JSON.parse(binding?.capabilities||'{}').transport==='claude-direct';}catch{return false;}}
 function participantAdapterRouter(terminal,native,direct){
+ const directBinding=binding=>claudeDirectBinding(binding)?{...binding,nativeId:binding.native_id}:binding;
  const adapter=binding=>claudeDirectBinding(binding)?direct:nativeChatBinding(binding)?native:terminal;
  return {
-  preflight(binding,session,options={}){return adapter(binding).preflight(binding,session,options);},
-  send(binding,session,prompt,requestId,options={}){return adapter(binding).send(binding,session,prompt,requestId,options);},
+  preflight(binding,session,options={}){return adapter(binding).preflight(directBinding(binding),session,options);},
+  send(binding,session,prompt,requestId,options={}){return adapter(binding).send(directBinding(binding),session,prompt,requestId,options);},
   reconnect(binding,session){return nativeChatBinding(binding)&&native.reconnect?native.reconnect(binding,session):null;}
  };
 }

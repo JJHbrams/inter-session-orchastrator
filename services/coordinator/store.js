@@ -176,7 +176,7 @@ export class Store {
   // or externally supplied transcript is accepted as proof of a participant reply.
   replyFromAdapter(deliveryId, attemptId, { bindingId, incarnation, receipt, reply } = {}) {
     return this.tx(() => {
-      const d = this.db.prepare(`SELECT d.*,m.room_id,mb.session_id,mb.left_at,mb.read_only,s.native_id
+      const d = this.db.prepare(`SELECT d.*,m.room_id,mb.session_id,mb.left_at,mb.read_only,s.native_id,s.cwd
         FROM deliveries d JOIN messages m ON m.id=d.message_id JOIN memberships mb ON mb.id=d.membership_id
         JOIN sessions s ON s.id=mb.session_id WHERE d.id=?`).get(deliveryId);
       const b = d && this.db.prepare('SELECT * FROM bindings WHERE id=? AND session_id=? AND active=1').get(bindingId,d.session_id);
