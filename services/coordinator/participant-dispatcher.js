@@ -9,7 +9,9 @@ const now = () => new Date().toISOString();
 const helperPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../packages/mcp/participant.js');
 const hash = token => createHash('sha256').update(token).digest('hex');
 const nativeChat = row => { try { return JSON.parse(row.capabilities||'{}').transport==='orca-native-chat'; } catch { return false; } };
+const claudeDirect = row => { try { return JSON.parse(row.capabilities||'{}').transport==='claude-direct'; } catch { return false; } };
 const nativeReceiptCore=['requestId','clientOperationId','submissionClientMessageId','sessionId','nativeId','runtimeId','fence','payloadFingerprint','bodyPayloadFingerprint'];
+const directReceiptCore=['transport','requestId','operationId','nativeId','cwd','payloadFingerprint','leaseToken'];
 
 export class ParticipantDispatcher {
   constructor(store, { adapter, privateDir = '.local/participant-dispatch', baseUrl = 'http://127.0.0.1:4317' } = {}) {
@@ -60,7 +62,7 @@ export class ParticipantDispatcher {
   }
 
   prompt(row, configPath, hostRequestId) {
-    if(nativeChat(row)) return this.nativePrompt(row,hostRequestId);
+    if(nativeChat(row)||claudeDirect(row)) return this.nativePrompt(row,hostRequestId);
     return participantWakePrompt(configPath,hostRequestId,row.room_id,{provider:row.provider,nativeId:row.native_id});
   }
 
@@ -141,7 +143,7 @@ export class ParticipantDispatcher {
     catch(error){return this.notSent(row,record,error.message);}
     try {
       const result = await this.adapter.send(row, row, record.prompt, record.host_request_id, { confirmedComposer, completedPrompts:this.completedPrompts(row), receipt:JSON.parse(record.receipt_json||'null'), onPrepared:receipt=>{this.store.dispatchEligibility(row.id);this.persistReceipt(record,receipt);} });
-      if(nativeChat(row)) return this.nativeResult(row,record,{...result,initialSend:true});
+      if(nativeChat(row)||claudeDirect(row)) return this.nativeResult(row,record,{...result,initialSend:true});
       if (!result.ok){if(!result.receipt)return this.notSent(row,record,result.reason);return this.record(row,record,'unknown',result.reason,result.receipt);}
       const kind = result.stage === 'turn_started' ? 'turn_started' : 'host_receipt';
       this.store.evidence(record.attempt_id, kind, 'orca', record.host_request_id);
@@ -167,7 +169,7 @@ export class ParticipantDispatcher {
   async observe(row, record) {
     try {
       const result = await this.adapter.send(row, row, record.prompt, record.host_request_id, { observeOnly: true, receipt:JSON.parse(record.receipt_json||'null') });
-      if(nativeChat(row)) return this.nativeResult(row,record,result);
+      if(nativeChat(row)||claudeDirect(row)) return this.nativeResult(row,record,result);
       if (!result.ok) return this.record(row, record, 'unknown', result.reason, result.receipt);
       const kind = result.stage === 'turn_started' ? 'turn_started' : 'host_receipt';
       this.store.evidence(record.attempt_id, kind, 'orca', record.host_request_id);
@@ -179,11 +181,12 @@ export class ParticipantDispatcher {
     if(!receipt||typeof receipt!=='object')throw Error('native receipt is invalid');
     const row=this.store.db.prepare('SELECT receipt_json FROM participant_dispatches WHERE delivery_id=? AND attempt_id=?').get(record.delivery_id,record.attempt_id);
     const saved=JSON.parse(row?.receipt_json||'null');
-    if(saved){for(const key of nativeReceiptCore){if(saved[key]!=null&&receipt[key]!==saved[key])throw Error(`native receipt identity changed: ${key}`);}}
+    const keys=receipt.transport==='claude-direct'||saved?.transport==='claude-direct'?directReceiptCore:nativeReceiptCore;
+    if(saved){for(const key of keys){if(saved[key]!=null&&receipt[key]!==saved[key])throw Error(`native receipt identity changed: ${key}`);}}
     // The host client-message ID arrives only after admission. Older rows can
     // lack other fields too, so only fill gaps while retaining recorded values.
     const merged={...(saved||{}),...receipt};
-    for(const key of nativeReceiptCore)if(saved?.[key]!=null)merged[key]=saved[key];
+    for(const key of keys)if(saved?.[key]!=null)merged[key]=saved[key];
     this.store.db.prepare('UPDATE participant_dispatches SET receipt_json=?,updated_at=? WHERE delivery_id=? AND attempt_id=?').run(JSON.stringify(merged),now(),record.delivery_id,record.attempt_id);
     return merged;
   }
@@ -216,7 +219,7 @@ export class ParticipantDispatcher {
     }
     if(result.stage==='input_accepted'&&this.store.db.prepare('SELECT state FROM deliveries WHERE id=?').get(row.id)?.state==='unknown')return this.record(row,record,'unknown',result.receipt?.correlation||'awaiting_turn_reconciliation',result.receipt);
     const kind=result.stage==='turn_started'?'turn_started':'host_receipt';
-    this.store.evidence(record.attempt_id,kind,'orca-native-chat',record.host_request_id);
+    this.store.evidence(record.attempt_id,kind,claudeDirect(row)?'claude-direct':'orca-native-chat',record.host_request_id);
     return this.record(row,record,kind==='turn_started'?'running':'accepted',null,result.receipt);
   }
 
@@ -226,7 +229,7 @@ export class ParticipantDispatcher {
       FROM deliveries d JOIN messages m ON m.id=d.message_id JOIN memberships mb ON mb.id=d.membership_id
       JOIN sessions s ON s.id=mb.session_id JOIN bindings b ON b.id=d.binding_id
       JOIN participant_dispatches p ON p.delivery_id=d.id
-      WHERE d.state IN ('submitting','accepted','running','unknown') AND b.active=1 AND mb.left_at IS NULL AND mb.read_only=0`).all().filter(nativeChat);
+      WHERE d.state IN ('submitting','accepted','running','unknown') AND b.active=1 AND mb.left_at IS NULL AND mb.read_only=0`).all().filter(row=>nativeChat(row)||claudeDirect(row));
   }
 
   record(row, record, status, error = null, receipt = null) {
@@ -276,7 +279,7 @@ export class ParticipantDispatcher {
     if (row.state === 'completed') return { deliveryId, state: 'completed', message: 'authenticated reply already received; no duplicate send' };
     this.store.dispatchEligibility(deliveryId);if(!JSON.parse(row.capabilities||'{}').automaticInput)throw Error('자동 전달 연결이 꺼져 있어.');
     const observed = await this.observe(row, record);
-    if(nativeChat(row))return observed;
+    if(nativeChat(row)||claudeDirect(row))return observed;
     if (!['accepted', 'running'].includes(observed.state)) return observed;
     const prior = this.store.db.prepare('SELECT * FROM participant_recoveries WHERE delivery_id=?').get(deliveryId);
     if (prior&&(!['accepted','running'].includes(prior.status)||Date.now()-Date.parse(prior.created_at)<30000))return this.recover(row,record,prior);
