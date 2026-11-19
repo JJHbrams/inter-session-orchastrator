@@ -49,7 +49,11 @@ async function defaultCallFactory({ clientFactory, resolveExecutable }) {
 }
 async function defaultMutationFactory(resolveExecutable,moduleLoader=require) {
   const bin=await resolveExecutable(),official=moduleLoader(installedModule(bin,['shared','agent-session','requests','structured-agent-session-send-mutation.js'])).structuredAgentSessionMessageSendMutation;
-  const {createStructuredAgentSessionOperationId}=moduleLoader(installedModule(bin,['shared','agent-session','lifecycle','structured-agent-session-mutation.js']));
+  let createStructuredAgentSessionOperationId,lastError;
+  for(const parts of [['shared','agent-session','lifecycle','structured-agent-session-mutation.js'],['shared','agent-session','lifecycle','operations','structured-agent-session-mutation.js']]){
+    const path=installedModule(bin,parts);try{({createStructuredAgentSessionOperationId}=moduleLoader(path));break;}catch(error){const firstLine=String(error.message||'').split(/\r?\n/,1)[0];if(error?.code!=='MODULE_NOT_FOUND'||![`Cannot find module '${path}'`,`Cannot find module ${path}`].includes(firstLine))throw error;lastError=error;}
+  }
+  if(typeof createStructuredAgentSessionOperationId!=='function')throw lastError||Error('Orca structured operation generator is unavailable');
   const builder=input=>official(input);builder.createOperationId=()=>createStructuredAgentSessionOperationId(randomUUID);return builder;
 }
 function findTab(snapshots, provider, cwd, handle = null) {
@@ -155,15 +159,22 @@ export function createOrcaNativeChatAdapter({ call: givenCall = null, mutation: 
   }
   async function observe(bindingInput, session, requestId, previousReceipt = null) {
     if(!nativeBindingSnapshot(bindingInput))return fail('identity_changed');
-    const checked = await verify({...bindingInput,incarnation:null}); if (!checked.verified || checked.provider !== session?.provider||checked.capabilities.nativeChat.runtimeId!==nativeRuntimeFor(bindingInput)) return checked.verified ? fail('identity_changed') : checked;
+    if(!previousReceipt)return {ok:false,stage:'unknown',reasonCode:'native_receipt_incomplete',reason:'native_receipt_incomplete',receipt:null};
+    const beforeStatus=await rpc('status.get');
+    if(!supportsNativeChat(beforeStatus))return fail('identity_changed');
+    const checked = await verify({...bindingInput,incarnation:null}); if (!checked.verified || checked.provider !== session?.provider) return checked.verified ? fail('identity_changed') : checked;
     // The legacy adapter sent the room UUID as the native operation ID. Orca's
     // admission ledger rejects this exact shape before any write (verified against
     // the installed ledger and its actual operationIdInvalid refusal).
     if(previousReceipt?.clientOperationId===requestId&&/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(requestId))return {ok:false,notRecorded:true,legacyInvalidId:true,reason:'Orca rejected the legacy UUID operation before admission',receipt:{...previousReceipt,requestId,refusal:{code:'agent_session_operation_invalid',details:{reason:'operationIdInvalid'}},dispatchOutcome:'not-recorded'}};
+    if(!previousReceipt.clientOperationId||!previousReceipt.payloadFingerprint)return {ok:false,stage:'unknown',reasonCode:'native_receipt_incomplete',reason:'native_receipt_incomplete',receipt:{...previousReceipt,correlation:'native_receipt_incomplete'}};
     const receipt=previousReceipt||receiptFor(bindingInput,checked.capabilities.nativeChat.runtimeId,checked.capabilities.nativeChat.fence,requestId);
     const detail = await allHistory(bindingInput.handle,requestId,receipt);
+    const afterStatus=await rpc('status.get');
+    if(!supportsNativeChat(afterStatus)||afterStatus.runtimeId!==beforeStatus.runtimeId)return fail('identity_changed','native host restarted during observation');
     if(detail.providerSession?.id!==nativeOf(bindingInput)||detail.page.sessionId!==bindingInput.handle)return fail('identity_changed');
     const result=correlated(detail?.page, requestId, receipt, detail.incomplete);
+    result.receipt={...result.receipt,observedRuntimeId:afterStatus.runtimeId};
     if(!result.ok&&detail.incompleteReason)result.receipt={...result.receipt,correlation:detail.incompleteReason};
     return result;
   }

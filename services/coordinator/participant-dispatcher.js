@@ -141,12 +141,15 @@ export class ParticipantDispatcher {
     catch(error){return this.notSent(row,record,error.message);}
     try {
       const result = await this.adapter.send(row, row, record.prompt, record.host_request_id, { confirmedComposer, completedPrompts:this.completedPrompts(row), receipt:JSON.parse(record.receipt_json||'null'), onPrepared:receipt=>{this.store.dispatchEligibility(row.id);this.persistReceipt(record,receipt);} });
-      if(nativeChat(row)) return this.nativeResult(row,record,result);
+      if(nativeChat(row)) return this.nativeResult(row,record,{...result,initialSend:true});
       if (!result.ok){if(!result.receipt)return this.notSent(row,record,result.reason);return this.record(row,record,'unknown',result.reason,result.receipt);}
       const kind = result.stage === 'turn_started' ? 'turn_started' : 'host_receipt';
       this.store.evidence(record.attempt_id, kind, 'orca', record.host_request_id);
       return this.record(row, record, kind === 'turn_started' ? 'running' : 'accepted', null, result.receipt);
-    } catch (error) { return this.record(row, record, 'unknown', error.message, error.receipt); }
+    } catch (error) {
+      if(nativeChat(row)){let saved;try{saved=JSON.parse(this.store.db.prepare('SELECT receipt_json FROM participant_dispatches WHERE delivery_id=?').get(row.id)?.receipt_json||'null');}catch{}if(!saved?.clientOperationId||!saved?.payloadFingerprint)return this.notSent(row,record,error.message);}
+      return this.record(row, record, 'unknown', error.message, error.receipt);
+    }
   }
 
   notSent(row,record,reason,{confirmedNotRecorded=false}={}){
@@ -196,7 +199,7 @@ export class ParticipantDispatcher {
     }
     if(!result.ok) {
       const saved=this.store.db.prepare('SELECT receipt_json FROM participant_dispatches WHERE delivery_id=?').get(row.id);
-      if(!result.receipt&&!saved?.receipt_json&&record.status==='prepared')return this.notSent(row,record,result.reason||'native preflight refused');
+      if(result.initialSend&&!result.receipt&&!saved?.receipt_json&&record.status==='prepared')return this.notSent(row,record,result.reason||'native preflight refused');
       return this.record(row,record,'unknown',result.reason||result.receipt?.correlation||result.reasonCode||'native result requires reconciliation',result.receipt);
     }
     if(result.reply) {

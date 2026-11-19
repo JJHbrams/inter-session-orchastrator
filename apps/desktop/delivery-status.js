@@ -5,7 +5,8 @@ const reasons={
   busy_idle_unverified:'세션이 대기 상태인지 확인되지 않아 전달하지 않았어요. 작업이 끝난 뒤 다시 확인해요.',
   identity_changed:'확인했던 세션 연결이 바뀌어 전달하지 않았어요. 원래 세션 연결을 다시 확인해요.',
   screen_unavailable:'세션 화면을 확인할 수 없어 전달하지 않았어요. 원래 세션 연결을 다시 확인해요.',
-  composer_unverified:'입력창이 비어 있는지 확인할 수 없어 전달하지 않았어요. 원래 세션에서 입력창을 확인한 뒤 다시 시도해요.'
+  composer_unverified:'입력창이 비어 있는지 확인할 수 없어 전달하지 않았어요. 원래 세션에서 입력창을 확인한 뒤 다시 시도해요.',
+  native_receipt_incomplete:'기존 요청의 전송 식별 정보가 불완전해 결과를 확인할 수 없어요. 원래 세션 이력을 확인한 뒤 별도로 판단해줘.'
 };
 
 export function deliveryReason(value){
