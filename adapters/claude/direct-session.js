@@ -183,7 +183,16 @@ export function createClaudeSessionAdapter({
     catch { return refusal('journal_result_unknown',{receipt}); }
     if (!matchesReceipt(receipt,journal.receipt)) return fail('direct_receipt_changed','Claude 전송 근거가 원래 요청과 달라.',{receipt});
     if (journal.status === 'completed' && journal.closeCode === 0 && journal.confirmedSessionId === nativeId(session) &&
-        journal.reply?.body?.trim()) return {ok:true,stage:'reply',receipt:journal.receipt,reply:journal.reply};
+        journal.reply?.body?.trim()) {
+      // A coordinator may die between saving the closed result and releasing its lease.
+      // Reap only a proven completed operation whose recorded owner and child both exited.
+      try {
+        await leases.reconcileCompleted?.(nativeId(session).toLowerCase(),{
+          token:receipt.leaseToken,operationId:receipt.operationId,child:journal.child
+        });
+      } catch {} // Unverifiable ownership remains held; never turn it into permission to resend.
+      return {ok:true,stage:'reply',receipt:journal.receipt,reply:journal.reply};
+    }
     if (journal.status === 'not_recorded') return {ok:false,notRecorded:true,receipt:journal.receipt,reason:journal.reason || 'Claude 입력 전에 실행이 중단됐어.'};
     if (['accepted','running'].includes(journal.status)) {
       let actual;

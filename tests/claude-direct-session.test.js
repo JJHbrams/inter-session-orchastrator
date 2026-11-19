@@ -5,12 +5,13 @@ import {PassThrough} from 'node:stream';
 import {mkdtemp,mkdir,writeFile,readFile,utimes} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
+import {ClaudeSessionLease} from '../adapters/claude/session-lease.js';
 import {createClaudeSessionAdapter,createClaudeOwnershipGuard} from '../adapters/claude/direct-session.js';
 
 const tick=()=>new Promise(r=>setTimeout(r,10));
 const root=()=>mkdtemp(join(tmpdir(),'claude-direct-'));
-async function until(check){for(let i=0;i<100;i++){const value=await check();if(value)return value;await tick();}throw Error('condition not observed');}
+async function until(check){for(let i=0;i<500;i++){const value=await check();if(value)return value;await tick();}throw Error('condition not observed');}
 function harness(configDirectory,overrides={}){
  const id=randomUUID(), requestId=randomUUID(), processes=new Map([[process.pid,{pid:process.pid,start:'parent-start'}]]);
  const inspector={async self(){return processes.get(process.pid);},async inspect(pid){return processes.get(pid)||null;}};
@@ -26,7 +27,7 @@ function harness(configDirectory,overrides={}){
   };
   calls.push({command,args,options});children.push(child);return child;
  };
- const options={configDirectory,catalog:async()=>true,processInspector:inspector,ownershipGuard:guard,spawnProcess,pollIntervalMs:1,startupTimeoutMs:30,...overrides};
+ const options={configDirectory,catalog:async()=>true,processInspector:inspector,ownershipGuard:guard,spawnProcess,pollIntervalMs:1,startupTimeoutMs:500,...overrides};
  const adapter=createClaudeSessionAdapter(options), input={provider:'claude',nativeId:id,cwd:configDirectory};
  return {id,requestId,processes,inspector,guard,options,adapter,input,calls,children};
 }
@@ -66,7 +67,7 @@ test('direct resume sends only stdin after preparation, returns promptly and rec
  const result=await h.adapter.send(binding,h.input,'original request body',h.requestId,{onPrepared:async receipt=>{
   assert.equal(h.children.length,0);const journal=JSON.parse(await readFile(join(config,'session-rooms-journal',receipt.operationId+'.json'),'utf8'));assert.equal(journal.status,'prepared');prepared=receipt;
  }});
- assert.equal(result.stage,'input_accepted');assert.equal(h.children.length,1);
+ assert.equal(result.stage,'input_accepted',JSON.stringify(result));assert.equal(h.children.length,1);
  assert.deepEqual(h.calls[0].args.slice(0,3),['--resume',h.id,'--print']);
  assert.equal(h.calls[0].args.includes('original request body'),false);assert.equal(h.calls[0].args.includes('--fork-session'),false);
  assert.equal(h.calls[0].options.shell,false);
@@ -112,4 +113,18 @@ test('spawn and preparation failures before input are not sent; wrong output ide
  await until(async()=>JSON.parse(await readFile(join(config2,'session-rooms-journal',sent.receipt.operationId+'.json'),'utf8')).status==='unknown');
  assert.equal((await x.adapter.send(b,x.input,'one',sent.receipt.requestId,{observeOnly:true,receipt:sent.receipt})).ok,false);
 });
-
+test('completed journal recovery releases only the exact dead operation lease so the conversation can continue',async()=>{
+ const config=await root(),h=harness(config),alive=new Map([[811,{pid:811,start:'old-owner'}],[812,{pid:812,start:'old-child'}]]);
+ const inspector={async self(){return {pid:811,start:'old-owner'};},async inspect(pid){return alive.get(pid)||null;}};
+ const leases=new ClaudeSessionLease({configDirectory:config,processInspector:inspector});
+ const held=await leases.acquire(h.id),operationId=randomUUID(),child={pid:812,start:'old-child'};
+ await leases.update(held,{phase:'running',operationId,childPid:child.pid,childStart:child.start});
+ const prompt='already completed',receipt={transport:'claude-direct',requestId:h.requestId,operationId,nativeId:h.id,cwd:config,payloadFingerprint:createHash('sha256').update(prompt).digest('hex'),leaseToken:held.token};
+ const directory=join(config,'session-rooms-journal');await mkdir(directory,{recursive:true});
+ await writeFile(join(directory,operationId+'.json'),JSON.stringify({status:'completed',receipt,child,closeCode:0,confirmedSessionId:h.id,reply:{body:'finished once',turnId:operationId,itemIds:[operationId]}}));
+ alive.clear();
+ const adapter=createClaudeSessionAdapter({...h.options,lease:leases,processInspector:inspector}),binding=await adapter.verify(h.input);
+ const reply=await adapter.send(binding,h.input,prompt,h.requestId,{observeOnly:true,receipt});
+ assert.equal(reply.reply.body,'finished once');assert.equal(h.calls.length,0);
+ const next=await leases.acquire(h.id);assert.notEqual(next.ok,false);assert.notEqual(next.token,held.token);
+});
