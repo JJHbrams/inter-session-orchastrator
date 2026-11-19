@@ -39,7 +39,7 @@ test('server reserves native registration for verification endpoint and routes n
  assert.match(source,/\/api\/sessions\/native-chat/);
  assert.match(source,/nativeChatAdapter\.verify\(\{provider:b\.provider,nativeId:b\.nativeId,cwd:b\.cwd,handle:b\.handle\|\|null,incarnation:b\.incarnation\|\|null\}\)/);
  assert.match(source,/native chat invitations must use \/api\/sessions\/native-chat/);
- assert.match(source,/nativeChatBinding\(binding\)\?native:terminal/);
+ assert.match(source,/claudeDirectBinding\(binding\)\?direct:nativeChatBinding\(binding\)\?native:terminal/);
  assert.match(source,/automaticInput:b\.automaticInput===true/);
  const app=await readFile(new URL('../apps/desktop/app.js',import.meta.url),'utf8');
  assert.match(app,/\{\.\.\.nativeChat,automaticInput:autoRow\.input\.checked\}/);
