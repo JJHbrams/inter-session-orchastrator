@@ -277,7 +277,7 @@ export function createClaudeSessionAdapter({
       delete env.CLAUDECODE;
       child = spawnProcess(command,[
         '--resume',nativeId(binding),'--print','--input-format','stream-json',
-        '--output-format','stream-json','--verbose','--permission-mode','manual','--permission-prompts','none'
+        '--output-format','stream-json','--verbose','--permission-prompts','none'
       ],{cwd:binding.cwd,env,windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
       jobs.set(operationId,{child,finished});
       child.stdout.setEncoding('utf8');
@@ -360,4 +360,3 @@ export function createClaudeSessionAdapter({
   }
   return {verify,preflight,send,observe:(binding,session,prompt,requestId,options={})=>send(binding,session,prompt,requestId,{...options,observeOnly:true})};
 }
-

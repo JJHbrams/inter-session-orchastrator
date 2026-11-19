@@ -21,7 +21,7 @@ async function fixture(t){
 
 test('Claude direct endpoint verifies official bindings, migrates only unattempted queued work, and routes without Orca',async t=>{
  const f=await fixture(t),old=f.runtime.store.registerSession({...identity,mode:'live_attach',ownership:'borrowed',handle:'orca-handle',incarnation:'orca:1',verified:true,policyRevision:'kept-policy',capabilities:{transport:'orca-native-chat',automaticInput:false,followup:true}}),room=f.runtime.store.createRoom('Direct Claude'),member=f.runtime.store.join(room.id,old.session.id,false),delivery=f.runtime.store.post({roomId:room.id,body:'Continue original work',kind:'followup',targets:[member.id]}).deliveries[0];
- assert.equal((await fetch(f.baseUrl+'api/sessions/catalog?provider=claude',{headers:f.headers})).status,200);assert.equal(f.calls.some(x=>x[0]==='orca-discover'),false);
+ assert.equal((await fetch(f.baseUrl+'api/sessions/catalog?provider=claude',{headers:f.headers})).status,200);assert.equal(f.calls.some(x=>x[0]==='orca-discover'),false);assert.equal((await fetch(f.baseUrl+'api/sessions/catalog',{headers:f.headers})).status,200);assert.equal(f.calls.some(x=>x[0]==='orca-discover'),false);
  assert.equal((await f.post('api/sessions',{...identity,mode:'resume',verified:true,capabilities:{transport:'claude-direct'}})).status,400);
  assert.equal((await f.post('api/sessions/claude-direct',{...identity,provider:'codex'})).status,400);
  const response=await f.post('api/sessions/claude-direct',{...identity,automaticInput:false}),registered=await response.json();
