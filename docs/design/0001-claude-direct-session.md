@@ -2,7 +2,7 @@
 id: 0001-claude-direct-session
 title: Claude session direct resume
 tier: L
-status: approved
+status: done
 issue: 1
 owner: jhjang
 created: 2026-11-19
@@ -146,9 +146,9 @@ erDiagram
 ## 9. 변경 지점
 
 | 파일 | 변경 |
+|---|---|
 | `adapters/claude/atomic-file.js` | 일시적인 파일 교체 잠금에 한정한 atomic 상태 저장 |
 | `tests/claude-atomic-file.test.js` | 일시/지속 교체 실패와 이전 상태 보존 검증 |
-|---|---|
 | `adapters/claude/direct-session.js` | 직접 Claude resume, native registry 검사, durable journal |
 | `adapters/claude/session-lease.js` | 전역 원자적 lease와 PID 시작 identity 검사 |
 | `services/coordinator/store.js` | 동일 세션의 안전한 direct 전환 및 trusted reply 검증 |
@@ -175,16 +175,16 @@ erDiagram
 - [x] 1. direct adapter와 전역 lease, 실제 owner 읽기 검증 (AC-1, AC-2, AC-3, AC-4)
 - [x] 2. Store/dispatcher/server 직접 경로와 안전한 기존 세션 migration (AC-1, AC-4, AC-5)
 - [x] 3. 초대/API/상태 표시와 통합 검증 (AC-6)
-- [ ] 4. 실제 격리 Claude 재개 및 기존 설치본 보존 배포 검증 (AC-1, AC-3, AC-5, AC-7)
+- [x] 4. 실제 격리 Claude 재개 및 기존 설치본 보존 배포 검증 (AC-1, AC-3, AC-5, AC-7)
 
 ## 12. 추적성
 
 | AC | 구현 커밋 | 테스트 | 위험 항목 |
 |---|---|---|---|
-| AC-1 | 구현 후 기록 | direct adapter/real resume | 잘못된 ID 및 fork |
-| AC-2 | 구현 후 기록 | cross-process lease | 동시 시작 |
-| AC-3 | 구현 후 기록 | registry/PID checks | 외부 owner 및 PID 재사용 |
-| AC-4 | 구현 후 기록 | journal restart | 중복 실행 |
-| AC-5 | 구현 후 기록 | migration matrix | 기존 작업 손실 |
-| AC-6 | 구현 후 기록 | HTTP/renderer | 상태 오표시 |
-| AC-7 | 구현 후 기록 | official release pipeline | 이미지/UI 손실 |
+| AC-1 | 954aa0c, 5880423 | adapter + 실제 같은 ID HTTP 재개 | 잘못된 ID 및 fork |
+| AC-2 | 491fe70, 8030221 | 실제 Node 2개 잠금 경쟁 | 동시 시작 |
+| AC-3 | 6aec920, 109643d | native registry + 실제 PID 시작 시각 | 외부 owner 및 PID 재사용 |
+| AC-4 | db28e9b, 78128a9, 8030221, 0030c8f | persistent restart + completed lease + atomic 상태 검증 | 중복 실행 및 완료 후 잔여 잠금 |
+| AC-5 | 35c7094 | migration matrix + 실제 DB 복사본/설치 전후 해시 | 기존 작업 손실 |
+| AC-6 | 9783779, 5880423 | HTTP + JSDOM + 실제 브라우저 초대/상세 | 상태 오표시 |
+| AC-7 | local release 1.6.0 | web 578, Electron 47, packaged smoke, 설치 후 실제 API/리소스 대조 | 이미지/UI 손실 |
