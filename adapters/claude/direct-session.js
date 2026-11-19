@@ -18,6 +18,14 @@ const reasons = {
   journal_result_unknown:'이 Claude 요청의 실행 결과가 아직 확인되지 않았어. 같은 작업을 다시 보내지 않아.'
 };
 const refusal = (code, extra={}) => fail(code, reasons[code] || code, extra);
+const predatesProcess = (info, actual) => {
+  if (!info || !actual) return false;
+  let started = actual.startMs;
+  if (started == null && process.platform === 'win32' && /^[0-9]{17,20}$/.test(String(actual.start || ''))) {
+    started = Number((BigInt(actual.start) - 116444736000000000n) / 10000n);
+  }
+  return Number.isFinite(started) && info.mtimeMs + 2000 < started;
+};
 const readJson = async path => JSON.parse(await readFile(path, 'utf8'));
 async function atomicJson(path, value) {
   const temp = path + '.' + randomUUID() + '.tmp';
@@ -81,18 +89,18 @@ export function createClaudeOwnershipGuard({configDirectory, processInspector}) 
     try { entries = await rows(); } catch { return refusal('native_owner_unverified'); }
     for (const entry of entries) {
       const pid = Number(entry.name.slice(0,-5));
-      let row;
+      let row, info;
       try {
-        const info = await stat(join(registryDirectory,entry.name));
+        info = await stat(join(registryDirectory,entry.name));
         if (info.size > 131072) throw Error('registry record too large');
         row = await readJson(join(registryDirectory,entry.name));
       } catch {
-        try { if (await processInspector.inspect(pid)) return refusal('native_owner_unverified'); }
+        try { const actual = await processInspector.inspect(pid); if (actual && !predatesProcess(info,actual)) return refusal('native_owner_unverified'); }
         catch { return refusal('native_owner_unverified'); }
         continue;
       }
       if (!row || Number(row.pid) !== pid || typeof row.sessionId !== 'string') {
-        try { if (await processInspector.inspect(pid)) return refusal('native_owner_unverified'); }
+        try { const actual = await processInspector.inspect(pid); if (actual && !predatesProcess(info,actual)) return refusal('native_owner_unverified'); }
         catch { return refusal('native_owner_unverified'); }
         continue;
       }
@@ -269,7 +277,7 @@ export function createClaudeSessionAdapter({
       delete env.CLAUDECODE;
       child = spawnProcess(command,[
         '--resume',nativeId(binding),'--print','--input-format','stream-json',
-        '--output-format','stream-json','--verbose','--permission-mode','manual','--permission-prompts','none'
+        '--output-format','stream-json','--verbose','--permission-prompts','none'
       ],{cwd:binding.cwd,env,windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
       jobs.set(operationId,{child,finished});
       child.stdout.setEncoding('utf8');
@@ -352,4 +360,3 @@ export function createClaudeSessionAdapter({
   }
   return {verify,preflight,send,observe:(binding,session,prompt,requestId,options={})=>send(binding,session,prompt,requestId,{...options,observeOnly:true})};
 }
-

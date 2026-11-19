@@ -149,7 +149,7 @@ export class ParticipantDispatcher {
       this.store.evidence(record.attempt_id, kind, 'orca', record.host_request_id);
       return this.record(row, record, kind === 'turn_started' ? 'running' : 'accepted', null, result.receipt);
     } catch (error) {
-      if(nativeChat(row)){let saved;try{saved=JSON.parse(this.store.db.prepare('SELECT receipt_json FROM participant_dispatches WHERE delivery_id=?').get(row.id)?.receipt_json||'null');}catch{}if(!saved?.clientOperationId||!saved?.payloadFingerprint)return this.notSent(row,record,error.message);}
+      if(nativeChat(row)||claudeDirect(row)){let saved;try{saved=JSON.parse(this.store.db.prepare('SELECT receipt_json FROM participant_dispatches WHERE delivery_id=?').get(row.id)?.receipt_json||'null');}catch{}if(!(claudeDirect(row)?saved?.operationId:saved?.clientOperationId)||!saved?.payloadFingerprint)return this.notSent(row,record,error.message);}
       return this.record(row, record, 'unknown', error.message, error.receipt);
     }
   }
@@ -194,7 +194,7 @@ export class ParticipantDispatcher {
   nativeResult(row,record,result) {
     if(result.receipt) result={...result,receipt:this.persistReceipt(record,result.receipt)};
     if(result.notRecorded){
-      this.store.db.prepare('INSERT OR IGNORE INTO native_dispatch_refusals VALUES(?,?,?,?,?,?)').run(record.attempt_id,row.id,result.receipt?.clientOperationId||null,JSON.stringify(result.receipt||{}),result.reason||'native operation was not recorded',now());
+      this.store.db.prepare('INSERT OR IGNORE INTO native_dispatch_refusals VALUES(?,?,?,?,?,?)').run(record.attempt_id,row.id,result.receipt?.operationId||result.receipt?.clientOperationId||null,JSON.stringify(result.receipt||{}),result.reason||'native operation was not recorded',now());
       const cleared=this.notSent(row,record,result.reason||'native operation was refused before recording',{confirmedNotRecorded:true});
       if(claudeDirect(row)||result.legacyInvalidId)return cleared;
       this.store.db.prepare("UPDATE deliveries SET state='blocked' WHERE id=? AND state='queued'").run(row.id);

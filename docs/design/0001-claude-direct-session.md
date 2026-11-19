@@ -145,15 +145,15 @@ erDiagram
 
 | 파일 | 변경 |
 |---|---|
-| `adapters/claude/direct-session.js` (신규) | 직접 Claude resume, native registry 검사, durable journal |
-| `adapters/claude/session-lease.js` (신규) | 전역 원자적 lease와 PID 시작 identity 검사 |
+| `adapters/claude/direct-session.js` | 직접 Claude resume, native registry 검사, durable journal |
+| `adapters/claude/session-lease.js` | 전역 원자적 lease와 PID 시작 identity 검사 |
 | `services/coordinator/store.js` | 동일 세션의 안전한 direct 전환 및 trusted reply 검증 |
 | `services/coordinator/participant-dispatcher.js` | direct 전송/관찰 분리, 기존 prompt/권한 보존 |
 | `services/coordinator/server.js` | direct 기본 routing, 초대/카탈로그/자동 전환 |
 | `apps/desktop/app.js` | Claude ID 직접 초대 |
 | `apps/desktop/delivery-status.js` | 점유 및 보류 이유 표시 |
-| `tests/claude-direct-session.test.js` (신규) | adapter/lease 경계 검증 |
-| `tests/claude-direct-runtime.test.js` (신규) | Store/HTTP migration 및 요청 회수 검증 |
+| `tests/claude-direct-session.test.js` | adapter/lease 경계 검증 |
+| `tests/claude-direct-runtime.test.js` | Store/HTTP migration 및 요청 회수 검증 |
 
 ## 10. 잠재 문제 & 대응
 
@@ -168,9 +168,9 @@ erDiagram
 
 ## 11. 착수 순서
 
-- [ ] 1. direct adapter와 전역 lease, 실제 owner 읽기 검증 (AC-1, AC-2, AC-3, AC-4)
-- [ ] 2. Store/dispatcher/server 직접 경로와 안전한 기존 세션 migration (AC-1, AC-4, AC-5)
-- [ ] 3. 초대/API/상태 표시와 통합 검증 (AC-6)
+- [x] 1. direct adapter와 전역 lease, 실제 owner 읽기 검증 (AC-1, AC-2, AC-3, AC-4)
+- [x] 2. Store/dispatcher/server 직접 경로와 안전한 기존 세션 migration (AC-1, AC-4, AC-5)
+- [x] 3. 초대/API/상태 표시와 통합 검증 (AC-6)
 - [ ] 4. 실제 격리 Claude 재개 및 기존 설치본 보존 배포 검증 (AC-1, AC-3, AC-5, AC-7)
 
 ## 12. 추적성
@@ -184,4 +184,3 @@ erDiagram
 | AC-5 | 구현 후 기록 | migration matrix | 기존 작업 손실 |
 | AC-6 | 구현 후 기록 | HTTP/renderer | 상태 오표시 |
 | AC-7 | 구현 후 기록 | official release pipeline | 이미지/UI 손실 |
-
