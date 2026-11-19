@@ -44,6 +44,8 @@ created: 2026-11-19
 | Windows 시작 시각 | 실제 registry procStart가 Get-Process.StartTime.ToFileTimeUtc()와 정확히 같았다. DateTime.Ticks와는 epoch가 다르다. | PID 재사용 검사는 Windows FILETIME 정수 문자열을 사용한다. |
 | 기존 상태 | Store writer와 participant_dispatches가 전송 불명 요청을 보존한다. | 레거시 active/unknown을 자동 migration/resend하지 않는다. |
 
+공식 빌드의 상태 파일 교체에서 Windows EPERM을 관찰했다. 같은 임시 파일의 atomic rename만 최대 8회 짧게 재시도하고, 지속 오류는 원래 파일을 보존한 채 중단한다. Claude 요청 재전송은 하지 않는다. 새 단위 검증 2건을 포함해 상태/잠금/재시작 20건을 통과했다. (직접 측정, 2026-11-19)
+
 ## 4. 유스케이스 / 시나리오
 
 ```mermaid
@@ -144,6 +146,8 @@ erDiagram
 ## 9. 변경 지점
 
 | 파일 | 변경 |
+| `adapters/claude/atomic-file.js` | 일시적인 파일 교체 잠금에 한정한 atomic 상태 저장 |
+| `tests/claude-atomic-file.test.js` | 일시/지속 교체 실패와 이전 상태 보존 검증 |
 |---|---|
 | `adapters/claude/direct-session.js` | 직접 Claude resume, native registry 검사, durable journal |
 | `adapters/claude/session-lease.js` | 전역 원자적 lease와 PID 시작 identity 검사 |

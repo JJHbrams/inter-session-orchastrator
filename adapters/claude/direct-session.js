@@ -1,5 +1,6 @@
+import {writeAtomicJson} from './atomic-file.js';
 import {createHash, randomUUID} from 'node:crypto';
-import {open, readFile, readdir, stat, mkdir, writeFile, rename} from 'node:fs/promises';
+import {open, readFile, readdir, stat, mkdir} from 'node:fs/promises';
 import {homedir} from 'node:os';
 import {join, resolve, isAbsolute} from 'node:path';
 import {spawn} from 'node:child_process';
@@ -27,11 +28,7 @@ const predatesProcess = (info, actual) => {
   return Number.isFinite(started) && info.mtimeMs + 2000 < started;
 };
 const readJson = async path => JSON.parse(await readFile(path, 'utf8'));
-async function atomicJson(path, value) {
-  const temp = path + '.' + randomUUID() + '.tmp';
-  await writeFile(temp, JSON.stringify(value), {flag:'wx', mode:0o600});
-  await rename(temp, path);
-}
+const atomicJson = writeAtomicJson;
 const delay = ms => new Promise(done => setTimeout(done, ms));
 const core = ['transport','requestId','operationId','nativeId','cwd','payloadFingerprint','leaseToken'];
 const matchesReceipt = (left,right) => core.every(key => typeof left?.[key] === 'string' && left[key] === right?.[key]);

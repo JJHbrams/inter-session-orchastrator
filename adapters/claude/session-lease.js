@@ -1,14 +1,15 @@
+import {writeAtomicJson} from './atomic-file.js';
 import {createHash,randomUUID} from 'node:crypto';
 import {execFile} from 'node:child_process';
 import {homedir} from 'node:os';
-import {mkdir,readFile,rename,rm,writeFile} from 'node:fs/promises';
+import {mkdir,readFile,rename,rm} from 'node:fs/promises';
 import {promisify} from 'node:util';
 import {join,resolve,relative} from 'node:path';
 
 const digest=value=>createHash('sha256').update(String(value)).digest('hex');
 const inside=(root,path)=>{const r=relative(resolve(root),resolve(path));return r!==''&&!r.startsWith('..')&&!r.includes(':');};
 const read=async path=>JSON.parse(await readFile(path,'utf8'));
-const atomic=async(path,value)=>{const temp=`${path}.${randomUUID()}.tmp`;await writeFile(temp,JSON.stringify(value),{flag:'wx'});await rename(temp,path);};
+const atomic=writeAtomicJson;
 
 export function createProcessInspector({run=promisify(execFile)}={}){
  const powershell=pid=>run('powershell.exe',['-NoProfile','-NonInteractive','-Command',`try{$p=[System.Diagnostics.Process]::GetProcessById(${Number(pid)});try{[pscustomobject]@{pid=$p.Id;start=$p.StartTime.ToFileTimeUtc().ToString()}|ConvertTo-Json -Compress}catch{[pscustomobject]@{unknown=$true}|ConvertTo-Json -Compress}}catch [System.ArgumentException]{'{"alive":false}'}catch{[pscustomobject]@{unknown=$true}|ConvertTo-Json -Compress}`],{encoding:'utf8',windowsHide:true,shell:false,timeout:5000,maxBuffer:16384});
